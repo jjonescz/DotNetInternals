@@ -1,8 +1,23 @@
 ﻿@page "/"
-@using RazorInternals.Compiler
 
 <PageTitle>Home</PageTitle>
 
 <h1>Hello, world!</h1>
 
 Welcome to your new app.
+
+<textarea @bind="text" class="d-block"></textarea>
+
+<button type="button" class="btn btn-primary" @onclick="Compile">Compile</button>
+
+<pre>@compiled</pre>
+
+@code {
+    private string text = "";
+    private string compiled = "";
+
+    private void Compile()
+    {
+        compiled = RazorCompiler.Compile(text);
+    }
+}
