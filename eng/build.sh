@@ -4,3 +4,4 @@ chmod +x dotnet-install.sh
 ./dotnet-install.sh --jsonfile global.json --install-dir ./dotnet
 ./dotnet/dotnet --version
 ./dotnet/dotnet publish -o output src/RazorInternals
+rm output/wwwroot/_framework/*.wasm
