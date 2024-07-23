@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RazorInternals", "RazorInternals.csproj", "{74E1E8BB-A84F-49C9-B9CA-C4CA63E0A5C1}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RazorInternals", "src\RazorInternals\RazorInternals.csproj", "{FCA5EE33-745E-4DF5-A250-04D5260AD806}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,9 +16,12 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{74E1E8BB-A84F-49C9-B9CA-C4CA63E0A5C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{74E1E8BB-A84F-49C9-B9CA-C4CA63E0A5C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{74E1E8BB-A84F-49C9-B9CA-C4CA63E0A5C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{74E1E8BB-A84F-49C9-B9CA-C4CA63E0A5C1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCA5EE33-745E-4DF5-A250-04D5260AD806}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCA5EE33-745E-4DF5-A250-04D5260AD806}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCA5EE33-745E-4DF5-A250-04D5260AD806}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCA5EE33-745E-4DF5-A250-04D5260AD806}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FCA5EE33-745E-4DF5-A250-04D5260AD806} = {CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}
 	EndGlobalSection
 EndGlobal
