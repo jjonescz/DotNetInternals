@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Razor;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
 using Roslyn.Test.Utilities;
 
-namespace RazorInternals;
+namespace DotNetInternals.RazorAccess;
 
 public static class RazorCompiler
 {

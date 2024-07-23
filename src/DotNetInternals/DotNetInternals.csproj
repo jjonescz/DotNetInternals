@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Accessors\Accessors.csproj" />
+    <ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
   </ItemGroup>
 
 </Project>

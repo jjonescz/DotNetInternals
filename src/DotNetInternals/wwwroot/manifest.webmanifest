@@ -1,6 +1,6 @@
 {
-  "name": "RazorInternals",
-  "short_name": "RazorInternals",
+  "name": "DotNetInternals",
+  "short_name": "DotNetInternals",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

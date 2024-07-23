@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Microsoft.CodeAnalysis.Razor.Test</AssemblyName>
-    <RootNamespace>RazorInternals</RootNamespace>
+    <RootNamespace>DotNetInternals.RazorAccess</RootNamespace>
     <KeyOriginatorFile>$(PkgMicrosoft_DotNet_Arcade_Sdk)\tools\snk\AspNetCore.snk</KeyOriginatorFile>
   </PropertyGroup>
 

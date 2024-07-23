@@ -5,9 +5,9 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RazorInternals", "src\RazorInternals\RazorInternals.csproj", "{FCA5EE33-745E-4DF5-A250-04D5260AD806}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetInternals", "src\DotNetInternals\DotNetInternals.csproj", "{FCA5EE33-745E-4DF5-A250-04D5260AD806}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Accessors", "src\Accessors\Accessors.csproj", "{E3B85FCE-4793-4C91-916B-0D3199EEC20B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Accessors", "src\RazorAccess\RazorAccess.csproj", "{E3B85FCE-4793-4C91-916B-0D3199EEC20B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
