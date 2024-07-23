@@ -2,15 +2,11 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<textarea @bind="text" class="form-control mb-2" placeholder="Razor code" style="min-height: 25vh"></textarea>
 
-Welcome to your new app.
+<button type="button" class="btn btn-primary mb-2" @onclick="Compile">Compile</button>
 
-<textarea @bind="text" class="d-block"></textarea>
-
-<button type="button" class="btn btn-primary" @onclick="Compile">Compile</button>
-
-<pre>@compiled</pre>
+<textarea @bind="compiled" class="form-control" readonly placeholder="C# code" style="min-height: 25vh"></textarea>
 
 @code {
     private string text = "";
