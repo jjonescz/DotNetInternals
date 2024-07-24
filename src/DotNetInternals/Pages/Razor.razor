@@ -50,14 +50,15 @@
     </div>
 
     @* Input / output text areas *@
+    @{
+        var textAreaClass = $"form-control h-100 {(wordWrap ? "" : "no-wrap")}";
+    }
     <div class="row g-2 flex-grow-1">
         <div class="col-12 col-md">
-            <textarea @bind="text" class="form-control h-100" placeholder="Razor code"
-                      style="resize: none; white-space: @WhiteSpaceStyle"></textarea>
+            <textarea @bind="text" class="@textAreaClass" placeholder="Razor code" spellcheck="false"></textarea>
         </div>
         <div class="col-12 col-md">
-            <textarea @bind="output" class="form-control h-100" readonly placeholder="C# code"
-                      style="resize: none; white-space: @WhiteSpaceStyle"></textarea>
+            <textarea @bind="output" class="@textAreaClass" readonly placeholder="C# code" spellcheck="false"></textarea>
         </div>
     </div>
 </div>
@@ -78,8 +79,6 @@
             UpdateOutput();
         }
     }
-
-    private string WhiteSpaceStyle => wordWrap ? "revert" : "pre";
 
     private void Compile()
     {

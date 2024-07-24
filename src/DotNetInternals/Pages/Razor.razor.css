@@ -1,0 +1,8 @@
+﻿textarea {
+    resize: none;
+    font-family: monospace;
+}
+
+.no-wrap {
+    white-space: pre;
+}
