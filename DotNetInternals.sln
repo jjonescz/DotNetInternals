@@ -12,6 +12,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_", "_", "{494F0FD9-0786-45A4-B487-98AA456EB07F}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		Directory.Packages.props = Directory.Packages.props
 		global.json = global.json
 		nuget.config = nuget.config
 		README.md = README.md
@@ -38,5 +39,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{FCA5EE33-745E-4DF5-A250-04D5260AD806} = {CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}
 		{E3B85FCE-4793-4C91-916B-0D3199EEC20B} = {CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AC88F4C4-40B7-4FD4-B0DF-0F911BE53F8C}
 	EndGlobalSection
 EndGlobal
