@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.DotNet.Arcade.Sdk" PrivateAssets="all" IncludeAssets="none" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.Net.Compilers.Razor.Toolset" PrivateAssets="all" IncludeAssets="none" GeneratePathProperty="true" />
     <Reference Include="$(PkgMicrosoft_Net_Compilers_Razor_Toolset)\source-generators\Microsoft.CodeAnalysis.Razor.Compiler.dll" />
+    <PackageReference Include="System.Text.RegularExpressions" />
   </ItemGroup>
 
 </Project>
