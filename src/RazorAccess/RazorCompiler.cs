@@ -13,11 +13,11 @@ public static class RazorCompiler
 {
     public static CompiledRazor Compile(string input)
     {
-        var filePath = "/folder/file.razor";
+        var filePath = "/TestNamespace/TestComponent.razor";
         var item = new SourceGeneratorProjectItem(
             basePath: "/",
             filePath: filePath,
-            relativePhysicalPath: "/folder",
+            relativePhysicalPath: "TestComponent.razor",
             fileKind: FileKinds.Component,
             additionalText: new TestAdditionalText(input, encoding: Encoding.UTF8, path: filePath),
             cssScope: null);
