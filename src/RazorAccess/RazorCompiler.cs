@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
+using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
@@ -10,7 +11,7 @@ namespace DotNetInternals.RazorAccess;
 
 public static class RazorCompiler
 {
-    public static string Compile(string input)
+    public static CompiledRazor Compile(string input)
     {
         var filePath = "/folder/file.razor";
         var item = new SourceGeneratorProjectItem(
@@ -43,6 +44,21 @@ public static class RazorCompiler
 
         var razorCodeDocument = projectEngine.Process(item);
 
-        return razorCodeDocument.GetCSharpDocument().GeneratedCode;
+        var syntax = razorCodeDocument.GetSyntaxTree().Root.SerializedValue;
+
+        var ir = formatDocumentTree(razorCodeDocument.GetDocumentIntermediateNode());
+
+        var cSharp = razorCodeDocument.GetCSharpDocument().GeneratedCode;
+
+        return new CompiledRazor(Syntax: syntax, Ir: ir, CSharp: cSharp);
+
+        static string formatDocumentTree(DocumentIntermediateNode node)
+        {
+            var formatter = new DebuggerDisplayFormatter();
+            formatter.FormatTree(node);
+            return formatter.ToString();
+        }
     }
 }
+
+public record CompiledRazor(string Syntax, string Ir, string CSharp);

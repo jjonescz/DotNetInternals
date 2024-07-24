@@ -4,29 +4,91 @@
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
 <div class="d-flex flex-column h-100">
-    <div class="row">
+    <div class="row align-items-center justify-content-center">
+        @* Compile button *@
         <div class="col-auto">
             <button type="button" class="btn btn-primary mb-2" @onclick="Compile">Compile</button>
         </div>
+
+        @* Output switch *@
+        <InputRadioGroup @bind-Value="SelectedOutputType">
+            <div class="col-auto">
+                <div class="form-check">
+                    <InputRadio class="form-check-input" id="outputSyntax" Value="OutputType.Syntax" />
+                    <label class="form-check-label" for="outputSyntax">
+                        Syntax
+                    </label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="form-check">
+                    <InputRadio class="form-check-input" id="outputIr" Value="OutputType.Ir" />
+                    <label class="form-check-label" for="outputIr">
+                        IR
+                    </label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="form-check">
+                    <InputRadio class="form-check-input" id="outputCSharp" Value="OutputType.CSharp" />
+                    <label class="form-check-label" for="outputCSharp">
+                        C#
+                    </label>
+                </div>
+            </div>
+        </InputRadioGroup>
     </div>
 
+    @* Input / output text areas *@
     <div class="row g-2 flex-grow-1">
         <div class="col-12 col-md">
             <textarea @bind="text" class="form-control h-100" placeholder="Razor code"></textarea>
         </div>
         <div class="col-12 col-md">
-            <textarea @bind="compiled" class="form-control h-100" readonly placeholder="C# code"></textarea>
+            <textarea @bind="output" class="form-control h-100" readonly placeholder="C# code"></textarea>
         </div>
     </div>
 </div>
 
 
 @code {
+    private OutputType _outputType = OutputType.CSharp;
     private string text = "";
-    private string compiled = "";
+    private CompiledRazor? compiled;
+    private string output = "";
+
+    private OutputType SelectedOutputType
+    {
+        get => _outputType;
+        set
+        {
+            _outputType = value;
+            UpdateOutput();
+        }
+    }
 
     private void Compile()
     {
         compiled = RazorCompiler.Compile(text);
+        UpdateOutput();
+    }
+
+    private void UpdateOutput()
+    {
+        output = SelectedOutputType switch
+        {
+            _ when compiled is null => "",
+            OutputType.Syntax => compiled.Syntax,
+            OutputType.Ir => compiled.Ir,
+            OutputType.CSharp => compiled.CSharp,
+            _ => throw new InvalidOperationException(),
+        };
+    }
+
+    private enum OutputType
+    {
+        Syntax,
+        Ir,
+        CSharp,
     }
 }
