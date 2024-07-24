@@ -11,6 +11,14 @@ namespace DotNetInternals.RazorAccess;
 
 public static class RazorCompiler
 {
+    public static readonly string InitialCode = """
+        <TestComponent Param="1" />
+
+        @code {
+            [Parameter] public int Param { get; set; }
+        }
+        """;
+
     public static CompiledRazor Compile(string input)
     {
         var filePath = "/TestNamespace/TestComponent.razor";
