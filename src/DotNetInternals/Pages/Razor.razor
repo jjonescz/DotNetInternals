@@ -37,25 +37,37 @@
                 </div>
             </div>
         </InputRadioGroup>
+
+        @* Word wrapping toggle *@
+        <div class="col-auto">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="wordWrap" @bind="wordWrap" />
+                <label class="form-check-label" for="wordWrap">
+                    Word wrap
+                </label>
+            </div>
+        </div>
     </div>
 
     @* Input / output text areas *@
     <div class="row g-2 flex-grow-1">
         <div class="col-12 col-md">
-            <textarea @bind="text" class="form-control h-100" placeholder="Razor code"></textarea>
+            <textarea @bind="text" class="form-control h-100" placeholder="Razor code"
+                      style="white-space: @WhiteSpaceStyle"></textarea>
         </div>
         <div class="col-12 col-md">
-            <textarea @bind="output" class="form-control h-100" readonly placeholder="C# code"></textarea>
+            <textarea @bind="output" class="form-control h-100" readonly placeholder="C# code"
+                      style="white-space: @WhiteSpaceStyle"></textarea>
         </div>
     </div>
 </div>
-
 
 @code {
     private OutputType _outputType = OutputType.CSharp;
     private string text = "";
     private CompiledRazor? compiled;
     private string output = "";
+    private bool wordWrap;
 
     private OutputType SelectedOutputType
     {
@@ -66,6 +78,8 @@
             UpdateOutput();
         }
     }
+
+    private string WhiteSpaceStyle => wordWrap ? "revert" : "pre";
 
     private void Compile()
     {
