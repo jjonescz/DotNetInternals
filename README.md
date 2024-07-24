@@ -2,7 +2,8 @@
 
 C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
-- Razor to generated C# code.
+- Razor to generated C# code / IR / Syntax Tree.
+- More in the future?
 - Offline support (PWA).
 
 ## Related work
