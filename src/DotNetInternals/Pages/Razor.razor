@@ -1,4 +1,5 @@
 ﻿@page "/"
+@inject NavigationManager navigationManager
 @using DotNetInternals.RazorAccess
 @using System.Diagnostics.CodeAnalysis
 
@@ -80,10 +81,20 @@
 @code {
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
-    private string text = RazorCompiler.InitialCode;
+    private string text = "";
     private CompiledRazor? compiled;
     private string output = "";
     private bool wordWrap;
+
+    protected override void OnInitialized()
+    {
+        var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
+        var slug = uri.Fragment.TrimStart('#');
+
+        text = string.IsNullOrWhiteSpace(slug)
+            ? RazorCompiler.InitialCode
+            : Compressor.Uncompress(slug);
+    }
 
     private OutputType SelectedOutputType
     {
@@ -101,6 +112,10 @@
         await RefreshAsync();
         compiled = RazorCompiler.Compile(text);
         UpdateOutput();
+
+        var slug = Compressor.Compress(text);
+        navigationManager.NavigateTo(navigationManager.BaseUri + "#" + slug, forceLoad: false);
+        
         compilationInProgress = false;
     }
 
