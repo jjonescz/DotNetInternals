@@ -68,7 +68,13 @@ public static class RazorCompiler
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
         string diagnosticsText = getActualDiagnosticsText(diagnostics);
 
-        return new CompiledRazor(Syntax: syntax, Ir: ir, CSharp: cSharp, Diagnostics: diagnosticsText);
+        return new CompiledRazor(
+            Syntax: syntax,
+            Ir: ir,
+            CSharp: cSharp,
+            Diagnostics: diagnosticsText,
+            NumWarnings: diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning),
+            NumErrors: diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error));
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
@@ -120,4 +126,4 @@ public static class RazorCompiler
     }
 }
 
-public record CompiledRazor(string Syntax, string Ir, string CSharp, string Diagnostics);
+public record CompiledRazor(string Syntax, string Ir, string CSharp, string Diagnostics, int NumWarnings, int NumErrors);

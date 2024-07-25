@@ -40,6 +40,14 @@
                 <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
                 <label class="btn btn-outline-primary" for="outputDiagnostics">
                     Diagnostics
+                    @if (compiled?.NumErrors > 0)
+                    {
+                        <span class="badge bg-danger">@compiled.NumErrors</span>
+                    }
+                    else if (compiled?.NumWarnings > 0)
+                    {
+                        <span class="badge bg-warning">@compiled.NumWarnings</span>
+                    }
                 </label>
             </div>
         </InputRadioGroup>
