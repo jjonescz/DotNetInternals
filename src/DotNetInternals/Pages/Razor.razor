@@ -1,13 +1,13 @@
-@page "/"
+﻿@page "/"
 @using DotNetInternals.RazorAccess
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
 <div class="d-flex flex-column h-100">
-    <div class="row align-items-center justify-content-center">
+    <div class="row align-items-center justify-content-center mb-2">
         @* Compile button *@
         <div class="col-auto">
-            <button type="button" class="btn btn-primary mb-2" @onclick="Compile">
+            <button type="button" class="btn btn-primary" @onclick="Compile">
                 Compile
                 @if (compilationInProgress)
                 {
@@ -20,29 +20,21 @@
 
         @* Output switch *@
         <InputRadioGroup @bind-Value="SelectedOutputType">
-            <div class="col-auto">
-                <div class="form-check">
-                    <InputRadio class="form-check-input" id="outputSyntax" Value="OutputType.Syntax" />
-                    <label class="form-check-label" for="outputSyntax">
-                        Syntax
-                    </label>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="form-check">
-                    <InputRadio class="form-check-input" id="outputIr" Value="OutputType.Ir" />
-                    <label class="form-check-label" for="outputIr">
-                        IR
-                    </label>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="form-check">
-                    <InputRadio class="form-check-input" id="outputCSharp" Value="OutputType.CSharp" />
-                    <label class="form-check-label" for="outputCSharp">
-                        C#
-                    </label>
-                </div>
+            <div class="btn-group col-auto" role="group" aria-label="Output type">
+                <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
+                <label class="btn btn-outline-primary" for="outputSyntax">
+                    Syntax
+                </label>
+
+                <InputRadio class="btn-check" id="outputIr" Value="OutputType.Ir" />
+                <label class="btn btn-outline-primary" for="outputIr">
+                    IR
+                </label>
+
+                <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
+                <label class="btn btn-outline-primary" for="outputCSharp">
+                    C#
+                </label>
             </div>
         </InputRadioGroup>
 
