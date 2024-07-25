@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
+using Microsoft.CodeAnalysis.Test.Utilities;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
 using Roslyn.Test.Utilities;
 using System.Text;
@@ -51,13 +52,23 @@ public static class RazorCompiler
             declarationCompilation.ToMetadataReference()]);
         RazorCodeDocument codeDocument = projectEngine.Process(item);
 
+        var finalCompilation = CSharpCompilation.Create("TestAssembly",
+            [CSharpSyntaxTree.ParseText(codeDocument.GetCSharpDocument().GeneratedCode)],
+            Basic.Reference.Assemblies.AspNet80.References.All,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
         string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
 
         string ir = formatDocumentTree(codeDocument.GetDocumentIntermediateNode());
 
         string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
-        return new CompiledRazor(Syntax: syntax, Ir: ir, CSharp: cSharp);
+        var diagnostics = finalCompilation
+            .GetDiagnostics()
+            .Where(d => d.Severity != DiagnosticSeverity.Hidden);
+        string diagnosticsText = getActualDiagnosticsText(diagnostics);
+
+        return new CompiledRazor(Syntax: syntax, Ir: ir, CSharp: cSharp, Diagnostics: diagnosticsText);
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
@@ -85,7 +96,28 @@ public static class RazorCompiler
             formatter.FormatTree(node);
             return formatter.ToString();
         }
+
+        static string getActualDiagnosticsText(IEnumerable<Diagnostic> diagnostics)
+        {
+            var assertText = DiagnosticDescription.GetAssertText(
+            expected: [],
+            actual: diagnostics,
+            unmatchedExpected: [],
+            unmatchedActual: diagnostics);
+            var startAnchor = "Actual:" + Environment.NewLine;
+            var endAnchor = "Diff:" + Environment.NewLine;
+            var start = assertText.IndexOf(startAnchor, StringComparison.Ordinal) + startAnchor.Length;
+            var end = assertText.IndexOf(endAnchor, start, StringComparison.Ordinal);
+            var result = assertText[start..end];
+            return removeIndentation(result);
+        }
+
+        static string removeIndentation(string text)
+        {
+            var spaces = new string(' ', 16);
+            return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
+        }
     }
 }
 
-public record CompiledRazor(string Syntax, string Ir, string CSharp);
+public record CompiledRazor(string Syntax, string Ir, string CSharp, string Diagnostics);

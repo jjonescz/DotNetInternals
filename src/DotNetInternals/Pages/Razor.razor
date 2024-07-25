@@ -1,5 +1,6 @@
-@page "/"
+﻿@page "/"
 @using DotNetInternals.RazorAccess
+@using System.Diagnostics.CodeAnalysis
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
@@ -34,6 +35,11 @@
                 <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
                 <label class="btn btn-outline-primary" for="outputCSharp">
                     C#
+                </label>
+
+                <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
+                <label class="btn btn-outline-primary" for="outputDiagnostics">
+                    Diagnostics
                 </label>
             </div>
         </InputRadioGroup>
@@ -104,6 +110,7 @@
             OutputType.Syntax => compiled.Syntax,
             OutputType.Ir => compiled.Ir,
             OutputType.CSharp => compiled.CSharp,
+            OutputType.Diagnostics => compiled.Diagnostics,
             _ => throw new InvalidOperationException(),
         };
     }
@@ -113,5 +120,6 @@
         Syntax,
         Ir,
         CSharp,
+        Diagnostics,
     }
 }
