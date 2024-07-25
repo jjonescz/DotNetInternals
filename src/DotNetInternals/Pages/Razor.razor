@@ -7,7 +7,15 @@
     <div class="row align-items-center justify-content-center">
         @* Compile button *@
         <div class="col-auto">
-            <button type="button" class="btn btn-primary mb-2" @onclick="Compile">Compile</button>
+            <button type="button" class="btn btn-primary mb-2" @onclick="Compile">
+                Compile
+                @if (compilationInProgress)
+                {
+                    <div class="spinner-border spinner-border-sm ms-2" role="status">
+                        <span class="visually-hidden">Compiling...</span>
+                    </div>
+                }
+            </button>
         </div>
 
         @* Output switch *@
@@ -65,6 +73,7 @@
 
 @code {
     private OutputType _outputType = OutputType.CSharp;
+    private bool compilationInProgress;
     private string text = RazorCompiler.InitialCode;
     private CompiledRazor? compiled;
     private string output = "";
@@ -80,10 +89,19 @@
         }
     }
 
-    private void Compile()
+    private async Task Compile()
     {
+        compilationInProgress = true;
+        await RefreshAsync();
         compiled = RazorCompiler.Compile(text);
         UpdateOutput();
+        compilationInProgress = false;
+    }
+
+    private async Task RefreshAsync()
+    {
+        _ = InvokeAsync(StateHasChanged);
+        await Task.Yield();
     }
 
     private void UpdateOutput()
