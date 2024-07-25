@@ -40,10 +40,15 @@ public static class RazorCompiler
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
         RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
         string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
-        var declarationCompilation = CSharpCompilation.Create("TestAssembly", [CSharpSyntaxTree.ParseText(declarationCSharp)]);
+        var declarationCompilation = CSharpCompilation.Create("TestAssembly",
+            [CSharpSyntaxTree.ParseText(declarationCSharp)],
+            Basic.Reference.Assemblies.AspNet80.References.All,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // Phase 2: Full generation.
-        RazorProjectEngine projectEngine = createProjectEngine([declarationCompilation.ToMetadataReference()]);
+        RazorProjectEngine projectEngine = createProjectEngine([
+            ..Basic.Reference.Assemblies.AspNet80.References.All,
+            declarationCompilation.ToMetadataReference()]);
         RazorCodeDocument codeDocument = projectEngine.Process(item);
 
         string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
