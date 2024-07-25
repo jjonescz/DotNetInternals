@@ -1,11 +1,12 @@
-using System.Text;
 using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
 using Roslyn.Test.Utilities;
+using System.Text;
 
 namespace DotNetInternals.RazorAccess;
 
@@ -35,30 +36,43 @@ public static class RazorCompiler
 
         var config = RazorConfiguration.Default;
 
-        var projectEngine = RazorProjectEngine.Create(config, fileSystem, static b =>
-        {
-            b.Features.Add(new DefaultTypeNameFeature());
-            b.SetRootNamespace("TestNamespace");
+        // Phase 1: Declaration only (to be used as a reference from which tag helpers will be discovered).
+        RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
+        RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
+        string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
+        var declarationCompilation = CSharpCompilation.Create("TestAssembly", [CSharpSyntaxTree.ParseText(declarationCSharp)]);
 
-            b.Features.Add(new ConfigureRazorCodeGenerationOptions(options =>
-            {
-            }));
+        // Phase 2: Full generation.
+        RazorProjectEngine projectEngine = createProjectEngine([declarationCompilation.ToMetadataReference()]);
+        RazorCodeDocument codeDocument = projectEngine.Process(item);
 
-            CompilerFeatures.Register(b);
-            RazorExtensions.Register(b);
+        string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
 
-            b.SetCSharpLanguageVersion(LanguageVersion.Preview);
-        });
+        string ir = formatDocumentTree(codeDocument.GetDocumentIntermediateNode());
 
-        var razorCodeDocument = projectEngine.Process(item);
-
-        var syntax = razorCodeDocument.GetSyntaxTree().Root.SerializedValue;
-
-        var ir = formatDocumentTree(razorCodeDocument.GetDocumentIntermediateNode());
-
-        var cSharp = razorCodeDocument.GetCSharpDocument().GeneratedCode;
+        string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
         return new CompiledRazor(Syntax: syntax, Ir: ir, CSharp: cSharp);
+
+        RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
+        {
+            return RazorProjectEngine.Create(config, fileSystem, b =>
+            {
+                b.SetRootNamespace("TestNamespace");
+
+                b.Features.Add(new DefaultTypeNameFeature());
+                b.Features.Add(new CompilationTagHelperFeature());
+                b.Features.Add(new DefaultMetadataReferenceFeature
+                {
+                    References = references,
+                });
+
+                CompilerFeatures.Register(b);
+                RazorExtensions.Register(b);
+
+                b.SetCSharpLanguageVersion(LanguageVersion.Preview);
+            });
+        }
 
         static string formatDocumentTree(DocumentIntermediateNode node)
         {
