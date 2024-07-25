@@ -22,7 +22,7 @@ public static class RazorCompiler
 
     public static CompiledRazor Compile(string input)
     {
-        var filePath = "/TestNamespace/TestComponent.razor";
+        var filePath = "/TestProject/TestComponent.razor";
         var item = new SourceGeneratorProjectItem(
             basePath: "/",
             filePath: filePath,
