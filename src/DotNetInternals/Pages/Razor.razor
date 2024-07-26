@@ -2,8 +2,9 @@
 @using Blazored.LocalStorage
 @using DotNetInternals.RazorAccess
 @using System.Diagnostics.CodeAnalysis
-@inject IJSRuntime JSRuntime;
-@inject ILocalStorageService LocalStorage;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ILocalStorageService LocalStorage
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
@@ -151,8 +152,14 @@
     {
         compilationInProgress = true;
         await RefreshAsync();
-        compiled = RazorCompiler.Compile(await razorCode.GetValue());
+        
+        var text = await razorCode.GetValue();
+        compiled = RazorCompiler.Compile(text);
         UpdateOutput();
+
+        var slug = Compressor.Compress(text);
+        NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
+        
         compilationInProgress = false;
     }
 
@@ -185,6 +192,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Load settings from local storage.
         if (await LocalStorage.ContainKeyAsync(nameof(wordWrap)))
         {
             wordWrap = await LocalStorage.GetItemAsync<bool>(nameof(wordWrap));
@@ -194,6 +202,16 @@
             useVim = await LocalStorage.GetItemAsync<bool>(nameof(useVim));
             await VimChanged();
         }
+
+        // Load state from URL.
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var slug = uri.Fragment.TrimStart('#');
+
+        var text = string.IsNullOrWhiteSpace(slug)
+            ? RazorCompiler.InitialCode
+            : Compressor.Uncompress(slug);
+
+        await razorCode.SetValue(text);
 
         await base.OnInitializedAsync();
     }
