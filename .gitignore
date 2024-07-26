@@ -484,3 +484,5 @@ $RECYCLE.BIN/
 *.swp
 
 /output/
+
+jslib.js*
