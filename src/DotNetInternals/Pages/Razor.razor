@@ -92,7 +92,6 @@
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
-    private string text = RazorCompiler.InitialCode;
     private CompiledRazor? compiled;
     private string output = "";
     private bool wordWrap;
@@ -104,10 +103,7 @@
             {
                 WordWrap = wordWrap ? "on" : "off",
                 Language = "razor",
-                Value = "<TestComponent Param=\"1\"/>\n" +
-                        "@code {\n" +
-                        "    [Parameter] public int Param { get; set; }\n" +
-                        "}"
+                Value = RazorCompiler.InitialCode
             };
     }
 
