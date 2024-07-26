@@ -1,10 +1,10 @@
 ﻿@page "/"
-@inject NavigationManager navigationManager
 @using Blazored.LocalStorage
 @using DotNetInternals.RazorAccess
 @using System.Diagnostics.CodeAnalysis
-@inject IJSRuntime JSRuntime;
-@inject ILocalStorageService LocalStorage;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ILocalStorageService LocalStorage
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
@@ -138,16 +138,6 @@
         await razorCode.Layout();
     }
 
-    protected override void OnInitialized()
-    {
-        var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
-        var slug = uri.Fragment.TrimStart('#');
-
-        text = string.IsNullOrWhiteSpace(slug)
-            ? RazorCompiler.InitialCode
-            : Compressor.Uncompress(slug);
-    }
-
     private OutputType SelectedOutputType
     {
         get => _outputType;
@@ -162,11 +152,13 @@
     {
         compilationInProgress = true;
         await RefreshAsync();
-        compiled = RazorCompiler.Compile(await razorCode.GetValue());
+        
+        var text = await razorCode.GetValue();
+        compiled = RazorCompiler.Compile(text);
         UpdateOutput();
 
         var slug = Compressor.Compress(text);
-        navigationManager.NavigateTo(navigationManager.BaseUri + "#" + slug, forceLoad: false);
+        NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
         
         compilationInProgress = false;
     }
@@ -200,6 +192,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Load settings from local storage.
         if (await LocalStorage.ContainKeyAsync(nameof(wordWrap)))
         {
             wordWrap = await LocalStorage.GetItemAsync<bool>(nameof(wordWrap));
@@ -209,6 +202,16 @@
             useVim = await LocalStorage.GetItemAsync<bool>(nameof(useVim));
             await VimChanged();
         }
+
+        // Load state from URL.
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var slug = uri.Fragment.TrimStart('#');
+
+        var text = string.IsNullOrWhiteSpace(slug)
+            ? RazorCompiler.InitialCode
+            : Compressor.Uncompress(slug);
+
+        await razorCode.SetValue(text);
 
         await base.OnInitializedAsync();
     }
