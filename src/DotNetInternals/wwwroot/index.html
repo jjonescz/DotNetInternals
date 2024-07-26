@@ -33,13 +33,14 @@
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
     <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script src="js/jslib.js"></script>
     <script>navigator.serviceWorker.register('service-worker.js');</script>
     <script type="module">
         import { BrotliDecode } from './js/decode.min.js';
         Blazor.start({
-            loadBootResource: function(type, name, defaultUri, integrity) {
+            loadBootResource: function (type, name, defaultUri, integrity) {
                 if (type !== 'dotnetjs' && location.hostname !== 'localhost' && type !== 'configuration') {
-                    return (async function() {
+                    return (async function () {
                         const response = await fetch(defaultUri + '.br', { cache: 'no-cache' });
                         if (!response.ok) {
                             throw new Error(response.statusText);

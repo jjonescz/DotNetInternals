@@ -1,6 +1,9 @@
 ﻿@page "/"
+@using Blazored.LocalStorage
 @using DotNetInternals.RazorAccess
 @using System.Diagnostics.CodeAnalysis
+@inject IJSRuntime JSRuntime;
+@inject ILocalStorageService LocalStorage;
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
@@ -52,7 +55,7 @@
             </div>
         </InputRadioGroup>
 
-        @* Word wrapping toggle *@
+        @* Toggles *@
         <div class="col-auto">
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="wordWrap" @bind="wordWrap" @bind:after="WordWrapChanged" />
@@ -60,16 +63,23 @@
                     Word wrap
                 </label>
             </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="vim" @bind="useVim" @bind:after="VimChanged" />
+                <label class="form-check-label" for="vim">
+                    Use VIM
+                </label>
+            </div>
         </div>
     </div>
 
     @* Input / output text areas *@
     @{
-        var textAreaClass = $"form-control h-100 {(wordWrap ? "" : "no-wrap")}";
+        var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
     }
     <div class="row g-2 flex-grow-1">
-        <div class="col-12 col-md">
-            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="razorCode" CssClass="h-100" Id="razor-code" ConstructionOptions="EditorConstructionOptions" />
+        <div class="col-12 col-md flex-grow-1 d-flex flex-column overflow-hidden">
+            <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
+            <BlazorMonaco.Editor.StandaloneCodeEditor CssClass="flex-grow-1 overflow-auto" @ref="razorCode" Id="razor-code" ConstructionOptions="EditorConstructionOptions" />
         </div>
         <div class="col-12 col-md">
             <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
@@ -78,6 +88,7 @@
 </div>
 
 @code {
+    private IJSObjectReference? vimDisposable;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
@@ -85,13 +96,13 @@
     private CompiledRazor? compiled;
     private string output = "";
     private bool wordWrap;
+    private bool useVim;
 
     private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
     {
         return new StandaloneEditorConstructionOptions
             {
                 WordWrap = wordWrap ? "on" : "off",
-                AutomaticLayout = true,
                 Language = "razor",
                 Value = "<TestComponent Param=\"1\"/>\n" +
                         "@code {\n" +
@@ -103,7 +114,31 @@
     private async Task WordWrapChanged()
     {
         await RefreshAsync();
+        await LocalStorage.SetItemAsync(nameof(wordWrap), wordWrap);
         await razorCode.UpdateOptions(new EditorUpdateOptions { WordWrap = wordWrap ? "on" : "off" });
+    }
+
+    private async Task VimChanged()
+    {
+        await RefreshAsync();
+        await LocalStorage.SetItemAsync(nameof(useVim), useVim);
+        if (useVim)
+        {
+            if (vimDisposable is null)
+            {
+                vimDisposable = await JSRuntime.InvokeAsync<IJSObjectReference>("jslib.EnableVimMode", "razor-code", "vim-status");
+            }
+        }
+        else
+        {
+            if (vimDisposable is not null)
+            {
+                await vimDisposable.InvokeVoidAsync("dispose");
+                vimDisposable = null;
+            }
+        }
+
+        await razorCode.Layout();
     }
 
     private OutputType SelectedOutputType
@@ -150,5 +185,20 @@
         Ir,
         CSharp,
         Diagnostics,
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await LocalStorage.ContainKeyAsync(nameof(wordWrap)))
+        {
+            wordWrap = await LocalStorage.GetItemAsync<bool>(nameof(wordWrap));
+        }
+        if (await LocalStorage.ContainKeyAsync(nameof(useVim)))
+        {
+            useVim = await LocalStorage.GetItemAsync<bool>(nameof(useVim));
+            await VimChanged();
+        }
+
+        await base.OnInitializedAsync();
     }
 }

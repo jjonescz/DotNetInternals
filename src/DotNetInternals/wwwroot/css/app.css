@@ -99,3 +99,19 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+.monaco-editor-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    margin: 0;
+}
+
+.vim-status-bar {
+    height: 30px; /* Adjust the height as needed */
+    background-color: #f8f9fa; /* Light background color */
+    border-top: 1px solid #dee2e6; /* Top border */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
