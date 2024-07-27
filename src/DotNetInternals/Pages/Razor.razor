@@ -1,10 +1,5 @@
 ﻿@page "/"
-@using Blazored.LocalStorage
-@using DotNetInternals.RazorAccess
-@using System.Diagnostics.CodeAnalysis
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
-@inject ILocalStorageService LocalStorage
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
@@ -56,20 +51,9 @@
             </div>
         </InputRadioGroup>
 
-        @* Toggles *@
+        @* Settings button *@
         <div class="col-auto">
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="wordWrap" @bind="wordWrap" @bind:after="WordWrapChanged" />
-                <label class="form-check-label" for="wordWrap">
-                    Word wrap
-                </label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="vim" @bind="useVim" @bind:after="VimChanged" />
-                <label class="form-check-label" for="vim">
-                    Use VIM
-                </label>
-            </div>
+            <Settings @ref="settings" Editor="razorCode" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
         </div>
     </div>
 
@@ -80,7 +64,8 @@
     <div class="row g-2 flex-grow-1">
         <div class="col-12 col-md flex-grow-1 d-flex flex-column overflow-hidden">
             <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-            <BlazorMonaco.Editor.StandaloneCodeEditor CssClass="flex-grow-1 overflow-auto" @ref="razorCode" Id="razor-code" ConstructionOptions="EditorConstructionOptions" />
+            <BlazorMonaco.Editor.StandaloneCodeEditor CssClass="flex-grow-1 overflow-auto" @ref="razorCode" Id="razor-code"
+                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInit" />
         </div>
         <div class="col-12 col-md">
             <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
@@ -89,12 +74,12 @@
 </div>
 
 @code {
-    private IJSObjectReference? vimDisposable;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
     private CompiledRazor? compiled;
     private string output = "";
+    private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
 
@@ -106,36 +91,6 @@
                 Language = "razor",
                 Value = RazorCompiler.InitialCode
             };
-    }
-
-    private async Task WordWrapChanged()
-    {
-        await RefreshAsync();
-        await LocalStorage.SetItemAsync(nameof(wordWrap), wordWrap);
-        await razorCode.UpdateOptions(new EditorUpdateOptions { WordWrap = wordWrap ? "on" : "off" });
-    }
-
-    private async Task VimChanged()
-    {
-        await RefreshAsync();
-        await LocalStorage.SetItemAsync(nameof(useVim), useVim);
-        if (useVim)
-        {
-            if (vimDisposable is null)
-            {
-                vimDisposable = await JSRuntime.InvokeAsync<IJSObjectReference>("jslib.EnableVimMode", "razor-code", "vim-status");
-            }
-        }
-        else
-        {
-            if (vimDisposable is not null)
-            {
-                await vimDisposable.InvokeVoidAsync("dispose");
-                vimDisposable = null;
-            }
-        }
-
-        await razorCode.Layout();
     }
 
     private OutputType SelectedOutputType
@@ -157,16 +112,11 @@
         compiled = RazorCompiler.Compile(text);
         UpdateOutput();
 
+        // Save state (input code) to URL.
         var slug = Compressor.Compress(text);
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
         
         compilationInProgress = false;
-    }
-
-    private async Task RefreshAsync()
-    {
-        _ = InvokeAsync(StateHasChanged);
-        await Task.Yield();
     }
 
     private void UpdateOutput()
@@ -190,20 +140,11 @@
         Diagnostics,
     }
 
-    protected override async Task OnInitializedAsync()
+    private async Task EditorInit()
     {
-        // Load settings from local storage.
-        if (await LocalStorage.ContainKeyAsync(nameof(wordWrap)))
-        {
-            wordWrap = await LocalStorage.GetItemAsync<bool>(nameof(wordWrap));
-        }
-        if (await LocalStorage.ContainKeyAsync(nameof(useVim)))
-        {
-            useVim = await LocalStorage.GetItemAsync<bool>(nameof(useVim));
-            await VimChanged();
-        }
+        await settings.InitializeAsync();
 
-        // Load state from URL.
+        // Load state (input code) from URL.
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var slug = uri.Fragment.TrimStart('#');
 
@@ -212,7 +153,5 @@
             : Compressor.Uncompress(slug);
 
         await razorCode.SetValue(text);
-
-        await base.OnInitializedAsync();
     }
 }
