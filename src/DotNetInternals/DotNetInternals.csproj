@@ -30,7 +30,12 @@
 		<ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
 	</ItemGroup>
 
-	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+	<ItemGroup>
+		<NpmInput Include="Npm\**" Exclude="Npm\node_modules\**;Npm\package-lock.json" />
+		<NpmOutput Include="wwwroot\js\jslib.js" />
+	</ItemGroup>
+
+	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Inputs="@(NpmInput)" Outputs="@(NpmOutput)">
 		<Exec Command="npm install" WorkingDirectory="Npm" />
 		<Exec Command="npm run build" WorkingDirectory="Npm" />
 	</Target>
