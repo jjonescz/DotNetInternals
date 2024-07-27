@@ -106,15 +106,17 @@
     private async Task Compile()
     {
         compilationInProgress = true;
-        await RefreshAsync();
         
         var text = await razorCode.GetValue();
-        compiled = RazorCompiler.Compile(text);
-        UpdateOutput();
-
+        
         // Save state (input code) to URL.
         var slug = Compressor.Compress(text);
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
+        
+        await RefreshAsync();
+        
+        compiled = RazorCompiler.Compile(text);
+        UpdateOutput();
         
         compilationInProgress = false;
     }
