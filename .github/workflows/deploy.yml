@@ -10,7 +10,7 @@ on:
       simulate_fork_pr:
         description: 'Simulate fork for this PR number'
   pull_request:
-    types: [ opened, synchronize, reopened, closed, labeled ]
+    types: [ opened, synchronize, reopened, labeled ]
     branches: [ main ]
 
 permissions:

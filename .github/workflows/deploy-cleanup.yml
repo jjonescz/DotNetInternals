@@ -24,10 +24,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Remove internal branch and environment
+      - name: Remove internal branch
+        if: >
+          inputs.simulate_fork_pr ||
+          (github.event.pull_request.head.repo.full_name != github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'deploy'))
         run: |
           git config --global url."https://user:${{ secrets.GITHUB_TOKEN }}@github".insteadOf https://github
           git push origin --delete deploy/${{ inputs.simulate_fork_pr || github.event.number }}
+
+      - name: Remove environment
+        if: >
+          inputs.simulate_fork_pr ||
+          github.event.pull_request.head.repo.full_name == github.repository ||
+          contains(github.event.pull_request.labels.*.name, 'deploy')
+        run: |
           gh api \
             --method DELETE \
             -H "Accept: application/vnd.github+json" \
