@@ -1,0 +1,53 @@
+name: Deploy info
+
+# When the "deploy" label is on a PR from a fork,
+# that PR's head is pushed to a branch directly in the repo (not the fork),
+# so it's deployed by Cloudflare Pages as a branch preview.
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulate_fork_pr:
+        description: 'Simulate fork for this PR number'
+  pull_request:
+    types: [ opened, synchronize, reopened, closed, labeled ]
+    branches: [ main ]
+
+permissions:
+  contents: write
+  deployments: write
+  pull-requests: read
+
+jobs:
+  deploy-info:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    if: github.event.action != 'labeled' || github.event.label.name == 'deploy'
+
+    concurrency:
+      group: deploy-${{ github.event.inputs.simulate_fork_pr || github.event.number }}
+
+    environment:
+      name: deploy-${{ inputs.simulate_fork_pr || github.event.number }}
+      url: ${{ steps.get-url.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push to internal branch
+        if: >
+          inputs.simulate_fork_pr ||
+          (github.event.pull_request.head.repo.full_name != github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'deploy'))
+        run: |
+          git config --global url."https://user:${{ secrets.GITHUB_TOKEN }}@github".insteadOf https://github
+          git fetch origin ${{ github.sha }}
+          git push origin ${{ github.sha }}:refs/heads/deploy/${{ inputs.simulate_fork_pr || github.event.number }}
+
+      - name: Get deploy URL
+        id: get-url
+        run: |
+          echo "url=https://${BRANCH_NAME//\//-}.dotnetinternals.pages.dev/" > "$GITHUB_OUTPUT"
+        env:
+          BRANCH_NAME: ${{ github.head_ref || format('deploy/{0}', inputs.simulate_fork_pr || github.event.number) }}

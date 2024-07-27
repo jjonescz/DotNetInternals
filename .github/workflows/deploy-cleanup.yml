@@ -1,0 +1,38 @@
+name: Deploy cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulate_fork_pr:
+        description: 'Simulate fork for this PR number'
+  pull_request:
+    types: [ closed ]
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  deploy-cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    concurrency:
+      group: deploy-cleanup-${{ github.event.inputs.simulate_fork_pr || github.event.number }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove internal branch and environment
+        run: |
+          git config --global url."https://user:${{ secrets.GITHUB_TOKEN }}@github".insteadOf https://github
+          git push origin --delete deploy/${{ inputs.simulate_fork_pr || github.event.number }}
+          gh api \
+            --method DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/environments/deploy-${{ inputs.simulate_fork_pr || github.event.number }}
+        env:
+          # Classic PAT with permissions `repo`, `write:org`.
+          GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
