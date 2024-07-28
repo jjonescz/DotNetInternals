@@ -11,7 +11,7 @@ public class CompressorTests
             @code {
                 [Parameter] public int Param { get; set; }
             }
-            """;
+            """.NormalizeLineEndings();
         var compressed = Compressor.Compress(source);
         Assert.Equal((89, 104), (source.Length, compressed.Length));
         var uncompressed = Compressor.Uncompress(compressed);
