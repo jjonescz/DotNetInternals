@@ -3,79 +3,79 @@
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
-<div class="d-flex flex-column h-100">
-    <div class="row align-items-center justify-content-center mb-2">
-        @* App name / link *@
-        <div class="col-auto">
-            <a href="/" class="text-decoration-none">lab.razor.fyi</a>
-            (<a href="https://github.com/jjonescz/DotNetInternals">GitHub</a>)
-        </div>
-
-        @* Compile button *@
-        <div class="col-auto">
-            <button type="button" class="btn btn-primary" @onclick="Compile">
-                Compile
-                @if (compilationInProgress)
-                {
-                    <div class="spinner-border spinner-border-sm ms-2" role="status">
-                        <span class="visually-hidden">Compiling...</span>
-                    </div>
-                }
-            </button>
-        </div>
-
-        @* Output switch *@
-        <InputRadioGroup @bind-Value="SelectedOutputType">
-            <div class="btn-group col-auto" role="group" aria-label="Output type">
-                <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
-                <label class="btn btn-outline-primary" for="outputSyntax">
-                    Syntax
-                </label>
-
-                <InputRadio class="btn-check" id="outputIr" Value="OutputType.Ir" />
-                <label class="btn btn-outline-primary" for="outputIr">
-                    IR
-                </label>
-
-                <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
-                <label class="btn btn-outline-primary" for="outputCSharp">
-                    C#
-                </label>
-
-                <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
-                <label class="btn btn-outline-primary" for="outputDiagnostics">
-                    Diagnostics
-                    @if (compiled?.NumErrors > 0)
-                    {
-                        <span class="badge bg-danger">@compiled.NumErrors</span>
-                    }
-                    else if (compiled?.NumWarnings > 0)
-                    {
-                        <span class="badge bg-warning">@compiled.NumWarnings</span>
-                    }
-                </label>
-            </div>
-        </InputRadioGroup>
-
-        @* Settings button *@
-        <div class="col-auto">
-            <Settings @ref="settings" Editor="razorCode" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
-        </div>
+<div class="row align-items-center justify-content-center my-1 w-100">
+    @* App name / link *@
+    <div class="col-auto">
+        <a href="/" class="text-decoration-none">lab.razor.fyi</a>
+        (<a href="https://github.com/jjonescz/DotNetInternals">GitHub</a>)
     </div>
 
-    @* Input / output text areas *@
-    @{
-        var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
-    }
-    <div class="row g-2 flex-grow-1">
-        <div class="col-12 col-md flex-grow-1 d-flex flex-column overflow-hidden">
-            <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-            <BlazorMonaco.Editor.StandaloneCodeEditor CssClass="flex-grow-1 overflow-auto" @ref="razorCode" Id="razor-code"
+    @* Compile button *@
+    <div class="col-auto">
+        <button type="button" class="btn btn-primary" @onclick="Compile">
+            Compile
+            @if (compilationInProgress)
+            {
+                <div class="spinner-border spinner-border-sm ms-2" role="status">
+                    <span class="visually-hidden">Compiling...</span>
+                </div>
+            }
+        </button>
+    </div>
+
+    @* Output switch *@
+    <InputRadioGroup @bind-Value="SelectedOutputType">
+        <div class="btn-group col-auto" role="group" aria-label="Output type">
+            <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
+            <label class="btn btn-outline-primary" for="outputSyntax">
+                Syntax
+            </label>
+
+            <InputRadio class="btn-check" id="outputIr" Value="OutputType.Ir" />
+            <label class="btn btn-outline-primary" for="outputIr">
+                IR
+            </label>
+
+            <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
+            <label class="btn btn-outline-primary" for="outputCSharp">
+                C#
+            </label>
+
+            <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
+            <label class="btn btn-outline-primary" for="outputDiagnostics">
+                Diagnostics
+                @if (compiled?.NumErrors > 0)
+                {
+                    <span class="badge bg-danger">@compiled.NumErrors</span>
+                }
+                else if (compiled?.NumWarnings > 0)
+                {
+                    <span class="badge bg-warning">@compiled.NumWarnings</span>
+                }
+            </label>
+        </div>
+    </InputRadioGroup>
+
+    @* Settings button *@
+    <div class="col-auto">
+        <Settings @ref="settings" Editor="razorCode" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+    </div>
+</div>
+
+@* Input / output text areas *@
+@{
+    var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
+}
+<div class="row g-0 flex-grow-1">
+    <div class="col d-flex flex-column">
+        <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
+        <div class="flex-grow-1">
+            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="razorCode" Id="razor-code"
                 ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInit" />
         </div>
-        <div class="col-12 col-md">
-            <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
-        </div>
+    </div>
+    <div class="col">
+        <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
     </div>
 </div>
 
@@ -92,11 +92,12 @@
     private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
     {
         return new StandaloneEditorConstructionOptions
-            {
-                WordWrap = wordWrap ? "on" : "off",
-                Language = "razor",
-                Value = RazorCompiler.InitialCode
-            };
+        {
+            AutomaticLayout = true,
+            WordWrap = wordWrap ? "on" : "off",
+            Language = "razor",
+            Value = RazorCompiler.InitialCode
+        };
     }
 
     private OutputType SelectedOutputType
