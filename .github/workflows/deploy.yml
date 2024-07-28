@@ -10,7 +10,6 @@ on:
       simulate_fork_pr:
         description: 'Simulate fork for this PR number'
   pull_request:
-    types: [ opened, synchronize, reopened, labeled ]
     branches: [ main ]
 
 permissions:
@@ -22,8 +21,6 @@ jobs:
   deploy-info:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
-    if: github.event.action != 'labeled' || github.event.label.name == 'deploy'
 
     concurrency:
       group: deploy-${{ github.event.inputs.simulate_fork_pr || github.event.number }}
@@ -38,8 +35,7 @@ jobs:
       - name: Push to internal branch
         if: >
           inputs.simulate_fork_pr ||
-          (github.event.pull_request.head.repo.full_name != github.repository &&
-          contains(github.event.pull_request.labels.*.name, 'deploy'))
+          github.event.pull_request.head.repo.full_name != github.repository
         run: |
           git config --global url."https://user:${{ secrets.GITHUB_TOKEN }}@github".insteadOf https://github
           git fetch origin ${{ github.sha }}

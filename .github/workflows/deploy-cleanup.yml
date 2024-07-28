@@ -27,17 +27,12 @@ jobs:
       - name: Remove internal branch
         if: >
           inputs.simulate_fork_pr ||
-          (github.event.pull_request.head.repo.full_name != github.repository &&
-          contains(github.event.pull_request.labels.*.name, 'deploy'))
+          github.event.pull_request.head.repo.full_name != github.repository
         run: |
           git config --global url."https://user:${{ secrets.GITHUB_TOKEN }}@github".insteadOf https://github
           git push origin --delete deploy/${{ inputs.simulate_fork_pr || github.event.number }}
 
       - name: Remove environment
-        if: >
-          inputs.simulate_fork_pr ||
-          github.event.pull_request.head.repo.full_name == github.repository ||
-          contains(github.event.pull_request.labels.*.name, 'deploy')
         run: |
           gh api \
             --method DELETE \
