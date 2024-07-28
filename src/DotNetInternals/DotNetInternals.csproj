@@ -8,14 +8,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="Npm\src\vim-mode.js" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Content Include="Npm\src\vim-mode.js" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<PackageReference Include="Blazored.LocalStorage" />
 		<PackageReference Include="BlazorMonaco" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />

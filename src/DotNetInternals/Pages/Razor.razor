@@ -1,141 +1,103 @@
 ﻿@page "/"
-@using Blazored.LocalStorage
-@using DotNetInternals.RazorAccess
-@using System.Diagnostics.CodeAnalysis
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
-@inject ILocalStorageService LocalStorage
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
 
-<div class="d-flex flex-column h-100">
-    <div class="row align-items-center justify-content-center mb-2">
-        @* Compile button *@
-        <div class="col-auto">
-            <button type="button" class="btn btn-primary" @onclick="Compile">
-                Compile
-                @if (compilationInProgress)
-                {
-                    <div class="spinner-border spinner-border-sm ms-2" role="status">
-                        <span class="visually-hidden">Compiling...</span>
-                    </div>
-                }
-            </button>
-        </div>
-
-        @* Output switch *@
-        <InputRadioGroup @bind-Value="SelectedOutputType">
-            <div class="btn-group col-auto" role="group" aria-label="Output type">
-                <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
-                <label class="btn btn-outline-primary" for="outputSyntax">
-                    Syntax
-                </label>
-
-                <InputRadio class="btn-check" id="outputIr" Value="OutputType.Ir" />
-                <label class="btn btn-outline-primary" for="outputIr">
-                    IR
-                </label>
-
-                <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
-                <label class="btn btn-outline-primary" for="outputCSharp">
-                    C#
-                </label>
-
-                <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
-                <label class="btn btn-outline-primary" for="outputDiagnostics">
-                    Diagnostics
-                    @if (compiled?.NumErrors > 0)
-                    {
-                        <span class="badge bg-danger">@compiled.NumErrors</span>
-                    }
-                    else if (compiled?.NumWarnings > 0)
-                    {
-                        <span class="badge bg-warning">@compiled.NumWarnings</span>
-                    }
-                </label>
-            </div>
-        </InputRadioGroup>
-
-        @* Toggles *@
-        <div class="col-auto">
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="wordWrap" @bind="wordWrap" @bind:after="WordWrapChanged" />
-                <label class="form-check-label" for="wordWrap">
-                    Word wrap
-                </label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="vim" @bind="useVim" @bind:after="VimChanged" />
-                <label class="form-check-label" for="vim">
-                    Use VIM
-                </label>
-            </div>
-        </div>
+<div class="row align-items-center justify-content-center my-1 w-100">
+    @* App name / link *@
+    <div class="col-auto">
+        <a href="/" class="text-decoration-none">lab.razor.fyi</a>
+        (<a href="https://github.com/jjonescz/DotNetInternals">GitHub</a>)
     </div>
 
-    @* Input / output text areas *@
-    @{
-        var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
-    }
-    <div class="row g-2 flex-grow-1">
-        <div class="col-12 col-md flex-grow-1 d-flex flex-column overflow-hidden">
-            <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-            <BlazorMonaco.Editor.StandaloneCodeEditor CssClass="flex-grow-1 overflow-auto" @ref="razorCode" Id="razor-code" ConstructionOptions="EditorConstructionOptions" />
+    @* Compile button *@
+    <div class="col-auto">
+        <button type="button" class="btn btn-primary" @onclick="Compile">
+            Compile
+            @if (compilationInProgress)
+            {
+                <div class="spinner-border spinner-border-sm ms-2" role="status">
+                    <span class="visually-hidden">Compiling...</span>
+                </div>
+            }
+        </button>
+    </div>
+
+    @* Output switch *@
+    <InputRadioGroup @bind-Value="SelectedOutputType">
+        <div class="btn-group col-auto" role="group" aria-label="Output type">
+            <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
+            <label class="btn btn-outline-primary" for="outputSyntax">
+                Syntax
+            </label>
+
+            <InputRadio class="btn-check" id="outputIr" Value="OutputType.Ir" />
+            <label class="btn btn-outline-primary" for="outputIr">
+                IR
+            </label>
+
+            <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
+            <label class="btn btn-outline-primary" for="outputCSharp">
+                C#
+            </label>
+
+            <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
+            <label class="btn btn-outline-primary" for="outputDiagnostics">
+                Diagnostics
+                @if (compiled?.NumErrors > 0)
+                {
+                    <span class="badge bg-danger">@compiled.NumErrors</span>
+                }
+                else if (compiled?.NumWarnings > 0)
+                {
+                    <span class="badge bg-warning">@compiled.NumWarnings</span>
+                }
+            </label>
         </div>
-        <div class="col-12 col-md">
-            <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
+    </InputRadioGroup>
+
+    @* Settings button *@
+    <div class="col-auto">
+        <Settings @ref="settings" Editor="razorCode" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+    </div>
+</div>
+
+@* Input / output text areas *@
+@{
+    var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
+}
+<div class="row g-0 flex-grow-1">
+    <div class="col d-flex flex-column">
+        <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
+        <div class="flex-grow-1">
+            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="razorCode" Id="razor-code"
+                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInit" />
         </div>
+    </div>
+    <div class="col">
+        <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
     </div>
 </div>
 
 @code {
-    private IJSObjectReference? vimDisposable;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
     private CompiledRazor? compiled;
     private string output = "";
+    private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
 
     private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
     {
         return new StandaloneEditorConstructionOptions
-            {
-                WordWrap = wordWrap ? "on" : "off",
-                Language = "razor",
-                Value = RazorCompiler.InitialCode
-            };
-    }
-
-    private async Task WordWrapChanged()
-    {
-        await RefreshAsync();
-        await LocalStorage.SetItemAsync(nameof(wordWrap), wordWrap);
-        await razorCode.UpdateOptions(new EditorUpdateOptions { WordWrap = wordWrap ? "on" : "off" });
-    }
-
-    private async Task VimChanged()
-    {
-        await RefreshAsync();
-        await LocalStorage.SetItemAsync(nameof(useVim), useVim);
-        if (useVim)
         {
-            if (vimDisposable is null)
-            {
-                vimDisposable = await JSRuntime.InvokeAsync<IJSObjectReference>("jslib.EnableVimMode", "razor-code", "vim-status");
-            }
-        }
-        else
-        {
-            if (vimDisposable is not null)
-            {
-                await vimDisposable.InvokeVoidAsync("dispose");
-                vimDisposable = null;
-            }
-        }
-
-        await razorCode.Layout();
+            AutomaticLayout = true,
+            WordWrap = wordWrap ? "on" : "off",
+            Language = "razor",
+            Value = RazorCompiler.InitialCode
+        };
     }
 
     private OutputType SelectedOutputType
@@ -151,22 +113,19 @@
     private async Task Compile()
     {
         compilationInProgress = true;
-        await RefreshAsync();
         
         var text = await razorCode.GetValue();
-        compiled = RazorCompiler.Compile(text);
-        UpdateOutput();
-
+        
+        // Save state (input code) to URL.
         var slug = Compressor.Compress(text);
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
         
+        await RefreshAsync();
+        
+        compiled = RazorCompiler.Compile(text);
+        UpdateOutput();
+        
         compilationInProgress = false;
-    }
-
-    private async Task RefreshAsync()
-    {
-        _ = InvokeAsync(StateHasChanged);
-        await Task.Yield();
     }
 
     private void UpdateOutput()
@@ -190,20 +149,11 @@
         Diagnostics,
     }
 
-    protected override async Task OnInitializedAsync()
+    private async Task EditorInit()
     {
-        // Load settings from local storage.
-        if (await LocalStorage.ContainKeyAsync(nameof(wordWrap)))
-        {
-            wordWrap = await LocalStorage.GetItemAsync<bool>(nameof(wordWrap));
-        }
-        if (await LocalStorage.ContainKeyAsync(nameof(useVim)))
-        {
-            useVim = await LocalStorage.GetItemAsync<bool>(nameof(useVim));
-            await VimChanged();
-        }
+        await settings.InitializeAsync();
 
-        // Load state from URL.
+        // Load state (input code) from URL.
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var slug = uri.Fragment.TrimStart('#');
 
@@ -212,7 +162,5 @@
             : Compressor.Uncompress(slug);
 
         await razorCode.SetValue(text);
-
-        await base.OnInitializedAsync();
     }
 }
