@@ -180,20 +180,22 @@
     {
         compilationInProgress = true;
 
-        // Save state (input code) to URL.
-        var slug = Compressor.Compress(await razorCode.GetValue());
+        // Get input texts.
+        var inputBuilder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
+        foreach (var (fileName, model) in inputs)
+        {
+            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
+            inputBuilder.Add(new() { FileName = fileName, Text = text });
+        }
+        var inputCodes = inputBuilder.ToImmutable();
+
+        // Save state (input codes) to URL.
+        var slug = Compressor.Compress(new SavedState{ Inputs = inputCodes });
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
 
         await RefreshAsync();
 
-        // Get input texts.
-        var inputCodes = new List<InputCode>(inputs.Count);
-        foreach (var (fileName, model) in inputs)
-        {
-            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            inputCodes.Add(new InputCode(fileName, text));
-        }
-
+        // Compile.
         compiled = RazorCompiler.Compile(inputCodes);
         UpdateOutput();
 
@@ -245,8 +247,20 @@
         }
         else
         {
-            var text = Compressor.Uncompress(slug);
-            await razorCode.SetValue(text);
+            var savedState = Compressor.Uncompress(slug);
+            inputs.Clear();
+            currentInput = null;
+            foreach (var input in savedState.Inputs)
+            {
+                var model = await CreateModelAsync(input);
+                inputs[input.FileName] = model;
+
+                if (currentInput is null)
+                {
+                    currentInput = input.FileName;
+                    await razorCode.SetModel(model);
+                }
+            }
         }
     }
 

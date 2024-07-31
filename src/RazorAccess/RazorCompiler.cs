@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
+using ProtoBuf;
 using Roslyn.Test.Utilities;
 using System.Collections.Immutable;
 using System.Text;
@@ -183,22 +184,30 @@ public record InitialCode(string SuggestedFileName, string TextTemplate)
     {
         finalFileName ??= SuggestedFileName;
 
-        var original = SuggestedFileNameWithoutExtension;
-        var replacement = Path.GetFileNameWithoutExtension(finalFileName);
-
-        return new(
-            finalFileName,
-            finalFileName == SuggestedFileName
+        return new()
+        {
+            FileName = finalFileName,
+            Text = finalFileName == SuggestedFileName
                 ? TextTemplate
-                : TextTemplate.Replace(original, replacement, StringComparison.Ordinal));
+                : TextTemplate.Replace(
+                    SuggestedFileNameWithoutExtension,
+                    Path.GetFileNameWithoutExtension(finalFileName),
+                    StringComparison.Ordinal),
+        };
     }
 }
 
-public record InputCode(string FileName, string Text)
+[ProtoContract]
+public sealed record InputCode
 {
+    [ProtoMember(1)]
+    public required string FileName { get; init; }
+    [ProtoMember(2)]
+    public required string Text { get; init; }
+
     public string FileExtension => Path.GetExtension(FileName);
 }
 
-public record CompiledAssembly(ImmutableDictionary<string, CompiledRazorFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
+public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledRazorFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
 
-public record CompiledRazorFile(string Syntax, string Ir, string CSharp);
+public sealed record CompiledRazorFile(string Syntax, string Ir, string CSharp);

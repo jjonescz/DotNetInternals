@@ -12,9 +12,10 @@ public class CompressorTests
                 [Parameter] public int Param { get; set; }
             }
             """.NormalizeLineEndings();
-        var compressed = Compressor.Compress(source);
-        Assert.Equal((89, 104), (source.Length, compressed.Length));
+        var savedState = new SavedState() { Inputs = [new() { FileName = "", Text = source }] };
+        var compressed = Compressor.Compress(savedState);
+        Assert.Equal((89, 112), (source.Length, compressed.Length));
         var uncompressed = Compressor.Uncompress(compressed);
-        Assert.Equal(source, uncompressed);
+        Assert.Equal(savedState.Inputs.Single(), uncompressed.Inputs.Single());
     }
 }
