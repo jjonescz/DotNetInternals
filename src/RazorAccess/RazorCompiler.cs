@@ -13,13 +13,22 @@ namespace DotNetInternals.RazorAccess;
 
 public static class RazorCompiler
 {
-    public static readonly string InitialCode = """
+    public static readonly InitialCode InitialRazorCode = new("TestComponent.razor", """
         <TestComponent Param="1" />
 
         @code {
             [Parameter] public int Param { get; set; }
         }
-        """;
+        """);
+
+    public static readonly InitialCode InitialCSharpCode = new("Class.cs", """
+        class Class
+        {
+            public void M()
+            {
+            }
+        }
+        """);
 
     public static CompiledRazor Compile(string input)
     {
@@ -125,5 +134,34 @@ public static class RazorCompiler
         }
     }
 }
+
+public record InitialCode(string SuggestedFileName, string TextTemplate)
+{
+    public string SuggestedFileNameWithoutExtension => Path.GetFileNameWithoutExtension(SuggestedFileName);
+    public string SuggestedFileExtension => Path.GetExtension(SuggestedFileName);
+
+    public string GetFinalFileName(string suffix)
+    {
+        return string.IsNullOrEmpty(suffix)
+            ? SuggestedFileName
+            : SuggestedFileNameWithoutExtension + suffix + SuggestedFileExtension;
+    }
+
+    public InputCode ToInputCode(string? finalFileName = null)
+    {
+        finalFileName ??= SuggestedFileName;
+
+        var original = SuggestedFileNameWithoutExtension;
+        var replacement = Path.GetFileNameWithoutExtension(finalFileName);
+
+        return new(
+            finalFileName,
+            finalFileName == SuggestedFileName
+                ? TextTemplate
+                : TextTemplate.Replace(original, replacement, StringComparison.Ordinal));
+    }
+}
+
+public record InputCode(string FileName, string Text);
 
 public record CompiledRazor(string Syntax, string Ir, string CSharp, string Diagnostics, int NumWarnings, int NumErrors);

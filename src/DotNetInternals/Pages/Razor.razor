@@ -1,4 +1,5 @@
 ﻿@page "/"
+@inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
@@ -10,9 +11,28 @@
         (<a href="https://github.com/jjonescz/DotNetInternals">GitHub</a>)
     </div>
 
+    @* Tab select *@
+    <div class="col-auto">
+        <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
+            @foreach (var fileName in inputs.Keys)
+            {
+                <option value="@fileName">
+                    @fileName
+                </option>
+            }
+            <hr />
+            <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
+                Add .razor
+            </option>
+            <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
+                Add .cs
+            </option>
+        </select>
+    </div>
+
     @* Compile button *@
     <div class="col-auto">
-        <button type="button" class="btn btn-primary" @onclick="Compile">
+        <button type="button" class="btn btn-primary" @onclick="CompileAsync">
             Compile
             @if (compilationInProgress)
             {
@@ -71,7 +91,7 @@
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="razorCode" Id="razor-code"
-                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInit" />
+                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync" />
         </div>
     </div>
     <div class="col">
@@ -80,6 +100,8 @@
 </div>
 
 @code {
+    private readonly Dictionary<string, TextModel> inputs = new();
+    private string? currentInput = null;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
@@ -95,9 +117,52 @@
         {
             AutomaticLayout = true,
             WordWrap = wordWrap ? "on" : "off",
-            Language = "razor",
-            Value = RazorCompiler.InitialCode
         };
+    }
+
+    private async Task OnInputSelectedAsync(string? selectedInput)
+    {
+        if (selectedInput is null)
+        {
+            currentInput = selectedInput;
+            return;
+        }
+
+        if (inputs.TryGetValue(selectedInput, out var input))
+        {
+            currentInput = selectedInput;
+            await razorCode.SetModel(input);
+        }
+        else if (selectedInput.EndsWith(RazorCompiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
+        {
+            await AddInputAsync(RazorCompiler.InitialRazorCode);
+        }
+        else if (selectedInput.EndsWith(RazorCompiler.InitialCSharpCode.SuggestedFileExtension, StringComparison.Ordinal))
+        {
+            await AddInputAsync(RazorCompiler.InitialCSharpCode);
+        }
+    }
+
+    private async Task AddInputAsync(InitialCode initialCode)
+    {
+        var fileName = FindUniqueName(initialCode);
+        var model = await CreateModelAsync(initialCode.ToInputCode(fileName));
+        inputs[fileName] = model;
+        currentInput = fileName;
+        await razorCode.SetModel(model);
+    }
+
+    private string FindUniqueName(InitialCode initialCode)
+    {
+        for (var i = 0; ; i++)
+        {
+            var suffix = i == 0 ? "" : $"{i}";
+            var fileName = initialCode.GetFinalFileName(suffix);
+            if (!inputs.ContainsKey(fileName))
+            {
+                return fileName;
+            }
+        }
     }
 
     private OutputType SelectedOutputType
@@ -110,21 +175,21 @@
         }
     }
 
-    private async Task Compile()
+    private async Task CompileAsync()
     {
         compilationInProgress = true;
-        
+
         var text = await razorCode.GetValue();
-        
+
         // Save state (input code) to URL.
         var slug = Compressor.Compress(text);
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
-        
+
         await RefreshAsync();
-        
+
         compiled = RazorCompiler.Compile(text);
         UpdateOutput();
-        
+
         compilationInProgress = false;
     }
 
@@ -149,7 +214,7 @@
         Diagnostics,
     }
 
-    private async Task EditorInit()
+    private async Task EditorInitAsync()
     {
         await settings.InitializeAsync();
 
@@ -157,10 +222,27 @@
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var slug = uri.Fragment.TrimStart('#');
 
-        var text = string.IsNullOrWhiteSpace(slug)
-            ? RazorCompiler.InitialCode
-            : Compressor.Uncompress(slug);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            await AddInputAsync(RazorCompiler.InitialRazorCode);
+        }
+        else
+        {
+            var text = Compressor.Uncompress(slug);
+            await razorCode.SetValue(text);
+        }
+    }
 
-        await razorCode.SetValue(text);
+    private async Task<TextModel> CreateModelAsync(InputCode inputCode)
+    {
+        return await BlazorMonaco.Editor.Global.CreateModel(
+            JSRuntime,
+            value: inputCode.Text,
+            language: Path.GetExtension(inputCode.FileName) switch
+            {
+                ".razor" => "razor",
+                ".cs" => "csharp",
+                _ => null,
+            });
     }
 }
