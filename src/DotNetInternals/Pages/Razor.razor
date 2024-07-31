@@ -105,7 +105,7 @@
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
-    private CompiledRazor? compiled;
+    private CompiledAssembly? compiled;
     private string output = "";
     private Settings settings = null!;
     private bool wordWrap;
@@ -125,13 +125,11 @@
         if (selectedInput is null)
         {
             currentInput = selectedInput;
-            return;
         }
-
-        if (inputs.TryGetValue(selectedInput, out var input))
+        else if (inputs.TryGetValue(selectedInput, out var model))
         {
             currentInput = selectedInput;
-            await razorCode.SetModel(input);
+            await razorCode.SetModel(model);
         }
         else if (selectedInput.EndsWith(RazorCompiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
         {
@@ -141,12 +139,15 @@
         {
             await AddInputAsync(RazorCompiler.InitialCSharpCode);
         }
+
+        UpdateOutput();
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
     {
         var fileName = FindUniqueName(initialCode);
-        var model = await CreateModelAsync(initialCode.ToInputCode(fileName));
+        var inputCode = initialCode.ToInputCode(fileName);
+        var model = await CreateModelAsync(inputCode);
         inputs[fileName] = model;
         currentInput = fileName;
         await razorCode.SetModel(model);
@@ -179,15 +180,21 @@
     {
         compilationInProgress = true;
 
-        var text = await razorCode.GetValue();
-
         // Save state (input code) to URL.
-        var slug = Compressor.Compress(text);
+        var slug = Compressor.Compress(await razorCode.GetValue());
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
 
         await RefreshAsync();
 
-        compiled = RazorCompiler.Compile(text);
+        // Get input texts.
+        var inputCodes = new List<InputCode>(inputs.Count);
+        foreach (var (fileName, model) in inputs)
+        {
+            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
+            inputCodes.Add(new InputCode(fileName, text));
+        }
+
+        compiled = RazorCompiler.Compile(inputCodes);
         UpdateOutput();
 
         compilationInProgress = false;
@@ -198,12 +205,22 @@
         output = SelectedOutputType switch
         {
             _ when compiled is null => "",
-            OutputType.Syntax => compiled.Syntax,
-            OutputType.Ir => compiled.Ir,
-            OutputType.CSharp => compiled.CSharp,
+            OutputType.Syntax => CurrentCompiledRazorFile?.Syntax ?? "",
+            OutputType.Ir => CurrentCompiledRazorFile?.Ir ?? "",
+            OutputType.CSharp => CurrentCompiledRazorFile?.CSharp ?? "",
             OutputType.Diagnostics => compiled.Diagnostics,
             _ => throw new InvalidOperationException(),
         };
+    }
+
+    private CompiledRazorFile? CurrentCompiledRazorFile
+    {
+        get
+        {
+            return compiled?.Files.TryGetValue(currentInput ?? "", out var file) == true
+                ? file
+                : null;
+        }
     }
 
     private enum OutputType

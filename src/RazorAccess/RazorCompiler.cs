@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
 using Roslyn.Test.Utilities;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace DotNetInternals.RazorAccess;
@@ -30,28 +31,50 @@ public static class RazorCompiler
         }
         """);
 
-    public static CompiledRazor Compile(string input)
+    public static CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
-        var filePath = "/TestProject/TestComponent.razor";
-        var item = new SourceGeneratorProjectItem(
-            basePath: "/",
-            filePath: filePath,
-            relativePhysicalPath: "TestComponent.razor",
-            fileKind: FileKinds.Component,
-            additionalText: new TestAdditionalText(input, encoding: Encoding.UTF8, path: filePath),
-            cssScope: null);
-
+        var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystem();
-        fileSystem.Add(item);
+        var cSharp = new List<SyntaxTree>();
+        foreach (var input in inputs)
+        {
+            var filePath = directory + input.FileName;
+            switch (input.FileExtension)
+            {
+                case ".razor":
+                    {
+                        var item = new SourceGeneratorProjectItem(
+                            basePath: "/",
+                            filePath: filePath,
+                            relativePhysicalPath: input.FileName,
+                            fileKind: FileKinds.Component,
+                            additionalText: new TestAdditionalText(input.Text, encoding: Encoding.UTF8, path: filePath),
+                            cssScope: null);
+                        fileSystem.Add(item);
+                        break;
+                    }
+                case ".cs":
+                    {
+                        cSharp.Add(CSharpSyntaxTree.ParseText(input.Text, path: filePath));
+                        break;
+                    }
+            }
+        }
 
         var config = RazorConfiguration.Default;
 
         // Phase 1: Declaration only (to be used as a reference from which tag helpers will be discovered).
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
-        RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
-        string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
         var declarationCompilation = CSharpCompilation.Create("TestAssembly",
-            [CSharpSyntaxTree.ParseText(declarationCSharp)],
+            syntaxTrees: [
+                ..fileSystem.EnumerateItems("/").Select((item) =>
+                {
+                    RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
+                    string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
+                    return CSharpSyntaxTree.ParseText(declarationCSharp);
+                }),
+                ..cSharp,
+            ],
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
@@ -59,28 +82,37 @@ public static class RazorCompiler
         RazorProjectEngine projectEngine = createProjectEngine([
             ..Basic.Reference.Assemblies.AspNet80.References.All,
             declarationCompilation.ToMetadataReference()]);
-        RazorCodeDocument codeDocument = projectEngine.Process(item);
+        var compiledFiles = fileSystem.EnumerateItems("/")
+            .ToImmutableDictionary(
+                keySelector: (item) => item.RelativePhysicalPath,
+                elementSelector: (item) =>
+                {
+                    RazorCodeDocument codeDocument = projectEngine.Process(item);
+
+                    string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
+
+                    string ir = formatDocumentTree(codeDocument.GetDocumentIntermediateNode());
+
+                    string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
+
+                    return new CompiledRazorFile(
+                        Syntax: syntax,
+                        Ir: ir,
+                        CSharp: cSharp);
+                });
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
-            [CSharpSyntaxTree.ParseText(codeDocument.GetCSharpDocument().GeneratedCode)],
+            compiledFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.CSharp)),
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
-
-        string ir = formatDocumentTree(codeDocument.GetDocumentIntermediateNode());
-
-        string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
         var diagnostics = finalCompilation
             .GetDiagnostics()
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
         string diagnosticsText = getActualDiagnosticsText(diagnostics);
 
-        return new CompiledRazor(
-            Syntax: syntax,
-            Ir: ir,
-            CSharp: cSharp,
+        return new CompiledAssembly(
+            Files: compiledFiles,
             Diagnostics: diagnosticsText,
             NumWarnings: diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning),
             NumErrors: diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error));
@@ -162,6 +194,11 @@ public record InitialCode(string SuggestedFileName, string TextTemplate)
     }
 }
 
-public record InputCode(string FileName, string Text);
+public record InputCode(string FileName, string Text)
+{
+    public string FileExtension => Path.GetExtension(FileName);
+}
 
-public record CompiledRazor(string Syntax, string Ir, string CSharp, string Diagnostics, int NumWarnings, int NumErrors);
+public record CompiledAssembly(ImmutableDictionary<string, CompiledRazorFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
+
+public record CompiledRazorFile(string Syntax, string Ir, string CSharp);
