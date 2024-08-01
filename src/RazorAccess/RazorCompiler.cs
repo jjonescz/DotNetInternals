@@ -36,7 +36,7 @@ public static class RazorCompiler
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystem();
-        var cSharp = new List<SyntaxTree>();
+        var cSharp = new Dictionary<string, SyntaxTree>();
         foreach (var input in inputs)
         {
             var filePath = directory + input.FileName;
@@ -57,7 +57,7 @@ public static class RazorCompiler
                     }
                 case ".cs":
                     {
-                        cSharp.Add(CSharpSyntaxTree.ParseText(input.Text, path: filePath));
+                        cSharp[input.FileName] = CSharpSyntaxTree.ParseText(input.Text, path: filePath);
                         break;
                     }
             }
@@ -75,7 +75,7 @@ public static class RazorCompiler
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
                     return CSharpSyntaxTree.ParseText(declarationCSharp);
                 }),
-                ..cSharp,
+                ..cSharp.Values,
             ],
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -84,7 +84,7 @@ public static class RazorCompiler
         RazorProjectEngine projectEngine = createProjectEngine([
             ..Basic.Reference.Assemblies.AspNet80.References.All,
             declarationCompilation.ToMetadataReference()]);
-        var compiledFiles = fileSystem.EnumerateItems("/")
+        var compiledRazorFiles = fileSystem.EnumerateItems("/")
             .ToImmutableDictionary(
                 keySelector: (item) => item.RelativePhysicalPath,
                 elementSelector: (item) =>
@@ -105,9 +105,17 @@ public static class RazorCompiler
                 });
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
-            compiledFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.GetOutput("C#")!)),
+            [
+                ..compiledRazorFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.GetOutput("C#")!)),
+                ..cSharp.Values,
+            ],
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var compiledFiles = compiledRazorFiles.AddRange(
+            cSharp.Select(static (pair) => new KeyValuePair<string, CompiledFile>(
+                pair.Key,
+                new([new("Syntax", pair.Value.ToString())]))));
 
         var diagnostics = finalCompilation
             .GetDiagnostics()
