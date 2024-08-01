@@ -113,10 +113,15 @@ public static class RazorCompiler
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
+        string il = getIl(finalCompilation);
+
         var compiledFiles = compiledRazorFiles.AddRange(
-            cSharp.Select(static (pair) => new KeyValuePair<string, CompiledFile>(
+            cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
-                new([new("Syntax", pair.Value.GetRoot().Dump())]))));
+                new([
+                    new("Syntax", pair.Value.GetRoot().Dump()),
+                    new("IL", il) { Priority = 1 },
+                ]))));
 
         var diagnostics = finalCompilation
             .GetDiagnostics()
@@ -175,6 +180,15 @@ public static class RazorCompiler
         {
             var spaces = new string(' ', 16);
             return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
+        }
+
+        static string getIl(CSharpCompilation compilation)
+        {
+            var peFile = new ICSharpCode.Decompiler.Metadata.PEFile(compilation.AssemblyName!, compilation.EmitToStream());
+            var output = new ICSharpCode.Decompiler.PlainTextOutput();
+            var disassembler = new ICSharpCode.Decompiler.Disassembler.ReflectionDisassembler(output, cancellationToken: default);
+            disassembler.WriteModuleContents(peFile);
+            return output.ToString();
         }
     }
 }
