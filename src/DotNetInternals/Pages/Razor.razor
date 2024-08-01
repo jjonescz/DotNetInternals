@@ -392,7 +392,7 @@
 
     private static string? GetLanguageForFileExtension(string extension) => extension switch
     {
-        ".razor" => "razor",
+        ".razor" or ".cshtml" => "razor",
         ".cs" => "csharp",
         _ => null,
     };
