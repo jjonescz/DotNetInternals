@@ -12,6 +12,7 @@
 		<PackageReference Include="BlazorMonaco" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+		<PackageReference Include="protobuf-net" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -1,4 +1,5 @@
 ﻿@page "/"
+@inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
 <PageTitle>Razor • DotNetInternals</PageTitle>
@@ -10,9 +11,75 @@
         (<a href="https://github.com/jjonescz/DotNetInternals">GitHub</a>)
     </div>
 
+    @* Tab select *@
+    <div class="col-auto">
+        <div class="input-group">
+            @if (currentInput != null && renamingTo != null)
+            {
+                <input type="text" class="form-control" placeholder="@currentInput" title="File name" @bind="renamingTo" />
+                <button type="button" class="btn btn-outline-primary" title="Confirm rename"
+                        @onclick="RenameInput">
+                    @BootstrapIcons.CheckLg
+                </button>
+                <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
+                        @onclick="() => renamingTo = null">
+                    @BootstrapIcons.XLg
+                </button>
+            }
+            else if (currentInput != null && deletingInput)
+            {
+                <span class="input-group-text">Delete this file?</span>
+                <button type="button" class="btn btn-outline-danger" title="Confirm delete"
+                        @onclick="DeleteInputAsync">
+                    @BootstrapIcons.CheckLg
+                </button>
+                <button type="button" class="btn btn-outline-secondary" title="Cancel delete"
+                        @onclick="() => deletingInput = false">
+                    @BootstrapIcons.XLg
+                </button>
+            }
+            else
+            {
+                <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
+                    @foreach (var fileName in inputs.Keys)
+                    {
+                        <option value="@fileName">
+                            @fileName
+                        </option>
+                    }
+                    <hr />
+                    <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
+                        Add .razor
+                    </option>
+                    <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
+                        Add .cs
+                    </option>
+                </select>
+
+                @if (currentInput != null)
+                {
+                    @* Rename button *@
+                    <button type="button" class="btn btn-outline-secondary" title="Rename current file"
+                            @onclick="() => renamingTo = currentInput">
+                        @BootstrapIcons.Pencil
+                    </button>
+
+                    @* Delete button *@
+                    if (inputs.Count > 1)
+                    {
+                        <button type="button" class="btn btn-outline-danger" title="Delete current file"
+                                @onclick="() => deletingInput = true">
+                            @BootstrapIcons.Trash3
+                        </button>
+                    }
+                }
+            }
+        </div>
+    </div>
+
     @* Compile button *@
     <div class="col-auto">
-        <button type="button" class="btn btn-primary" @onclick="Compile">
+        <button type="button" class="btn btn-primary" @onclick="CompileAsync">
             Compile
             @if (compilationInProgress)
             {
@@ -71,7 +138,7 @@
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="razorCode" Id="razor-code"
-                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInit" />
+                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync" />
         </div>
     </div>
     <div class="col">
@@ -80,10 +147,14 @@
 </div>
 
 @code {
+    private readonly Dictionary<string, TextModel> inputs = new();
+    private string? currentInput = null;
+    private string? renamingTo = null;
+    private bool deletingInput;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
-    private CompiledRazor? compiled;
+    private CompiledAssembly? compiled;
     private string output = "";
     private Settings settings = null!;
     private bool wordWrap;
@@ -95,9 +166,75 @@
         {
             AutomaticLayout = true,
             WordWrap = wordWrap ? "on" : "off",
-            Language = "razor",
-            Value = RazorCompiler.InitialCode
         };
+    }
+
+    private async Task OnInputSelectedAsync(string? selectedInput)
+    {
+        if (selectedInput is null)
+        {
+            currentInput = selectedInput;
+        }
+        else if (inputs.TryGetValue(selectedInput, out var model))
+        {
+            currentInput = selectedInput;
+            await razorCode.SetModel(model);
+        }
+        else if (selectedInput.EndsWith(RazorCompiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
+        {
+            await AddInputAsync(RazorCompiler.InitialRazorCode);
+        }
+        else if (selectedInput.EndsWith(RazorCompiler.InitialCSharpCode.SuggestedFileExtension, StringComparison.Ordinal))
+        {
+            await AddInputAsync(RazorCompiler.InitialCSharpCode);
+        }
+
+        UpdateOutput();
+    }
+
+    private void RenameInput()
+    {
+        Debug.Assert(currentInput != null && renamingTo != null);
+        if (currentInput != renamingTo)
+        {
+            var model = inputs[currentInput];
+            inputs[renamingTo] = model;
+            inputs.Remove(currentInput);
+            currentInput = renamingTo;
+        }
+        renamingTo = null;
+    }
+
+    private async Task DeleteInputAsync()
+    {
+        Debug.Assert(currentInput != null && inputs.Count > 1);
+        inputs.Remove(currentInput);
+        currentInput = inputs.Keys.First();
+        deletingInput = false;
+        await razorCode.SetModel(inputs[currentInput]);
+    }
+
+    private async Task AddInputAsync(InitialCode initialCode)
+    {
+        var fileName = FindUniqueName(initialCode);
+        var inputCode = initialCode.ToInputCode(fileName);
+        var model = await CreateModelAsync(inputCode);
+        inputs[fileName] = model;
+        currentInput = fileName;
+        await razorCode.SetModel(model);
+    }
+
+    private string FindUniqueName(InitialCode initialCode)
+    {
+        for (var i = 0; ; i++)
+        {
+            var suffix = i == 0 ? "" : $"{i}";
+            var fileName = initialCode.GetFinalFileName(suffix);
+            if (!inputs.ContainsKey(fileName))
+            {
+                return fileName;
+            }
+        }
     }
 
     private OutputType SelectedOutputType
@@ -110,21 +247,29 @@
         }
     }
 
-    private async Task Compile()
+    private async Task CompileAsync()
     {
         compilationInProgress = true;
-        
-        var text = await razorCode.GetValue();
-        
-        // Save state (input code) to URL.
-        var slug = Compressor.Compress(text);
+
+        // Get input texts.
+        var inputBuilder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
+        foreach (var (fileName, model) in inputs)
+        {
+            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
+            inputBuilder.Add(new() { FileName = fileName, Text = text });
+        }
+        var inputCodes = inputBuilder.ToImmutable();
+
+        // Save state (input codes) to URL.
+        var slug = Compressor.Compress(new SavedState{ Inputs = inputCodes });
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
-        
+
         await RefreshAsync();
-        
-        compiled = RazorCompiler.Compile(text);
+
+        // Compile.
+        compiled = RazorCompiler.Compile(inputCodes);
         UpdateOutput();
-        
+
         compilationInProgress = false;
     }
 
@@ -133,12 +278,22 @@
         output = SelectedOutputType switch
         {
             _ when compiled is null => "",
-            OutputType.Syntax => compiled.Syntax,
-            OutputType.Ir => compiled.Ir,
-            OutputType.CSharp => compiled.CSharp,
+            OutputType.Syntax => CurrentCompiledRazorFile?.Syntax ?? "",
+            OutputType.Ir => CurrentCompiledRazorFile?.Ir ?? "",
+            OutputType.CSharp => CurrentCompiledRazorFile?.CSharp ?? "",
             OutputType.Diagnostics => compiled.Diagnostics,
             _ => throw new InvalidOperationException(),
         };
+    }
+
+    private CompiledRazorFile? CurrentCompiledRazorFile
+    {
+        get
+        {
+            return compiled?.Files.TryGetValue(currentInput ?? "", out var file) == true
+                ? file
+                : null;
+        }
     }
 
     private enum OutputType
@@ -149,7 +304,7 @@
         Diagnostics,
     }
 
-    private async Task EditorInit()
+    private async Task EditorInitAsync()
     {
         await settings.InitializeAsync();
 
@@ -157,10 +312,39 @@
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var slug = uri.Fragment.TrimStart('#');
 
-        var text = string.IsNullOrWhiteSpace(slug)
-            ? RazorCompiler.InitialCode
-            : Compressor.Uncompress(slug);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            await AddInputAsync(RazorCompiler.InitialRazorCode);
+        }
+        else
+        {
+            var savedState = Compressor.Uncompress(slug);
+            inputs.Clear();
+            currentInput = null;
+            foreach (var input in savedState.Inputs)
+            {
+                var model = await CreateModelAsync(input);
+                inputs[input.FileName] = model;
 
-        await razorCode.SetValue(text);
+                if (currentInput is null)
+                {
+                    currentInput = input.FileName;
+                    await razorCode.SetModel(model);
+                }
+            }
+        }
+    }
+
+    private async Task<TextModel> CreateModelAsync(InputCode inputCode)
+    {
+        return await BlazorMonaco.Editor.Global.CreateModel(
+            JSRuntime,
+            value: inputCode.Text,
+            language: Path.GetExtension(inputCode.FileName) switch
+            {
+                ".razor" => "razor",
+                ".cs" => "csharp",
+                _ => null,
+            });
     }
 }
