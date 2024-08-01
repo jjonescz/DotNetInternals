@@ -13,21 +13,47 @@
 
     @* Tab select *@
     <div class="col-auto">
-        <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
-            @foreach (var fileName in inputs.Keys)
+        <div class="input-group">
+            @if (currentInput != null && renamingTo != null)
             {
-                <option value="@fileName">
-                    @fileName
-                </option>
+                <input type="text" class="form-control" placeholder="@currentInput" title="File name" @bind="renamingTo" />
+                <button type="button" class="btn btn-outline-primary" title="Confirm rename"
+                        @onclick="RenameInput">
+                    @BootstrapIcons.CheckLg
+                </button>
+                <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
+                        @onclick="() => renamingTo = null">
+                    @BootstrapIcons.XLg
+                </button>
             }
-            <hr />
-            <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
-                Add .razor
-            </option>
-            <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
-                Add .cs
-            </option>
-        </select>
+            else
+            {
+                <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
+                    @foreach (var fileName in inputs.Keys)
+                    {
+                        <option value="@fileName">
+                            @fileName
+                        </option>
+                    }
+                    <hr />
+                    <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
+                        Add .razor
+                    </option>
+                    <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
+                        Add .cs
+                    </option>
+                </select>
+
+                @* Rename button *@
+                @if (currentInput != null)
+                {
+                    <button type="button" class="btn btn-outline-secondary" title="Rename current file"
+                            @onclick="() => renamingTo = currentInput">
+                        @BootstrapIcons.Pencil
+                    </button>
+                }
+            }
+        </div>
     </div>
 
     @* Compile button *@
@@ -102,6 +128,7 @@
 @code {
     private readonly Dictionary<string, TextModel> inputs = new();
     private string? currentInput = null;
+    private string? renamingTo = null;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
@@ -141,6 +168,19 @@
         }
 
         UpdateOutput();
+    }
+
+    private void RenameInput()
+    {
+        Debug.Assert(currentInput != null && renamingTo != null);
+        if (currentInput != renamingTo)
+        {
+            var model = inputs[currentInput];
+            inputs[renamingTo] = model;
+            inputs.Remove(currentInput);
+            currentInput = renamingTo;
+        }
+        renamingTo = null;
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
