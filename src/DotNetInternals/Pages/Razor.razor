@@ -11,70 +11,103 @@
         (<a href="https://github.com/jjonescz/DotNetInternals">GitHub</a>)
     </div>
 
-    @* Tab select *@
+    @* Input tabs *@
     <div class="col-auto">
-        <div class="input-group">
-            @if (currentInput != null && renamingTo != null)
-            {
-                <input type="text" class="form-control" placeholder="@currentInput" title="File name" @bind="renamingTo" />
-                <button type="button" class="btn btn-outline-primary" title="Confirm rename"
-                        @onclick="RenameInput">
-                    @BootstrapIcons.CheckLg
-                </button>
-                <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
-                        @onclick="() => renamingTo = null">
-                    @BootstrapIcons.XLg
-                </button>
-            }
-            else if (currentInput != null && deletingInput)
-            {
-                <span class="input-group-text">Delete this file?</span>
-                <button type="button" class="btn btn-outline-danger" title="Confirm delete"
-                        @onclick="DeleteInputAsync">
-                    @BootstrapIcons.CheckLg
-                </button>
-                <button type="button" class="btn btn-outline-secondary" title="Cancel delete"
-                        @onclick="() => deletingInput = false">
-                    @BootstrapIcons.XLg
-                </button>
-            }
-            else
-            {
-                <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
-                    @foreach (var fileName in inputs.Keys)
-                    {
-                        <option value="@fileName">
-                            @fileName
-                        </option>
-                    }
-                    <hr />
-                    <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
-                        Add .razor
-                    </option>
-                    <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
-                        Add .cs
-                    </option>
-                </select>
+        @if (SimpleMode)
+        {
+            <div class="btn-toolbar" role="toolbar" title="Input">
+                @* C# / Razor switch *@
+                <InputRadioGroup @bind-Value="currentInput" @bind-Value:after="OnSwitchSimpleInputAsync">
+                    <div class="btn-group me-2" role="group" title="Input type">
+                        <InputRadio class="btn-check" id="inputCSharp" Value="@RazorCompiler.InitialCSharpCode.SuggestedFileName" />
+                        <label class="btn btn-outline-primary" for="inputCSharp">
+                            C#
+                        </label>
 
-                @if (currentInput != null)
-                {
-                    @* Rename button *@
-                    <button type="button" class="btn btn-outline-secondary" title="Rename current file"
-                            @onclick="() => renamingTo = currentInput">
-                        @BootstrapIcons.Pencil
+                        <InputRadio class="btn-check" id="inputRazor" Value="@RazorCompiler.InitialRazorCode.SuggestedFileName" />
+                        <label class="btn btn-outline-primary" for="inputRazor">
+                            Razor
+                        </label>
+                    </div>
+                </InputRadioGroup>
+
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary"
+                            title="Add more input files"
+                            @onclick="AddNewInputAsync">
+                        @BootstrapIcons.PlusLg
                     </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="input-group">
+                @if (currentInput != null && renamingTo != null)
+                {
+                    @* Renaming confirmation *@
+                    <input type="text" class="form-control" placeholder="@currentInput" title="File name" @bind="renamingTo" />
+                    <button type="button" class="btn btn-outline-primary" title="Confirm rename"
+                            @onclick="RenameInput">
+                        @BootstrapIcons.CheckLg
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
+                            @onclick="() => renamingTo = null">
+                        @BootstrapIcons.XLg
+                    </button>
+                }
+                else if (currentInput != null && deletingInput)
+                {
+                    @* Deleting confirmation *@
+                    <span class="input-group-text">Delete this file?</span>
+                    <button type="button" class="btn btn-outline-danger" title="Confirm delete"
+                            @onclick="DeleteInputAsync">
+                        @BootstrapIcons.CheckLg
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" title="Cancel delete"
+                            @onclick="() => deletingInput = false">
+                        @BootstrapIcons.XLg
+                    </button>
+                }
+                else
+                {
+                    @* Input tabs *@
+                    <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
+                        @foreach (var fileName in inputs.Keys)
+                        {
+                            <option value="@fileName">
+                                @fileName
+                            </option>
+                        }
+                        <hr />
+                        <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
+                            Add .razor
+                        </option>
+                        <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
+                            Add .cs
+                        </option>
+                    </select>
 
-                    @* Delete button *@
-                    if (inputs.Count > 1)
+                    @if (currentInput != null)
                     {
-                        <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                                @onclick="() => deletingInput = true">
-                            @BootstrapIcons.Trash3
+                        @* Rename button *@
+                        <button type="button" class="btn btn-outline-secondary" title="Rename current file"
+                                @onclick="() => renamingTo = currentInput">
+                            @BootstrapIcons.Pencil
                         </button>
+
+                        @* Delete button *@
+                        if (inputs.Count > 1)
+                        {
+                            <button type="button" class="btn btn-outline-danger" title="Delete current file"
+                                    @onclick="() => deletingInput = true">
+                                @BootstrapIcons.Trash3
+                            </button>
+                        }
                     }
                 }
-            }
-        </div>
+            </div>
+        }
     </div>
 
     @* Compile button *@
@@ -92,7 +125,7 @@
 
     @* Output switch *@
     <InputRadioGroup @bind-Value="SelectedOutputType">
-        <div class="btn-group col-auto" role="group" aria-label="Output type">
+        <div class="btn-group col-auto" role="group" title="Output type">
             <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
             <label class="btn btn-outline-primary" for="outputSyntax">
                 Syntax
@@ -160,6 +193,24 @@
     private bool wordWrap;
     private bool useVim;
 
+    /// <summary>
+    /// In simple mode, there is just one tab with either Razor or C# code.
+    /// </summary>
+    private bool SimpleMode
+    {
+        get
+        {
+            if (inputs.Count != 1)
+            {
+                return false;
+            }
+
+            var fileName = inputs.Keys.First();
+            return fileName == RazorCompiler.InitialRazorCode.SuggestedFileName ||
+                fileName == RazorCompiler.InitialCSharpCode.SuggestedFileName;
+        }
+    }
+
     private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
     {
         return new StandaloneEditorConstructionOptions
@@ -190,6 +241,25 @@
         }
 
         UpdateOutput();
+    }
+
+    private async Task OnSwitchSimpleInputAsync()
+    {
+        Debug.Assert(SimpleMode && inputs.Count == 1 && currentInput != null);
+        inputs.Clear();
+        await AddInputAsync(currentInput == RazorCompiler.InitialRazorCode.SuggestedFileName
+            ? RazorCompiler.InitialRazorCode
+            : RazorCompiler.InitialCSharpCode);
+        Debug.Assert(SimpleMode);
+    }
+
+    private async Task AddNewInputAsync()
+    {
+        Debug.Assert(SimpleMode && currentInput != null);
+        await AddInputAsync(currentInput == RazorCompiler.InitialRazorCode.SuggestedFileName
+            ? RazorCompiler.InitialRazorCode
+            : RazorCompiler.InitialCSharpCode);
+        Debug.Assert(!SimpleMode);
     }
 
     private void RenameInput()
