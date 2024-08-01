@@ -126,22 +126,16 @@
     @* Output switch *@
     <InputRadioGroup @bind-Value="selectedOutputType">
         <div class="btn-group col-auto" role="group" title="Output type">
-            <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
-            <label class="btn btn-outline-primary" for="outputSyntax">
-                Syntax
-            </label>
+            @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
+            {
+                var id = $"output{output.Type}";
+                <InputRadio class="btn-check" id="@id" Value="@output.Type" />
+                <label class="btn btn-outline-primary" for="@id">
+                    @output.Type
+                </label>
+            }
 
-            <InputRadio class="btn-check" id="outputIr" Value="OutputType.Ir" />
-            <label class="btn btn-outline-primary" for="outputIr">
-                IR
-            </label>
-
-            <InputRadio class="btn-check" id="outputCSharp" Value="OutputType.CSharp" />
-            <label class="btn btn-outline-primary" for="outputCSharp">
-                C#
-            </label>
-
-            <InputRadio class="btn-check" id="outputDiagnostics" Value="OutputType.Diagnostics" />
+            <InputRadio class="btn-check" id="outputDiagnostics" Value="diagnosticsOutputType" />
             <label class="btn btn-outline-primary" for="outputDiagnostics">
                 Diagnostics
                 @if (compiled?.NumErrors > 0)
@@ -180,12 +174,14 @@
 </div>
 
 @code {
+    private const string diagnosticsOutputType = "Diagnostics";
+
     private readonly Dictionary<string, TextModel> inputs = new();
     private string? currentInput = null;
     private string? renamingTo = null;
     private bool deletingInput;
     private StandaloneCodeEditor razorCode = null!;
-    private OutputType selectedOutputType = OutputType.CSharp;
+    private string? selectedOutputType = null;
     private bool compilationInProgress;
     private CompiledAssembly? compiled;
     private Settings settings = null!;
@@ -332,14 +328,12 @@
     private string Output => selectedOutputType switch
     {
         _ when compiled is null => "",
-        OutputType.Syntax => CurrentCompiledRazorFile?.Syntax ?? "",
-        OutputType.Ir => CurrentCompiledRazorFile?.Ir ?? "",
-        OutputType.CSharp => CurrentCompiledRazorFile?.CSharp ?? "",
-        OutputType.Diagnostics => compiled.Diagnostics,
-        _ => throw new InvalidOperationException(),
+        null => "",
+        diagnosticsOutputType => compiled.Diagnostics,
+        var other => CurrentCompiledFile?.GetOutput(other) ?? "",
     };
 
-    private CompiledRazorFile? CurrentCompiledRazorFile
+    private CompiledFile? CurrentCompiledFile
     {
         get
         {
@@ -347,14 +341,6 @@
                 ? file
                 : null;
         }
-    }
-
-    private enum OutputType
-    {
-        Syntax,
-        Ir,
-        CSharp,
-        Diagnostics,
     }
 
     private async Task EditorInitAsync()

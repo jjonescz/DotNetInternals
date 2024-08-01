@@ -97,14 +97,15 @@ public static class RazorCompiler
 
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
-                    return new CompiledRazorFile(
-                        Syntax: syntax,
-                        Ir: ir,
-                        CSharp: cSharp);
+                    return new CompiledFile([
+                        new("Syntax", syntax),
+                        new("IR", ir),
+                        new("C#", cSharp),
+                    ]);
                 });
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
-            compiledFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.CSharp)),
+            compiledFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.GetOutput("C#")!)),
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
@@ -209,6 +210,11 @@ public sealed record InputCode
     public string FileExtension => Path.GetExtension(FileName);
 }
 
-public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledRazorFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
+public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
 
-public sealed record CompiledRazorFile(string Syntax, string Ir, string CSharp);
+public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
+{
+    public string? GetOutput(string type) => Outputs.FirstOrDefault(o => o.Type == type)?.Text;
+}
+
+public sealed record CompiledFileOutput(string Type, string Text);
