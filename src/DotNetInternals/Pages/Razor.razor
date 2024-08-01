@@ -48,7 +48,7 @@
                     @* Renaming confirmation *@
                     <input type="text" class="form-control" placeholder="@currentInput" title="File name" @bind="renamingTo" />
                     <button type="button" class="btn btn-outline-primary" title="Confirm rename"
-                            @onclick="RenameInput">
+                            @onclick="RenameInputAsync">
                         @BootstrapIcons.CheckLg
                     </button>
                     <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
@@ -255,15 +255,23 @@
         Debug.Assert(!SimpleMode);
     }
 
-    private void RenameInput()
+    private async Task RenameInputAsync()
     {
         Debug.Assert(currentInput != null && renamingTo != null);
         if (currentInput != renamingTo)
         {
+            var oldLanguage = GetLanguageForFileExtension(Path.GetExtension(currentInput));
+            var newLanguage = GetLanguageForFileExtension(Path.GetExtension(renamingTo));
+
             var model = inputs[currentInput];
             inputs[renamingTo] = model;
             inputs.Remove(currentInput);
             currentInput = renamingTo;
+
+            if (oldLanguage != newLanguage)
+            {
+                await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, model, newLanguage);
+            }
         }
         renamingTo = null;
     }
@@ -379,11 +387,13 @@
         return await BlazorMonaco.Editor.Global.CreateModel(
             JSRuntime,
             value: inputCode.Text,
-            language: Path.GetExtension(inputCode.FileName) switch
-            {
-                ".razor" => "razor",
-                ".cs" => "csharp",
-                _ => null,
-            });
+            language: GetLanguageForFileExtension(inputCode.FileExtension));
     }
+
+    private static string? GetLanguageForFileExtension(string extension) => extension switch
+    {
+        ".razor" => "razor",
+        ".cs" => "csharp",
+        _ => null,
+    };
 }
