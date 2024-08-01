@@ -20,4 +20,8 @@
     <PackageReference Include="System.Text.RegularExpressions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RoslynAccess\RoslynAccess.csproj" />
+  </ItemGroup>
+
 </Project>

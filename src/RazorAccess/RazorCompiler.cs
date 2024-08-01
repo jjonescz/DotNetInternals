@@ -1,3 +1,4 @@
+using DotNetInternals.RoslynAccess;
 using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
@@ -36,7 +37,7 @@ public static class RazorCompiler
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystem();
-        var cSharp = new Dictionary<string, SyntaxTree>();
+        var cSharp = new Dictionary<string, CSharpSyntaxTree>();
         foreach (var input in inputs)
         {
             var filePath = directory + input.FileName;
@@ -57,7 +58,7 @@ public static class RazorCompiler
                     }
                 case ".cs":
                     {
-                        cSharp[input.FileName] = CSharpSyntaxTree.ParseText(input.Text, path: filePath);
+                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, path: filePath);
                         break;
                     }
             }
@@ -115,7 +116,7 @@ public static class RazorCompiler
         var compiledFiles = compiledRazorFiles.AddRange(
             cSharp.Select(static (pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
-                new([new("Syntax", pair.Value.ToString())]))));
+                new([new("Syntax", pair.Value.GetRoot().Dump())]))));
 
         var diagnostics = finalCompilation
             .GetDiagnostics()
