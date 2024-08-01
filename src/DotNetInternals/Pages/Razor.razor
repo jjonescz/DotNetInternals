@@ -26,6 +26,18 @@
                     @BootstrapIcons.XLg
                 </button>
             }
+            else if (currentInput != null && deletingInput)
+            {
+                <span class="input-group-text">Delete this file?</span>
+                <button type="button" class="btn btn-outline-danger" title="Confirm delete"
+                        @onclick="DeleteInputAsync">
+                    @BootstrapIcons.CheckLg
+                </button>
+                <button type="button" class="btn btn-outline-secondary" title="Cancel delete"
+                        @onclick="() => deletingInput = false">
+                    @BootstrapIcons.XLg
+                </button>
+            }
             else
             {
                 <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
@@ -44,13 +56,22 @@
                     </option>
                 </select>
 
-                @* Rename button *@
                 @if (currentInput != null)
                 {
+                    @* Rename button *@
                     <button type="button" class="btn btn-outline-secondary" title="Rename current file"
                             @onclick="() => renamingTo = currentInput">
                         @BootstrapIcons.Pencil
                     </button>
+
+                    @* Delete button *@
+                    if (inputs.Count > 1)
+                    {
+                        <button type="button" class="btn btn-outline-danger" title="Delete current file"
+                                @onclick="() => deletingInput = true">
+                            @BootstrapIcons.Trash3
+                        </button>
+                    }
                 }
             }
         </div>
@@ -129,6 +150,7 @@
     private readonly Dictionary<string, TextModel> inputs = new();
     private string? currentInput = null;
     private string? renamingTo = null;
+    private bool deletingInput;
     private StandaloneCodeEditor razorCode = null!;
     private OutputType _outputType = OutputType.CSharp;
     private bool compilationInProgress;
@@ -181,6 +203,15 @@
             currentInput = renamingTo;
         }
         renamingTo = null;
+    }
+
+    private async Task DeleteInputAsync()
+    {
+        Debug.Assert(currentInput != null && inputs.Count > 1);
+        inputs.Remove(currentInput);
+        currentInput = inputs.Keys.First();
+        deletingInput = false;
+        await razorCode.SetModel(inputs[currentInput]);
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
