@@ -124,7 +124,7 @@
     </div>
 
     @* Output switch *@
-    <InputRadioGroup @bind-Value="SelectedOutputType">
+    <InputRadioGroup @bind-Value="selectedOutputType">
         <div class="btn-group col-auto" role="group" title="Output type">
             <InputRadio class="btn-check" id="outputSyntax" Value="OutputType.Syntax" />
             <label class="btn btn-outline-primary" for="outputSyntax">
@@ -175,7 +175,7 @@
         </div>
     </div>
     <div class="col">
-        <textarea @bind="output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
+        <textarea value="@Output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
     </div>
 </div>
 
@@ -185,10 +185,9 @@
     private string? renamingTo = null;
     private bool deletingInput;
     private StandaloneCodeEditor razorCode = null!;
-    private OutputType _outputType = OutputType.CSharp;
+    private OutputType selectedOutputType = OutputType.CSharp;
     private bool compilationInProgress;
     private CompiledAssembly? compiled;
-    private string output = "";
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
@@ -239,8 +238,6 @@
         {
             await AddInputAsync(RazorCompiler.InitialCSharpCode);
         }
-
-        UpdateOutput();
     }
 
     private async Task OnSwitchSimpleInputAsync()
@@ -307,16 +304,6 @@
         }
     }
 
-    private OutputType SelectedOutputType
-    {
-        get => _outputType;
-        set
-        {
-            _outputType = value;
-            UpdateOutput();
-        }
-    }
-
     private async Task CompileAsync()
     {
         compilationInProgress = true;
@@ -338,23 +325,19 @@
 
         // Compile.
         compiled = RazorCompiler.Compile(inputCodes);
-        UpdateOutput();
 
         compilationInProgress = false;
     }
 
-    private void UpdateOutput()
+    private string Output => selectedOutputType switch
     {
-        output = SelectedOutputType switch
-        {
-            _ when compiled is null => "",
-            OutputType.Syntax => CurrentCompiledRazorFile?.Syntax ?? "",
-            OutputType.Ir => CurrentCompiledRazorFile?.Ir ?? "",
-            OutputType.CSharp => CurrentCompiledRazorFile?.CSharp ?? "",
-            OutputType.Diagnostics => compiled.Diagnostics,
-            _ => throw new InvalidOperationException(),
-        };
-    }
+        _ when compiled is null => "",
+        OutputType.Syntax => CurrentCompiledRazorFile?.Syntax ?? "",
+        OutputType.Ir => CurrentCompiledRazorFile?.Ir ?? "",
+        OutputType.CSharp => CurrentCompiledRazorFile?.CSharp ?? "",
+        OutputType.Diagnostics => compiled.Diagnostics,
+        _ => throw new InvalidOperationException(),
+    };
 
     private CompiledRazorFile? CurrentCompiledRazorFile
     {
