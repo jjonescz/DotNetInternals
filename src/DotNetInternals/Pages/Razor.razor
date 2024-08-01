@@ -334,13 +334,13 @@
         var inputCodes = inputBuilder.ToImmutable();
 
         // Save state (input codes) to URL.
-        var slug = Compressor.Compress(new SavedState{ Inputs = inputCodes });
+        var slug = Compressor.Compress(new SavedState { Inputs = inputCodes });
         NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
 
         await RefreshAsync();
 
         // Compile.
-        compiled = RazorCompiler.Compile(inputCodes);
+        compiled = await RazorCompiler.CompileAsync(inputCodes);
 
         compilationInProgress = false;
     }

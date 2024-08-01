@@ -33,7 +33,7 @@ public static class RazorCompiler
         }
         """);
 
-    public static CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystem();
@@ -113,14 +113,17 @@ public static class RazorCompiler
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        string il = getIl(finalCompilation);
+        var peFile = getPeFile(finalCompilation);
+        string il = getIl(peFile);
+        string decompiledCSharp = await getCSharpAsync(peFile);
 
         var compiledFiles = compiledRazorFiles.AddRange(
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
                     new("Syntax", pair.Value.GetRoot().Dump()),
-                    new("IL", il) { Priority = 1 },
+                    new("IL", il),
+                    new("C#", decompiledCSharp) { Priority = 1 },
                 ]))));
 
         var diagnostics = finalCompilation
@@ -182,13 +185,31 @@ public static class RazorCompiler
             return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
         }
 
-        static string getIl(CSharpCompilation compilation)
+        static ICSharpCode.Decompiler.Metadata.PEFile getPeFile(CSharpCompilation compilation)
         {
-            var peFile = new ICSharpCode.Decompiler.Metadata.PEFile(compilation.AssemblyName!, compilation.EmitToStream());
+            return new(compilation.AssemblyName ?? "", compilation.EmitToStream());
+        }
+
+        static string getIl(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        {
             var output = new ICSharpCode.Decompiler.PlainTextOutput();
             var disassembler = new ICSharpCode.Decompiler.Disassembler.ReflectionDisassembler(output, cancellationToken: default);
             disassembler.WriteModuleContents(peFile);
             return output.ToString();
+        }
+
+        static async Task<string> getCSharpAsync(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        {
+            var typeSystem = await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
+                peFile,
+                new ICSharpCode.Decompiler.Metadata.UniversalAssemblyResolver(
+                    mainAssemblyFileName: null,
+                    throwOnError: false,
+                    targetFramework: ".NETCoreApp,Version=9.0"));
+            var decompiler = new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(
+                typeSystem,
+                new ICSharpCode.Decompiler.DecompilerSettings(ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp1));
+            return decompiler.DecompileWholeModuleAsString();
         }
     }
 }
