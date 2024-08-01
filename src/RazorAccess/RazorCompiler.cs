@@ -43,12 +43,13 @@ public static class RazorCompiler
             switch (input.FileExtension)
             {
                 case ".razor":
+                case ".cshtml":
                     {
                         var item = new SourceGeneratorProjectItem(
                             basePath: "/",
                             filePath: filePath,
                             relativePhysicalPath: input.FileName,
-                            fileKind: FileKinds.Component,
+                            fileKind: null!, // will be automatically determined from file path
                             additionalText: new TestAdditionalText(input.Text, encoding: Encoding.UTF8, path: filePath),
                             cssScope: null);
                         fileSystem.Add(item);
