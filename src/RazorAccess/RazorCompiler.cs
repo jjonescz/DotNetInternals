@@ -100,7 +100,7 @@ public static class RazorCompiler
                     return new CompiledFile([
                         new("Syntax", syntax),
                         new("IR", ir),
-                        new("C#", cSharp),
+                        new("C#", cSharp) { Priority = 1 },
                     ]);
                 });
 
@@ -225,4 +225,7 @@ public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
     public string? GetOutput(string type) => Outputs.FirstOrDefault(o => o.Type == type)?.Text;
 }
 
-public sealed record CompiledFileOutput(string Type, string Text);
+public sealed record CompiledFileOutput(string Type, string Text)
+{
+    public int Priority { get; init; }
+}

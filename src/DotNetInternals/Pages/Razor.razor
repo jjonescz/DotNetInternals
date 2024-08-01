@@ -213,7 +213,7 @@
             CurrentCompiledFile?.Outputs.Length > 0 &&
             (selectedOutputType == null || CurrentCompiledFile.GetOutput(selectedOutputType) == null))
         {
-            selectedOutputType = CurrentCompiledFile.Outputs[0].Type;
+            selectedOutputType = CurrentCompiledFile.Outputs.MaxBy(static o => o.Priority)!.Type;
             StateHasChanged();
         }
     }
