@@ -152,7 +152,7 @@
 
     @* Settings button *@
     <div class="col-auto">
-        <Settings @ref="settings" Editor="razorCode" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+        <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
     </div>
 </div>
 
@@ -164,7 +164,7 @@
     <div class="col d-flex flex-column">
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
-            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="razorCode" Id="razor-code"
+            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
                 ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync" />
         </div>
     </div>
@@ -180,7 +180,7 @@
     private string? currentInput = null;
     private string? renamingTo = null;
     private bool deletingInput;
-    private StandaloneCodeEditor razorCode = null!;
+    private StandaloneCodeEditor inputEditor = null!;
     private string? selectedOutputType = null;
     private bool compilationInProgress;
     private CompiledAssembly? compiled;
@@ -236,7 +236,7 @@
         else if (inputs.TryGetValue(selectedInput, out var model))
         {
             currentInput = selectedInput;
-            await razorCode.SetModel(model);
+            await inputEditor.SetModel(model);
         }
         else if (selectedInput.EndsWith(Compiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
         {
@@ -294,7 +294,7 @@
         inputs.Remove(currentInput);
         currentInput = inputs.Keys.First();
         deletingInput = false;
-        await razorCode.SetModel(inputs[currentInput]);
+        await inputEditor.SetModel(inputs[currentInput]);
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
@@ -304,7 +304,7 @@
         var model = await CreateModelAsync(inputCode);
         inputs[fileName] = model;
         currentInput = fileName;
-        await razorCode.SetModel(model);
+        await inputEditor.SetModel(model);
     }
 
     private string FindUniqueName(InitialCode initialCode)
@@ -388,7 +388,7 @@
                 if (currentInput is null)
                 {
                     currentInput = input.FileName;
-                    await razorCode.SetModel(model);
+                    await inputEditor.SetModel(model);
                 }
             }
         }
