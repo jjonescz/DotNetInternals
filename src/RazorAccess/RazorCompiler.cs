@@ -185,21 +185,39 @@ public static class RazorCompiler
             return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
         }
 
-        static ICSharpCode.Decompiler.Metadata.PEFile getPeFile(CSharpCompilation compilation)
+        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
         {
-            return new(compilation.AssemblyName ?? "", compilation.EmitToStream());
+            var stream = new MemoryStream();
+            var emitResult = compilation.Emit(stream);
+            if (!emitResult.Success)
+            {
+                return null;
+            }
+
+            stream.Position = 0;
+            return new(compilation.AssemblyName ?? "", stream);
         }
 
-        static string getIl(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        static string getIl(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
         {
+            if (peFile is null)
+            {
+                return "";
+            }
+
             var output = new ICSharpCode.Decompiler.PlainTextOutput();
             var disassembler = new ICSharpCode.Decompiler.Disassembler.ReflectionDisassembler(output, cancellationToken: default);
             disassembler.WriteModuleContents(peFile);
             return output.ToString();
         }
 
-        static async Task<string> getCSharpAsync(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        static async Task<string> getCSharpAsync(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
         {
+            if (peFile is null)
+            {
+                return "";
+            }
+
             var typeSystem = await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
                 peFile,
                 new ICSharpCode.Decompiler.Metadata.UniversalAssemblyResolver(
