@@ -1,20 +1,21 @@
+﻿using DotNetInternals.RazorAccess;
+using DotNetInternals.RoslynAccess;
 using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
-using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Test.Utilities;
-using Microsoft.NET.Sdk.Razor.SourceGenerators;
 using ProtoBuf;
 using Roslyn.Test.Utilities;
 using System.Collections.Immutable;
 using System.Text;
 
-namespace DotNetInternals.RazorAccess;
+namespace DotNetInternals;
 
-public static class RazorCompiler
+public static class Compiler
 {
+
     public static readonly InitialCode InitialRazorCode = new("TestComponent.razor", """
         <TestComponent Param="1" />
 
@@ -32,11 +33,11 @@ public static class RazorCompiler
         }
         """);
 
-    public static CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
-        var fileSystem = new VirtualRazorProjectFileSystem();
-        var cSharp = new List<SyntaxTree>();
+        var fileSystem = new VirtualRazorProjectFileSystemProxy();
+        var cSharp = new Dictionary<string, CSharpSyntaxTree>();
         foreach (var input in inputs)
         {
             var filePath = directory + input.FileName;
@@ -45,7 +46,7 @@ public static class RazorCompiler
                 case ".razor":
                 case ".cshtml":
                     {
-                        var item = new SourceGeneratorProjectItem(
+                        var item = RazorAccessors.CreateSourceGeneratorProjectItem(
                             basePath: "/",
                             filePath: filePath,
                             relativePhysicalPath: input.FileName,
@@ -57,7 +58,7 @@ public static class RazorCompiler
                     }
                 case ".cs":
                     {
-                        cSharp.Add(CSharpSyntaxTree.ParseText(input.Text, path: filePath));
+                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, path: filePath);
                         break;
                     }
             }
@@ -69,13 +70,13 @@ public static class RazorCompiler
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
         var declarationCompilation = CSharpCompilation.Create("TestAssembly",
             syntaxTrees: [
-                ..fileSystem.EnumerateItems("/").Select((item) =>
+                ..fileSystem.Inner.EnumerateItems("/").Select((item) =>
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
                     return CSharpSyntaxTree.ParseText(declarationCSharp);
                 }),
-                ..cSharp,
+                ..cSharp.Values,
             ],
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -84,29 +85,46 @@ public static class RazorCompiler
         RazorProjectEngine projectEngine = createProjectEngine([
             ..Basic.Reference.Assemblies.AspNet80.References.All,
             declarationCompilation.ToMetadataReference()]);
-        var compiledFiles = fileSystem.EnumerateItems("/")
+        var compiledRazorFiles = fileSystem.Inner.EnumerateItems("/")
             .ToImmutableDictionary(
                 keySelector: (item) => item.RelativePhysicalPath,
                 elementSelector: (item) =>
                 {
                     RazorCodeDocument codeDocument = projectEngine.Process(item);
 
-                    string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
+                    string syntax = codeDocument.GetSyntaxTree().Serialize();
 
-                    string ir = formatDocumentTree(codeDocument.GetDocumentIntermediateNode());
+                    string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
 
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
-                    return new CompiledRazorFile(
-                        Syntax: syntax,
-                        Ir: ir,
-                        CSharp: cSharp);
+                    return new CompiledFile([
+                        new("Syntax", syntax),
+                        new("IR", ir),
+                        new("C#", cSharp) { Priority = 1 },
+                    ]);
                 });
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
-            compiledFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.CSharp)),
+            [
+                ..compiledRazorFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.GetOutput("C#")!)),
+                ..cSharp.Values,
+            ],
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var peFile = getPeFile(finalCompilation);
+        string il = getIl(peFile);
+        string decompiledCSharp = await getCSharpAsync(peFile);
+
+        var compiledFiles = compiledRazorFiles.AddRange(
+            cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
+                pair.Key,
+                new([
+                    new("Syntax", pair.Value.GetRoot().Dump()),
+                    new("IL", il),
+                    new("C#", decompiledCSharp) { Priority = 1 },
+                ]))));
 
         var diagnostics = finalCompilation
             .GetDiagnostics()
@@ -121,11 +139,11 @@ public static class RazorCompiler
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
-            return RazorProjectEngine.Create(config, fileSystem, b =>
+            return RazorProjectEngine.Create(config, fileSystem.Inner, b =>
             {
                 b.SetRootNamespace("TestNamespace");
 
-                b.Features.Add(new DefaultTypeNameFeature());
+                b.Features.Add(RazorAccessors.CreateDefaultTypeNameFeature());
                 b.Features.Add(new CompilationTagHelperFeature());
                 b.Features.Add(new DefaultMetadataReferenceFeature
                 {
@@ -137,13 +155,6 @@ public static class RazorCompiler
 
                 b.SetCSharpLanguageVersion(LanguageVersion.Preview);
             });
-        }
-
-        static string formatDocumentTree(DocumentIntermediateNode node)
-        {
-            var formatter = new DebuggerDisplayFormatter();
-            formatter.FormatTree(node);
-            return formatter.ToString();
         }
 
         static string getActualDiagnosticsText(IEnumerable<Diagnostic> diagnostics)
@@ -165,6 +176,51 @@ public static class RazorCompiler
         {
             var spaces = new string(' ', 16);
             return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
+        }
+
+        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        {
+            var stream = new MemoryStream();
+            var emitResult = compilation.Emit(stream);
+            if (!emitResult.Success)
+            {
+                return null;
+            }
+
+            stream.Position = 0;
+            return new(compilation.AssemblyName ?? "", stream);
+        }
+
+        static string getIl(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
+        {
+            if (peFile is null)
+            {
+                return "";
+            }
+
+            var output = new ICSharpCode.Decompiler.PlainTextOutput();
+            var disassembler = new ICSharpCode.Decompiler.Disassembler.ReflectionDisassembler(output, cancellationToken: default);
+            disassembler.WriteModuleContents(peFile);
+            return output.ToString();
+        }
+
+        static async Task<string> getCSharpAsync(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
+        {
+            if (peFile is null)
+            {
+                return "";
+            }
+
+            var typeSystem = await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
+                peFile,
+                new ICSharpCode.Decompiler.Metadata.UniversalAssemblyResolver(
+                    mainAssemblyFileName: null,
+                    throwOnError: false,
+                    targetFramework: ".NETCoreApp,Version=9.0"));
+            var decompiler = new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(
+                typeSystem,
+                new ICSharpCode.Decompiler.DecompilerSettings(ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp1));
+            return decompiler.DecompileWholeModuleAsString();
         }
     }
 }
@@ -209,6 +265,14 @@ public sealed record InputCode
     public string FileExtension => Path.GetExtension(FileName);
 }
 
-public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledRazorFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
+public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
 
-public sealed record CompiledRazorFile(string Syntax, string Ir, string CSharp);
+public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
+{
+    public string? GetOutput(string type) => Outputs.FirstOrDefault(o => o.Type == type)?.Text;
+}
+
+public sealed record CompiledFileOutput(string Type, string Text)
+{
+    public int Priority { get; init; }
+}

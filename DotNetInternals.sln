@@ -22,6 +22,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{AC28F7A2-B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetInternals.Tests", "test\DotNetInternals.Tests\DotNetInternals.Tests.csproj", "{DA01142C-555F-4EF7-9E71-C5F988D5C3D7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoslynAccess", "src\RoslynAccess\RoslynAccess.csproj", "{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{DA01142C-555F-4EF7-9E71-C5F988D5C3D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA01142C-555F-4EF7-9E71-C5F988D5C3D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA01142C-555F-4EF7-9E71-C5F988D5C3D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -48,6 +54,7 @@ Global
 		{FCA5EE33-745E-4DF5-A250-04D5260AD806} = {CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}
 		{E3B85FCE-4793-4C91-916B-0D3199EEC20B} = {CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}
 		{DA01142C-555F-4EF7-9E71-C5F988D5C3D7} = {AC28F7A2-BCAD-48A8-B498-78E802B8872D}
+		{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD} = {CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AC88F4C4-40B7-4FD4-B0DF-0F911BE53F8C}

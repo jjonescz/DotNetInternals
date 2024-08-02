@@ -80,7 +80,7 @@
         {
             if (vimDisposable is null)
             {
-                vimDisposable = await JSRuntime.InvokeAsync<IJSObjectReference>("jslib.EnableVimMode", "razor-code", "vim-status");
+                vimDisposable = await JSRuntime.InvokeAsync<IJSObjectReference>("jslib.EnableVimMode", "input-editor", "vim-status");
             }
         }
         else
