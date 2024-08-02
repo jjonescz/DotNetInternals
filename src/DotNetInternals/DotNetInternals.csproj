@@ -8,11 +8,20 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Basic.Reference.Assemblies.AspNet80" />
 		<PackageReference Include="Blazored.LocalStorage" />
 		<PackageReference Include="BlazorMonaco" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Test.Utilities" />
+		<PackageReference Include="Microsoft.Net.Compilers.Razor.Toolset" PrivateAssets="all" IncludeAssets="none" GeneratePathProperty="true" />
 		<PackageReference Include="protobuf-net" />
+		<PackageReference Include="System.Text.RegularExpressions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="$(PkgMicrosoft_Net_Compilers_Razor_Toolset)\source-generators\Microsoft.CodeAnalysis.Razor.Compiler.dll" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -21,6 +30,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
+		<ProjectReference Include="..\RoslynAccess\RoslynAccess.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

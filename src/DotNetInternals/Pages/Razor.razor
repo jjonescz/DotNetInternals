@@ -19,12 +19,12 @@
                 @* C# / Razor switch *@
                 <InputRadioGroup @bind-Value="currentInput" @bind-Value:after="OnSwitchSimpleInputAsync">
                     <div class="btn-group me-2" role="group" title="Input type">
-                        <InputRadio class="btn-check" id="inputCSharp" Value="@RazorCompiler.InitialCSharpCode.SuggestedFileName" />
+                        <InputRadio class="btn-check" id="inputCSharp" Value="@Compiler.InitialCSharpCode.SuggestedFileName" />
                         <label class="btn btn-outline-primary" for="inputCSharp">
                             C#
                         </label>
 
-                        <InputRadio class="btn-check" id="inputRazor" Value="@RazorCompiler.InitialRazorCode.SuggestedFileName" />
+                        <InputRadio class="btn-check" id="inputRazor" Value="@Compiler.InitialRazorCode.SuggestedFileName" />
                         <label class="btn btn-outline-primary" for="inputRazor">
                             Razor
                         </label>
@@ -80,10 +80,10 @@
                             </option>
                         }
                         <hr />
-                        <option value="@FindUniqueName(RazorCompiler.InitialRazorCode)">
+                        <option value="@FindUniqueName(Compiler.InitialRazorCode)">
                             Add .razor
                         </option>
-                        <option value="@FindUniqueName(RazorCompiler.InitialCSharpCode)">
+                        <option value="@FindUniqueName(Compiler.InitialCSharpCode)">
                             Add .cs
                         </option>
                     </select>
@@ -201,8 +201,8 @@
             }
 
             var fileName = inputs.Keys.First();
-            return fileName == RazorCompiler.InitialRazorCode.SuggestedFileName ||
-                fileName == RazorCompiler.InitialCSharpCode.SuggestedFileName;
+            return fileName == Compiler.InitialRazorCode.SuggestedFileName ||
+                fileName == Compiler.InitialCSharpCode.SuggestedFileName;
         }
     }
 
@@ -238,13 +238,13 @@
             currentInput = selectedInput;
             await razorCode.SetModel(model);
         }
-        else if (selectedInput.EndsWith(RazorCompiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
+        else if (selectedInput.EndsWith(Compiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
         {
-            await AddInputAsync(RazorCompiler.InitialRazorCode);
+            await AddInputAsync(Compiler.InitialRazorCode);
         }
-        else if (selectedInput.EndsWith(RazorCompiler.InitialCSharpCode.SuggestedFileExtension, StringComparison.Ordinal))
+        else if (selectedInput.EndsWith(Compiler.InitialCSharpCode.SuggestedFileExtension, StringComparison.Ordinal))
         {
-            await AddInputAsync(RazorCompiler.InitialCSharpCode);
+            await AddInputAsync(Compiler.InitialCSharpCode);
         }
     }
 
@@ -252,18 +252,18 @@
     {
         Debug.Assert(SimpleMode && inputs.Count == 1 && currentInput != null);
         inputs.Clear();
-        await AddInputAsync(currentInput == RazorCompiler.InitialRazorCode.SuggestedFileName
-            ? RazorCompiler.InitialRazorCode
-            : RazorCompiler.InitialCSharpCode);
+        await AddInputAsync(currentInput == Compiler.InitialRazorCode.SuggestedFileName
+            ? Compiler.InitialRazorCode
+            : Compiler.InitialCSharpCode);
         Debug.Assert(SimpleMode);
     }
 
     private async Task AddNewInputAsync()
     {
         Debug.Assert(SimpleMode && currentInput != null);
-        await AddInputAsync(currentInput == RazorCompiler.InitialRazorCode.SuggestedFileName
-            ? RazorCompiler.InitialRazorCode
-            : RazorCompiler.InitialCSharpCode);
+        await AddInputAsync(currentInput == Compiler.InitialRazorCode.SuggestedFileName
+            ? Compiler.InitialRazorCode
+            : Compiler.InitialCSharpCode);
         Debug.Assert(!SimpleMode);
     }
 
@@ -340,7 +340,7 @@
         await RefreshAsync();
 
         // Compile.
-        compiled = await RazorCompiler.CompileAsync(inputCodes);
+        compiled = await Compiler.CompileAsync(inputCodes);
 
         compilationInProgress = false;
     }
@@ -373,7 +373,7 @@
 
         if (string.IsNullOrWhiteSpace(slug))
         {
-            await AddInputAsync(RazorCompiler.InitialRazorCode);
+            await AddInputAsync(Compiler.InitialRazorCode);
         }
         else
         {

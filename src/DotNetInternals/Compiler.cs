@@ -1,21 +1,21 @@
+﻿using DotNetInternals.RazorAccess;
 using DotNetInternals.RoslynAccess;
 using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
-using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Test.Utilities;
-using Microsoft.NET.Sdk.Razor.SourceGenerators;
 using ProtoBuf;
 using Roslyn.Test.Utilities;
 using System.Collections.Immutable;
 using System.Text;
 
-namespace DotNetInternals.RazorAccess;
+namespace DotNetInternals;
 
-public static class RazorCompiler
+public static class Compiler
 {
+
     public static readonly InitialCode InitialRazorCode = new("TestComponent.razor", """
         <TestComponent Param="1" />
 
@@ -36,7 +36,7 @@ public static class RazorCompiler
     public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
-        var fileSystem = new VirtualRazorProjectFileSystem();
+        var fileSystem = new VirtualRazorProjectFileSystemProxy();
         var cSharp = new Dictionary<string, CSharpSyntaxTree>();
         foreach (var input in inputs)
         {
@@ -46,7 +46,7 @@ public static class RazorCompiler
                 case ".razor":
                 case ".cshtml":
                     {
-                        var item = new SourceGeneratorProjectItem(
+                        var item = RazorAccessors.CreateSourceGeneratorProjectItem(
                             basePath: "/",
                             filePath: filePath,
                             relativePhysicalPath: input.FileName,
@@ -70,7 +70,7 @@ public static class RazorCompiler
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
         var declarationCompilation = CSharpCompilation.Create("TestAssembly",
             syntaxTrees: [
-                ..fileSystem.EnumerateItems("/").Select((item) =>
+                ..fileSystem.Inner.EnumerateItems("/").Select((item) =>
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
@@ -85,16 +85,16 @@ public static class RazorCompiler
         RazorProjectEngine projectEngine = createProjectEngine([
             ..Basic.Reference.Assemblies.AspNet80.References.All,
             declarationCompilation.ToMetadataReference()]);
-        var compiledRazorFiles = fileSystem.EnumerateItems("/")
+        var compiledRazorFiles = fileSystem.Inner.EnumerateItems("/")
             .ToImmutableDictionary(
                 keySelector: (item) => item.RelativePhysicalPath,
                 elementSelector: (item) =>
                 {
                     RazorCodeDocument codeDocument = projectEngine.Process(item);
 
-                    string syntax = codeDocument.GetSyntaxTree().Root.SerializedValue;
+                    string syntax = codeDocument.GetSyntaxTree().Serialize();
 
-                    string ir = formatDocumentTree(codeDocument.GetDocumentIntermediateNode());
+                    string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
 
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
@@ -139,11 +139,11 @@ public static class RazorCompiler
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
-            return RazorProjectEngine.Create(config, fileSystem, b =>
+            return RazorProjectEngine.Create(config, fileSystem.Inner, b =>
             {
                 b.SetRootNamespace("TestNamespace");
 
-                b.Features.Add(new DefaultTypeNameFeature());
+                b.Features.Add(RazorAccessors.CreateDefaultTypeNameFeature());
                 b.Features.Add(new CompilationTagHelperFeature());
                 b.Features.Add(new DefaultMetadataReferenceFeature
                 {
@@ -155,13 +155,6 @@ public static class RazorCompiler
 
                 b.SetCSharpLanguageVersion(LanguageVersion.Preview);
             });
-        }
-
-        static string formatDocumentTree(DocumentIntermediateNode node)
-        {
-            var formatter = new DebuggerDisplayFormatter();
-            formatter.FormatTree(node);
-            return formatter.ToString();
         }
 
         static string getActualDiagnosticsText(IEnumerable<Diagnostic> diagnostics)
