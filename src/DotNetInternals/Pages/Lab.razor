@@ -1,4 +1,5 @@
 ﻿@page "/"
+@implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
@@ -207,6 +208,22 @@
         }
     }
 
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    void IDisposable.Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await LoadInputStateFromUrl();
+        StateHasChanged();
+    }
+
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
@@ -359,9 +376,16 @@
     {
         await settings.InitializeAsync();
 
-        // Load state (input code) from URL.
+        await LoadInputStateFromUrl();
+    }
+
+    private async Task LoadInputStateFromUrl()
+    {
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var slug = uri.Fragment.TrimStart('#');
+        
+        inputs.Clear();
+        currentInput = null;
 
         if (string.IsNullOrWhiteSpace(slug))
         {
@@ -370,8 +394,6 @@
         else
         {
             var savedState = Compressor.Uncompress(slug);
-            inputs.Clear();
-            currentInput = null;
             foreach (var input in savedState.Inputs)
             {
                 var model = await CreateModelAsync(input);
