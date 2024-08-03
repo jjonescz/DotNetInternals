@@ -87,6 +87,13 @@
                         <option value="@((int)SpecialTab.AddCSharp)">
                             Add .cs
                         </option>
+                        @if (inputs.Count > 1)
+                        {
+                            <hr />
+                            <option value="@((int)SpecialTab.CloseOtherTabs)">
+                                Close other tabs
+                            </option>
+                        }
                     </select>
 
                     @if (CurrentInput != null)
@@ -199,6 +206,7 @@
     {
         AddRazor = -1,
         AddCSharp = -2,
+        CloseOtherTabs = -3,
     }
 
     private Input? CurrentInput
@@ -289,6 +297,12 @@
 
             case (int)SpecialTab.AddCSharp:
                 await AddInputAsync(Compiler.InitialCSharpCode);
+                break;
+
+            case (int)SpecialTab.CloseOtherTabs:
+                inputs.RemoveAll(i => i != CurrentInput);
+                forceAdvancedMode = true;
+                currentInputIndex = 0;
                 break;
 
             case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
