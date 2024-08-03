@@ -34,7 +34,7 @@
                 <div class="btn-group">
                     <button type="button" class="btn btn-outline-secondary"
                             title="Add more input files"
-                            @onclick="AddNewInputAsync">
+                            @onclick="() => forceAdvancedMode = true">
                         @BootstrapIcons.PlusLg
                     </button>
                 </div>
@@ -180,6 +180,7 @@
     private string? currentInput = null;
     private string? renamingTo = null;
     private bool deletingInput;
+    private bool forceAdvancedMode;
     private StandaloneCodeEditor inputEditor = null!;
     private string? selectedOutputType = null;
     private bool compilationInProgress;
@@ -195,7 +196,7 @@
     {
         get
         {
-            if (inputs.Count != 1)
+            if (forceAdvancedMode || inputs.Count != 1)
             {
                 return false;
             }
@@ -256,15 +257,6 @@
             ? Compiler.InitialRazorCode
             : Compiler.InitialCSharpCode);
         Debug.Assert(SimpleMode);
-    }
-
-    private async Task AddNewInputAsync()
-    {
-        Debug.Assert(SimpleMode && currentInput != null);
-        await AddInputAsync(currentInput == Compiler.InitialRazorCode.SuggestedFileName
-            ? Compiler.InitialRazorCode
-            : Compiler.InitialCSharpCode);
-        Debug.Assert(!SimpleMode);
     }
 
     private async Task RenameInputAsync()
