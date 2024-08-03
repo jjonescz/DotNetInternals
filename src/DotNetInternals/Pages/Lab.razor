@@ -132,31 +132,34 @@
     </div>
 
     @* Output switch *@
-    <InputRadioGroup @bind-Value="selectedOutputType">
-        <div class="btn-group col-auto" role="group" title="Output type">
-            @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
-            {
-                var id = $"output{output.Type}";
-                <InputRadio class="btn-check" id="@id" Value="@output.Type" />
-                <label class="btn btn-outline-primary" for="@id">
-                    @output.Type
-                </label>
-            }
+    @if (compiled != null)
+    {
+        <InputRadioGroup @bind-Value="selectedOutputType">
+            <div class="btn-group col-auto" role="group" title="Output type">
+                @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
+                {
+                    var id = $"output{output.Type}";
+                    <InputRadio class="btn-check" id="@id" Value="@output.Type" />
+                    <label class="btn btn-outline-primary" for="@id">
+                        @output.Type
+                    </label>
+                }
 
-            <InputRadio class="btn-check" id="outputDiagnostics" Value="diagnosticsOutputType" />
-            <label class="btn btn-outline-primary" for="outputDiagnostics">
-                Error List
-                @if (compiled?.NumErrors > 0)
-                {
-                    <span class="badge bg-danger">@compiled.NumErrors</span>
-                }
-                else if (compiled?.NumWarnings > 0)
-                {
-                    <span class="badge bg-warning">@compiled.NumWarnings</span>
-                }
-            </label>
-        </div>
-    </InputRadioGroup>
+                <InputRadio class="btn-check" id="outputDiagnostics" Value="diagnosticsOutputType" />
+                <label class="btn btn-outline-primary" for="outputDiagnostics">
+                    Error List
+                    @if (compiled?.NumErrors > 0)
+                    {
+                        <span class="badge bg-danger">@compiled.NumErrors</span>
+                    }
+                    else if (compiled?.NumWarnings > 0)
+                    {
+                        <span class="badge bg-warning">@compiled.NumWarnings</span>
+                    }
+                </label>
+            </div>
+        </InputRadioGroup>
+    }
 
     @* Settings button *@
     <div class="col-auto">
