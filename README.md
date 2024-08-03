@@ -2,8 +2,8 @@
 
 C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
-- Razor/CSHTML to generated C# code / IR / Syntax Tree / Diagnostics.
-- C# to IL / Syntax / decompiled-C# / Diagnostics.
+- Razor/CSHTML to generated C# code / IR / Syntax Tree / Errors.
+- C# to IL / Syntax / decompiled-C# / Errors.
 - More in the future?
 - Offline support (PWA).
 
