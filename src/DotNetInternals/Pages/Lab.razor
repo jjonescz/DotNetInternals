@@ -389,6 +389,12 @@
 
     private async Task CompileAsync()
     {
+        // Complete renaming if in progress.
+        if (renamingTo != null)
+        {
+            await RenameInputAsync();
+        }
+
         compilationInProgress = true;
 
         var inputCodes = await GetInputCodesAsync();
