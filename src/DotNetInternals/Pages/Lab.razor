@@ -1,4 +1,5 @@
 ﻿@page "/"
+@implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
@@ -17,14 +18,14 @@
         {
             <div class="btn-toolbar" role="toolbar" title="Input">
                 @* C# / Razor switch *@
-                <InputRadioGroup @bind-Value="currentInput" @bind-Value:after="OnSwitchSimpleInputAsync">
+                <InputRadioGroup @bind-Value:get="SelectedSimpleInput" @bind-Value:set="OnSelectSimpleInputAsync">
                     <div class="btn-group me-2" role="group" title="Input type">
-                        <InputRadio class="btn-check" id="inputCSharp" Value="@Compiler.InitialCSharpCode.SuggestedFileName" />
+                        <InputRadio class="btn-check" id="inputCSharp" Value="@SpecialInput.AddCSharp" />
                         <label class="btn btn-outline-primary" for="inputCSharp">
                             C#
                         </label>
 
-                        <InputRadio class="btn-check" id="inputRazor" Value="@Compiler.InitialRazorCode.SuggestedFileName" />
+                        <InputRadio class="btn-check" id="inputRazor" Value="@SpecialInput.AddRazor" />
                         <label class="btn btn-outline-primary" for="inputRazor">
                             Razor
                         </label>
@@ -34,7 +35,7 @@
                 <div class="btn-group">
                     <button type="button" class="btn btn-outline-secondary"
                             title="Add more input files"
-                            @onclick="AddNewInputAsync">
+                            @onclick="() => forceAdvancedMode = true">
                         @BootstrapIcons.PlusLg
                     </button>
                 </div>
@@ -43,10 +44,10 @@
         else
         {
             <div class="input-group">
-                @if (currentInput != null && renamingTo != null)
+                @if (CurrentInput != null && renamingTo != null)
                 {
                     @* Renaming confirmation *@
-                    <input type="text" class="form-control" placeholder="@currentInput" title="File name" @bind="renamingTo" />
+                    <input type="text" class="form-control" placeholder="@CurrentInput.FileName" title="File name" @bind="renamingTo" />
                     <button type="button" class="btn btn-outline-primary" title="Confirm rename"
                             @onclick="RenameInputAsync">
                         @BootstrapIcons.CheckLg
@@ -56,43 +57,40 @@
                         @BootstrapIcons.XLg
                     </button>
                 }
-                else if (currentInput != null && deletingInput)
-                {
-                    @* Deleting confirmation *@
-                    <span class="input-group-text">Delete this file?</span>
-                    <button type="button" class="btn btn-outline-danger" title="Confirm delete"
-                            @onclick="DeleteInputAsync">
-                        @BootstrapIcons.CheckLg
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" title="Cancel delete"
-                            @onclick="() => deletingInput = false">
-                        @BootstrapIcons.XLg
-                    </button>
-                }
                 else
                 {
                     @* Input tabs *@
-                    <select class="form-select" title="Input file" @bind:get="currentInput" @bind:set="OnInputSelectedAsync">
-                        @foreach (var fileName in inputs.Keys)
+                    <select class="form-select" title="Input file" @bind:get="currentInputIndex" @bind:set="OnInputSelectedAsync">
+                        @foreach (var (index, input) in inputs.Index())
                         {
-                            <option value="@fileName">
-                                @fileName
+                            <option value="@index">
+                                @input.FileName
                             </option>
                         }
                         <hr />
-                        <option value="@FindUniqueName(Compiler.InitialRazorCode)">
-                            Add .razor
-                        </option>
-                        <option value="@FindUniqueName(Compiler.InitialCSharpCode)">
+                        <option value="@((int)SpecialInput.AddCSharp)">
                             Add .cs
                         </option>
+                        <option value="@((int)SpecialInput.AddRazor)">
+                            Add .razor
+                        </option>
+                        <option value="@((int)SpecialInput.AddCshtml)">
+                            Add .cshtml
+                        </option>
+                        @if (inputs.Count > 1)
+                        {
+                            <hr />
+                            <option value="@((int)SpecialInput.CloseOtherTabs)">
+                                Close other tabs
+                            </option>
+                        }
                     </select>
 
-                    @if (currentInput != null)
+                    @if (CurrentInput != null)
                     {
                         @* Rename button *@
                         <button type="button" class="btn btn-outline-secondary" title="Rename current file"
-                                @onclick="() => renamingTo = currentInput">
+                                @onclick="() => renamingTo = CurrentInput.FileName">
                             @BootstrapIcons.Pencil
                         </button>
 
@@ -100,7 +98,7 @@
                         if (inputs.Count > 1)
                         {
                             <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                                    @onclick="() => deletingInput = true">
+                                    @onclick="DeleteInputAsync">
                                 @BootstrapIcons.Trash3
                             </button>
                         }
@@ -123,32 +121,36 @@
         </button>
     </div>
 
-    @* Output switch *@
-    <InputRadioGroup @bind-Value="selectedOutputType">
-        <div class="btn-group col-auto" role="group" title="Output type">
-            @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
-            {
-                var id = $"output{output.Type}";
-                <InputRadio class="btn-check" id="@id" Value="@output.Type" />
-                <label class="btn btn-outline-primary" for="@id">
-                    @output.Type
-                </label>
-            }
+    @* Output tabs *@
+    @if (compiled != null)
+    {
+        <div class="col-auto">
+            <div class="input-group">
+                <select class="form-select" title="Output type" @bind="selectedOutputType">
+                    @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
+                    {
+                        <option value="@output.Type">
+                            @output.Type
+                        </option>
+                    }
 
-            <InputRadio class="btn-check" id="outputDiagnostics" Value="diagnosticsOutputType" />
-            <label class="btn btn-outline-primary" for="outputDiagnostics">
-                Diagnostics
-                @if (compiled?.NumErrors > 0)
+                    <option value="@diagnosticsOutputType">
+                        Error List
+                    </option>
+                </select>
+
+                @if (compiled is { NumErrors: > 0 } or { NumWarnings: > 0 })
                 {
-                    <span class="badge bg-danger">@compiled.NumErrors</span>
+                    var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
+                    <button type="button" class="btn @cls"
+                            title="Display Error List"
+                            @onclick="() => selectedOutputType = diagnosticsOutputType">
+                        @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
+                    </button>
                 }
-                else if (compiled?.NumWarnings > 0)
-                {
-                    <span class="badge bg-warning">@compiled.NumWarnings</span>
-                }
-            </label>
+            </div>
         </div>
-    </InputRadioGroup>
+    }
 
     @* Settings button *@
     <div class="col-auto">
@@ -176,17 +178,43 @@
 @code {
     private const string diagnosticsOutputType = "Diagnostics";
 
-    private readonly Dictionary<string, TextModel> inputs = new();
-    private string? currentInput = null;
-    private string? renamingTo = null;
-    private bool deletingInput;
+    private readonly List<Input> inputs = new();
+    private int currentInputIndex;
+    private string? renamingTo;
+    private bool forceAdvancedMode;
     private StandaloneCodeEditor inputEditor = null!;
-    private string? selectedOutputType = null;
+    private string? selectedOutputType;
     private bool compilationInProgress;
     private CompiledAssembly? compiled;
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
+
+    private sealed record Input(string FileName, TextModel Model)
+    {
+        public string FileName { get; set; } = FileName;
+    }
+
+    private enum SpecialInput
+    {
+        AddRazor = -1,
+        AddCSharp = -2,
+        AddCshtml = -3,
+        CloseOtherTabs = -4,
+    }
+
+    private Input? CurrentInput
+    {
+        get
+        {
+            if (currentInputIndex < 0 || currentInputIndex >= inputs.Count)
+            {
+                return null;
+            }
+
+            return inputs[currentInputIndex];
+        }
+    }
 
     /// <summary>
     /// In simple mode, there is just one tab with either Razor or C# code.
@@ -195,15 +223,41 @@
     {
         get
         {
-            if (inputs.Count != 1)
+            if (forceAdvancedMode || inputs is not [var input])
             {
                 return false;
             }
 
-            var fileName = inputs.Keys.First();
+            var fileName = input.FileName;
             return fileName == Compiler.InitialRazorCode.SuggestedFileName ||
                 fileName == Compiler.InitialCSharpCode.SuggestedFileName;
         }
+    }
+
+    private SpecialInput SelectedSimpleInput
+    {
+        get
+        {
+            return CurrentInput?.FileName == Compiler.InitialRazorCode.SuggestedFileName
+                ? SpecialInput.AddRazor
+                : SpecialInput.AddCSharp;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    void IDisposable.Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await LoadInputStateFromUrlAsync();
+        StateHasChanged();
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -227,74 +281,88 @@
         };
     }
 
-    private async Task OnInputSelectedAsync(string? selectedInput)
+    private async Task OnInputSelectedAsync(int selectedInputIndex)
     {
-        if (selectedInput is null)
+        await SaveInputStateToUrlAsync();
+
+        switch (selectedInputIndex)
         {
-            currentInput = selectedInput;
+            case (int)SpecialInput.AddRazor:
+                await AddInputAsync(Compiler.InitialRazorCode);
+                break;
+
+            case (int)SpecialInput.AddCSharp:
+                await AddInputAsync(Compiler.InitialCSharpCode);
+                break;
+
+            case (int)SpecialInput.AddCshtml:
+                await AddInputAsync(Compiler.InitialCshtmlCode);
+                break;
+
+            case (int)SpecialInput.CloseOtherTabs:
+                inputs.RemoveAll(i => i != CurrentInput);
+                forceAdvancedMode = true;
+                currentInputIndex = 0;
+                break;
+
+            case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
+                currentInputIndex = selectedInputIndex;
+                await inputEditor.SetModel(inputs[selectedInputIndex].Model);
+                break;
         }
-        else if (inputs.TryGetValue(selectedInput, out var model))
-        {
-            currentInput = selectedInput;
-            await inputEditor.SetModel(model);
-        }
-        else if (selectedInput.EndsWith(Compiler.InitialRazorCode.SuggestedFileExtension, StringComparison.Ordinal))
-        {
-            await AddInputAsync(Compiler.InitialRazorCode);
-        }
-        else if (selectedInput.EndsWith(Compiler.InitialCSharpCode.SuggestedFileExtension, StringComparison.Ordinal))
-        {
-            await AddInputAsync(Compiler.InitialCSharpCode);
-        }
+
+        await SaveInputStateToUrlAsync();
     }
 
-    private async Task OnSwitchSimpleInputAsync()
+    private async Task OnSelectSimpleInputAsync(SpecialInput input)
     {
-        Debug.Assert(SimpleMode && inputs.Count == 1 && currentInput != null);
+        Debug.Assert(SimpleMode && inputs.Count == 1);
+
+        await SaveInputStateToUrlAsync();
+
         inputs.Clear();
-        await AddInputAsync(currentInput == Compiler.InitialRazorCode.SuggestedFileName
+        await AddInputAsync(input == SpecialInput.AddRazor
             ? Compiler.InitialRazorCode
             : Compiler.InitialCSharpCode);
         Debug.Assert(SimpleMode);
-    }
 
-    private async Task AddNewInputAsync()
-    {
-        Debug.Assert(SimpleMode && currentInput != null);
-        await AddInputAsync(currentInput == Compiler.InitialRazorCode.SuggestedFileName
-            ? Compiler.InitialRazorCode
-            : Compiler.InitialCSharpCode);
-        Debug.Assert(!SimpleMode);
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task RenameInputAsync()
     {
-        Debug.Assert(currentInput != null && renamingTo != null);
-        if (currentInput != renamingTo)
+        Debug.Assert(CurrentInput != null && renamingTo != null);
+
+        await SaveInputStateToUrlAsync();
+
+        if (CurrentInput.FileName != renamingTo)
         {
-            var oldLanguage = GetLanguageForFileExtension(Path.GetExtension(currentInput));
+            var oldLanguage = GetLanguageForFileExtension(Path.GetExtension(CurrentInput.FileName));
             var newLanguage = GetLanguageForFileExtension(Path.GetExtension(renamingTo));
 
-            var model = inputs[currentInput];
-            inputs[renamingTo] = model;
-            inputs.Remove(currentInput);
-            currentInput = renamingTo;
+            CurrentInput.FileName = renamingTo;
 
             if (oldLanguage != newLanguage)
             {
-                await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, model, newLanguage);
+                await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, CurrentInput.Model, newLanguage);
             }
         }
         renamingTo = null;
+
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task DeleteInputAsync()
     {
-        Debug.Assert(currentInput != null && inputs.Count > 1);
-        inputs.Remove(currentInput);
-        currentInput = inputs.Keys.First();
-        deletingInput = false;
-        await inputEditor.SetModel(inputs[currentInput]);
+        Debug.Assert(CurrentInput != null && inputs.Count > 1);
+
+        await SaveInputStateToUrlAsync();
+
+        inputs.RemoveAt(currentInputIndex);
+        currentInputIndex = 0;
+        await inputEditor.SetModel(CurrentInput.Model);
+
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
@@ -302,8 +370,8 @@
         var fileName = FindUniqueName(initialCode);
         var inputCode = initialCode.ToInputCode(fileName);
         var model = await CreateModelAsync(inputCode);
-        inputs[fileName] = model;
-        currentInput = fileName;
+        inputs.Add(new(fileName, model));
+        currentInputIndex = inputs.Count - 1;
         await inputEditor.SetModel(model);
     }
 
@@ -313,7 +381,7 @@
         {
             var suffix = i == 0 ? "" : $"{i}";
             var fileName = initialCode.GetFinalFileName(suffix);
-            if (!inputs.ContainsKey(fileName))
+            if (!inputs.Any(i => i.FileName == fileName))
             {
                 return fileName;
             }
@@ -322,20 +390,17 @@
 
     private async Task CompileAsync()
     {
+        // Complete renaming if in progress.
+        if (renamingTo != null)
+        {
+            await RenameInputAsync();
+        }
+
         compilationInProgress = true;
 
-        // Get input texts.
-        var inputBuilder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
-        foreach (var (fileName, model) in inputs)
-        {
-            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            inputBuilder.Add(new() { FileName = fileName, Text = text });
-        }
-        var inputCodes = inputBuilder.ToImmutable();
+        var inputCodes = await GetInputCodesAsync();
 
-        // Save state (input codes) to URL.
-        var slug = Compressor.Compress(new SavedState { Inputs = inputCodes });
-        NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
+        SaveInputStateToUrl(inputCodes);
 
         await RefreshAsync();
 
@@ -357,7 +422,7 @@
     {
         get
         {
-            return compiled?.Files.TryGetValue(currentInput ?? "", out var file) == true
+            return compiled?.Files.TryGetValue(CurrentInput?.FileName ?? "", out var file) == true
                 ? file
                 : null;
         }
@@ -367,9 +432,21 @@
     {
         await settings.InitializeAsync();
 
-        // Load state (input code) from URL.
+        await LoadInputStateFromUrlAsync();
+    }
+
+    private string GetCurrentSlug()
+    {
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        var slug = uri.Fragment.TrimStart('#');
+        return uri.Fragment.TrimStart('#');
+    }
+
+    private async Task LoadInputStateFromUrlAsync()
+    {
+        var slug = GetCurrentSlug();
+
+        inputs.Clear();
+        currentInputIndex = 0;
 
         if (string.IsNullOrWhiteSpace(slug))
         {
@@ -378,19 +455,42 @@
         else
         {
             var savedState = Compressor.Uncompress(slug);
-            inputs.Clear();
-            currentInput = null;
-            foreach (var input in savedState.Inputs)
+            foreach (var (index, input) in savedState.Inputs.Index())
             {
                 var model = await CreateModelAsync(input);
-                inputs[input.FileName] = model;
+                inputs.Add(new(input.FileName, model));
 
-                if (currentInput is null)
+                if (index == 0)
                 {
-                    currentInput = input.FileName;
                     await inputEditor.SetModel(model);
                 }
             }
+        }
+    }
+
+    private async Task<ImmutableArray<InputCode>> GetInputCodesAsync()
+    {            
+        var builder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
+        foreach (var (fileName, model) in inputs)
+        {
+            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
+            builder.Add(new() { FileName = fileName, Text = text });
+        }
+        return builder.ToImmutable();
+    }
+
+    private async Task SaveInputStateToUrlAsync()
+    {
+        SaveInputStateToUrl(await GetInputCodesAsync());
+    }
+
+    private void SaveInputStateToUrl(ImmutableArray<InputCode> inputCodes)
+    {
+        var currentSlug = GetCurrentSlug();
+        var newSlug = Compressor.Compress(new SavedState { Inputs = inputCodes });
+        if (newSlug != currentSlug)
+        {
+            NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + newSlug, forceLoad: false);
         }
     }
 
