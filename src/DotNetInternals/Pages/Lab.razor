@@ -265,7 +265,7 @@
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        await LoadInputStateFromUrl();
+        await LoadInputStateFromUrlAsync();
         StateHasChanged();
     }
 
@@ -292,6 +292,8 @@
 
     private async Task OnInputSelectedAsync(int selectedInputIndex)
     {
+        await SaveInputStateToUrlAsync();
+
         switch (selectedInputIndex)
         {
             case (int)SpecialTab.AddRazor:
@@ -313,21 +315,31 @@
                 await inputEditor.SetModel(inputs[selectedInputIndex].Model);
                 break;
         }
+
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task OnSelectSimpleInputAsync(SpecialTab tab)
     {
         Debug.Assert(SimpleMode && inputs.Count == 1);
+
+        await SaveInputStateToUrlAsync();
+
         inputs.Clear();
         await AddInputAsync(tab == SpecialTab.AddRazor
             ? Compiler.InitialRazorCode
             : Compiler.InitialCSharpCode);
         Debug.Assert(SimpleMode);
+
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task RenameInputAsync()
     {
         Debug.Assert(CurrentInput != null && renamingTo != null);
+
+        await SaveInputStateToUrlAsync();
+
         if (CurrentInput.FileName != renamingTo)
         {
             var oldLanguage = GetLanguageForFileExtension(Path.GetExtension(CurrentInput.FileName));
@@ -341,15 +353,22 @@
             }
         }
         renamingTo = null;
+
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task DeleteInputAsync()
     {
         Debug.Assert(CurrentInput != null && inputs.Count > 1);
+
+        await SaveInputStateToUrlAsync();
+
         inputs.RemoveAt(currentInputIndex);
         currentInputIndex = 0;
         deletingInput = false;
         await inputEditor.SetModel(CurrentInput.Model);
+
+        await SaveInputStateToUrlAsync();
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
@@ -379,18 +398,9 @@
     {
         compilationInProgress = true;
 
-        // Get input texts.
-        var inputBuilder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
-        foreach (var (fileName, model) in inputs)
-        {
-            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            inputBuilder.Add(new() { FileName = fileName, Text = text });
-        }
-        var inputCodes = inputBuilder.ToImmutable();
+        var inputCodes = await GetInputCodesAsync();
 
-        // Save state (input codes) to URL.
-        var slug = Compressor.Compress(new SavedState { Inputs = inputCodes });
-        NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + slug, forceLoad: false);
+        SaveInputStateToUrl(inputCodes);
 
         await RefreshAsync();
 
@@ -422,13 +432,18 @@
     {
         await settings.InitializeAsync();
 
-        await LoadInputStateFromUrl();
+        await LoadInputStateFromUrlAsync();
     }
 
-    private async Task LoadInputStateFromUrl()
+    private string GetCurrentSlug()
     {
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        var slug = uri.Fragment.TrimStart('#');
+        return uri.Fragment.TrimStart('#');
+    }
+
+    private async Task LoadInputStateFromUrlAsync()
+    {
+        var slug = GetCurrentSlug();
 
         inputs.Clear();
         currentInputIndex = 0;
@@ -450,6 +465,32 @@
                     await inputEditor.SetModel(model);
                 }
             }
+        }
+    }
+
+    private async Task<ImmutableArray<InputCode>> GetInputCodesAsync()
+    {            
+        var builder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
+        foreach (var (fileName, model) in inputs)
+        {
+            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
+            builder.Add(new() { FileName = fileName, Text = text });
+        }
+        return builder.ToImmutable();
+    }
+
+    private async Task SaveInputStateToUrlAsync()
+    {
+        SaveInputStateToUrl(await GetInputCodesAsync());
+    }
+
+    private void SaveInputStateToUrl(ImmutableArray<InputCode> inputCodes)
+    {
+        var currentSlug = GetCurrentSlug();
+        var newSlug = Compressor.Compress(new SavedState { Inputs = inputCodes });
+        if (newSlug != currentSlug)
+        {
+            NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + newSlug, forceLoad: false);
         }
     }
 
