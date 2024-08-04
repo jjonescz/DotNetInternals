@@ -121,34 +121,35 @@
         </button>
     </div>
 
-    @* Output switch *@
+    @* Output tabs *@
     @if (compiled != null)
     {
-        <InputRadioGroup @bind-Value="selectedOutputType">
-            <div class="btn-group col-auto" role="group" title="Output type">
-                @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
-                {
-                    var id = $"output{output.Type}";
-                    <InputRadio class="btn-check" id="@id" Value="@output.Type" />
-                    <label class="btn btn-outline-primary" for="@id">
-                        @output.Type
-                    </label>
-                }
+        <div class="col-auto">
+            <div class="input-group">
+                <select class="form-select" title="Output type" @bind="selectedOutputType">
+                    @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
+                    {
+                        <option value="@output.Type">
+                            @output.Type
+                        </option>
+                    }
 
-                <InputRadio class="btn-check" id="outputDiagnostics" Value="diagnosticsOutputType" />
-                <label class="btn btn-outline-primary" for="outputDiagnostics">
-                    Error List
-                    @if (compiled?.NumErrors > 0)
-                    {
-                        <span class="badge bg-danger">@compiled.NumErrors</span>
-                    }
-                    else if (compiled?.NumWarnings > 0)
-                    {
-                        <span class="badge bg-warning">@compiled.NumWarnings</span>
-                    }
-                </label>
+                    <option value="@diagnosticsOutputType">
+                        Error List
+                    </option>
+                </select>
+
+                @if (compiled is { NumErrors: > 0 } or { NumWarnings: > 0 })
+                {
+                    var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
+                    <button type="button" class="btn @cls"
+                            title="Display Error List"
+                            @onclick="() => selectedOutputType = diagnosticsOutputType">
+                        @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
+                    </button>
+                }
             </div>
-        </InputRadioGroup>
+        </div>
     }
 
     @* Settings button *@
