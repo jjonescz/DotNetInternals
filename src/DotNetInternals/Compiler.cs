@@ -33,6 +33,34 @@ public static class Compiler
         }
         """);
 
+    public static readonly InitialCode InitialCshtmlCode = new("TestPage.cshtml", """
+        @page
+        @using System.ComponentModel.DataAnnotations
+        @model PageModel
+        @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+        <form method="post">
+            Name:
+            <input asp-for="Customer.Name" />
+            <input type="submit" />
+        </form>
+
+        @functions {
+            public class PageModel
+            {
+                public Customer Customer { get; set; }
+            }
+
+            public class Customer
+            {
+                public int Id { get; set; }
+
+                [Required, StringLength(10)]
+                public string Name { get; set; }
+            }
+        }
+        """);
+
     public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";

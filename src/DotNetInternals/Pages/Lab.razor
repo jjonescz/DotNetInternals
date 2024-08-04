@@ -68,11 +68,14 @@
                             </option>
                         }
                         <hr />
+                        <option value="@((int)SpecialInput.AddCSharp)">
+                            Add .cs
+                        </option>
                         <option value="@((int)SpecialInput.AddRazor)">
                             Add .razor
                         </option>
-                        <option value="@((int)SpecialInput.AddCSharp)">
-                            Add .cs
+                        <option value="@((int)SpecialInput.AddCshtml)">
+                            Add .cshtml
                         </option>
                         @if (inputs.Count > 1)
                         {
@@ -195,7 +198,8 @@
     {
         AddRazor = -1,
         AddCSharp = -2,
-        CloseOtherTabs = -3,
+        AddCshtml = -3,
+        CloseOtherTabs = -4,
     }
 
     private Input? CurrentInput
@@ -288,6 +292,10 @@
 
             case (int)SpecialInput.AddCSharp:
                 await AddInputAsync(Compiler.InitialCSharpCode);
+                break;
+
+            case (int)SpecialInput.AddCshtml:
+                await AddInputAsync(Compiler.InitialCshtmlCode);
                 break;
 
             case (int)SpecialInput.CloseOtherTabs:
