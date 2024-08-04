@@ -57,19 +57,6 @@
                         @BootstrapIcons.XLg
                     </button>
                 }
-                else if (CurrentInput != null && deletingInput)
-                {
-                    @* Deleting confirmation *@
-                    <span class="input-group-text">Delete this file?</span>
-                    <button type="button" class="btn btn-outline-danger" title="Confirm delete"
-                            @onclick="DeleteInputAsync">
-                        @BootstrapIcons.CheckLg
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" title="Cancel delete"
-                            @onclick="() => deletingInput = false">
-                        @BootstrapIcons.XLg
-                    </button>
-                }
                 else
                 {
                     @* Input tabs *@
@@ -108,7 +95,7 @@
                         if (inputs.Count > 1)
                         {
                             <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                                    @onclick="() => deletingInput = true">
+                                    @onclick="DeleteInputAsync">
                                 @BootstrapIcons.Trash3
                             </button>
                         }
@@ -190,7 +177,6 @@
     private readonly List<Input> inputs = new();
     private int currentInputIndex;
     private string? renamingTo;
-    private bool deletingInput;
     private bool forceAdvancedMode;
     private StandaloneCodeEditor inputEditor = null!;
     private string? selectedOutputType;
@@ -365,7 +351,6 @@
 
         inputs.RemoveAt(currentInputIndex);
         currentInputIndex = 0;
-        deletingInput = false;
         await inputEditor.SetModel(CurrentInput.Model);
 
         await SaveInputStateToUrlAsync();
