@@ -22,6 +22,7 @@ public static class Compiler
         @code {
             [Parameter] public int Param { get; set; }
         }
+
         """);
 
     public static readonly InitialCode InitialCSharpCode = new("Class.cs", """
@@ -31,6 +32,7 @@ public static class Compiler
             {
             }
         }
+
         """);
 
     public static readonly InitialCode InitialCshtmlCode = new("TestPage.cshtml", """
@@ -59,6 +61,7 @@ public static class Compiler
                 public string Name { get; set; }
             }
         }
+
         """);
 
     public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
