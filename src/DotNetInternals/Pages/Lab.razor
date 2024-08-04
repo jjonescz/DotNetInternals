@@ -20,12 +20,12 @@
                 @* C# / Razor switch *@
                 <InputRadioGroup @bind-Value:get="SelectedSimpleInput" @bind-Value:set="OnSelectSimpleInputAsync">
                     <div class="btn-group me-2" role="group" title="Input type">
-                        <InputRadio class="btn-check" id="inputCSharp" Value="@SpecialTab.AddCSharp" />
+                        <InputRadio class="btn-check" id="inputCSharp" Value="@SpecialInput.AddCSharp" />
                         <label class="btn btn-outline-primary" for="inputCSharp">
                             C#
                         </label>
 
-                        <InputRadio class="btn-check" id="inputRazor" Value="@SpecialTab.AddRazor" />
+                        <InputRadio class="btn-check" id="inputRazor" Value="@SpecialInput.AddRazor" />
                         <label class="btn btn-outline-primary" for="inputRazor">
                             Razor
                         </label>
@@ -68,16 +68,16 @@
                             </option>
                         }
                         <hr />
-                        <option value="@((int)SpecialTab.AddRazor)">
+                        <option value="@((int)SpecialInput.AddRazor)">
                             Add .razor
                         </option>
-                        <option value="@((int)SpecialTab.AddCSharp)">
+                        <option value="@((int)SpecialInput.AddCSharp)">
                             Add .cs
                         </option>
                         @if (inputs.Count > 1)
                         {
                             <hr />
-                            <option value="@((int)SpecialTab.CloseOtherTabs)">
+                            <option value="@((int)SpecialInput.CloseOtherTabs)">
                                 Close other tabs
                             </option>
                         }
@@ -191,7 +191,7 @@
         public string FileName { get; set; } = FileName;
     }
 
-    private enum SpecialTab
+    private enum SpecialInput
     {
         AddRazor = -1,
         AddCSharp = -2,
@@ -229,13 +229,13 @@
         }
     }
 
-    private SpecialTab SelectedSimpleInput
+    private SpecialInput SelectedSimpleInput
     {
         get
         {
             return CurrentInput?.FileName == Compiler.InitialRazorCode.SuggestedFileName
-                ? SpecialTab.AddRazor
-                : SpecialTab.AddCSharp;
+                ? SpecialInput.AddRazor
+                : SpecialInput.AddCSharp;
         }
     }
 
@@ -282,15 +282,15 @@
 
         switch (selectedInputIndex)
         {
-            case (int)SpecialTab.AddRazor:
+            case (int)SpecialInput.AddRazor:
                 await AddInputAsync(Compiler.InitialRazorCode);
                 break;
 
-            case (int)SpecialTab.AddCSharp:
+            case (int)SpecialInput.AddCSharp:
                 await AddInputAsync(Compiler.InitialCSharpCode);
                 break;
 
-            case (int)SpecialTab.CloseOtherTabs:
+            case (int)SpecialInput.CloseOtherTabs:
                 inputs.RemoveAll(i => i != CurrentInput);
                 forceAdvancedMode = true;
                 currentInputIndex = 0;
@@ -305,14 +305,14 @@
         await SaveInputStateToUrlAsync();
     }
 
-    private async Task OnSelectSimpleInputAsync(SpecialTab tab)
+    private async Task OnSelectSimpleInputAsync(SpecialInput input)
     {
         Debug.Assert(SimpleMode && inputs.Count == 1);
 
         await SaveInputStateToUrlAsync();
 
         inputs.Clear();
-        await AddInputAsync(tab == SpecialTab.AddRazor
+        await AddInputAsync(input == SpecialInput.AddRazor
             ? Compiler.InitialRazorCode
             : Compiler.InitialCSharpCode);
         Debug.Assert(SimpleMode);
