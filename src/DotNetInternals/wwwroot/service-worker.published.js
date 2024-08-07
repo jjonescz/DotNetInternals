@@ -56,7 +56,32 @@ async function onFetch(event) {
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);
         cachedResponse = await cache.match(request);
+
+        if (cachedResponse?.redirected) {
+            console.log('Service worker: Cleaning response', event.request.url);
+            cachedResponse = await cleanResponse(cachedResponse);
+            cache.put(request, cachedResponse.clone());
+        }
     }
 
     return cachedResponse || fetch(event.request);
+}
+
+/**
+ * @see https://stackoverflow.com/a/45440505/9080566
+ */
+async function cleanResponse(response) {
+    const clonedResponse = response.clone();
+  
+    // Not all browsers support the Response.body stream,
+    // so fall back to reading the entire body into memory as a blob.
+    const body = 'body' in clonedResponse
+        ? clonedResponse.body
+        : await clonedResponse.blob();
+  
+    return new Response(body, {
+        headers: clonedResponse.headers,
+        status: clonedResponse.status,
+        statusText: clonedResponse.statusText,
+    });
 }
