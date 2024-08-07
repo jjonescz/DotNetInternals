@@ -9,6 +9,8 @@ using Microsoft.CodeAnalysis.Test.Utilities;
 using ProtoBuf;
 using Roslyn.Test.Utilities;
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace DotNetInternals;
@@ -138,7 +140,12 @@ public static class Compiler
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
             [
-                ..compiledRazorFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.GetOutput("C#")!)),
+                ..compiledRazorFiles.Values.Select(static (file) =>
+                {
+                    var success = file.GetOutput("C#")!.TryGetEagerText(out var cSharpText);
+                    Debug.Assert(success);
+                    return CSharpSyntaxTree.ParseText(cSharpText!);
+                }),
                 ..cSharp.Values,
             ],
             Basic.Reference.Assemblies.AspNet80.References.All,
@@ -155,6 +162,11 @@ public static class Compiler
                     new("Syntax", pair.Value.GetRoot().Dump()),
                     new("IL", il),
                     new("C#", decompiledCSharp) { Priority = 1 },
+                    new("Run", async () =>
+                    {
+                        await Task.Delay(5_000);
+                        return "TBD";
+                    }),
                 ]))));
 
         var diagnostics = finalCompilation
@@ -300,10 +312,75 @@ public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledFile> 
 
 public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
 {
-    public string? GetOutput(string type) => Outputs.FirstOrDefault(o => o.Type == type)?.Text;
+    public CompiledFileOutput? GetOutput(string type)
+    {
+        return Outputs.FirstOrDefault(o => o.Type == type);
+    }
 }
 
-public sealed record CompiledFileOutput(string Type, string Text)
+public sealed class CompiledFileOutput
 {
+    private object text;
+
+    public CompiledFileOutput(string type, string eagerText)
+    {
+        Type = type;
+        text = eagerText;
+    }
+
+    public CompiledFileOutput(string type, Func<ValueTask<string>> lazyText)
+    {
+        Type = type;
+        text = lazyText;
+    }
+
+    public string Type { get; }
     public int Priority { get; init; }
+
+    public bool IsLazy => !TryGetEagerText(out _);
+
+    public bool TryGetEagerText([NotNullWhen(returnValue: true)] out string? result)
+    {
+        if (text is string eagerText)
+        {
+            result = eagerText;
+            return true;
+        }
+
+        if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
+        {
+            text = taskResult;
+            result = taskResult;
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
+    public ValueTask<string> GetTextAsync()
+    {
+        Debug.Assert(Thread.CurrentThread is { IsThreadPoolThread: false, IsBackground: false },
+            "Expected this to run on the UI thread only (we don't perform any synchronization " +
+            "when invoking the lazy text function)");
+
+        if (TryGetEagerText(out var eagerText))
+        {
+            return new(eagerText);
+        }
+
+        if (text is ValueTask<string> existingTask)
+        {
+            return existingTask;
+        }
+
+        if (text is Func<ValueTask<string>> lazyText)
+        {
+            var task = lazyText();
+            text = task;
+            return task;
+        }
+
+        throw new InvalidOperationException();
+    }
 }

@@ -126,6 +126,7 @@
     {
         <div class="col-auto">
             <div class="input-group">
+                @* Output tabs *@
                 <select class="form-select" title="Output type" @bind="selectedOutputType">
                     @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
                     {
@@ -139,6 +140,7 @@
                     </option>
                 </select>
 
+                @* Error List button *@
                 @if (compiled is { NumErrors: > 0 } or { NumWarnings: > 0 })
                 {
                     var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
@@ -147,6 +149,16 @@
                             @onclick="() => selectedOutputType = diagnosticsOutputType">
                         @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
                     </button>
+                }
+
+                @* Output loading indicator *@
+                @if (outputLoading)
+                {
+                    <span class="input-group-text">
+                        <div class="spinner-border spinner-border-sm" role="status" title="Output is loading">
+                            <span class="visually-hidden">Output loading...</span>
+                        </div>
+                    </span>
                 }
             </div>
         </div>
@@ -185,6 +197,7 @@
     private StandaloneCodeEditor inputEditor = null!;
     private string? selectedOutputType;
     private bool compilationInProgress;
+    private bool outputLoading;
     private CompiledAssembly? compiled;
     private Settings settings = null!;
     private bool wordWrap;
@@ -415,8 +428,46 @@
         _ when compiled is null => "",
         null => "",
         diagnosticsOutputType => compiled.Diagnostics,
-        var other => CurrentCompiledFile?.GetOutput(other) ?? "",
+        var other => LoadOutput(other),
     };
+
+    private string LoadOutput(string type)
+    {
+        if (CurrentCompiledFile is null)
+        {
+            return "";
+        }
+
+        var output = CurrentCompiledFile.GetOutput(type);
+
+        if (output is null)
+        {
+            return "";
+        }
+
+        if (output.TryGetEagerText(out var text))
+        {
+            return text;
+        }
+
+        if (!outputLoading)
+        {
+            loadAsync();
+        }
+        return "";
+
+        async void loadAsync()
+        {
+            outputLoading = true;
+            await RefreshAsync();
+
+            // The text will be cached and loaded synchronously next.
+            await output.GetTextAsync();
+
+            outputLoading = false;
+            StateHasChanged();
+        }
+    }
 
     private CompiledFile? CurrentCompiledFile
     {
