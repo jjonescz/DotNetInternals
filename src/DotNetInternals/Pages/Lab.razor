@@ -418,7 +418,7 @@
         await RefreshAsync();
 
         // Compile.
-        compiled = await Compiler.CompileAsync(inputCodes);
+        compiled = Compiler.Compile(inputCodes);
 
         compilationInProgress = false;
     }

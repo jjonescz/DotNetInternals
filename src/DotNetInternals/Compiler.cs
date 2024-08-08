@@ -66,7 +66,7 @@ public static class Compiler
 
         """);
 
-    public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    public static CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -151,17 +151,26 @@ public static class Compiler
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        var peFile = getPeFile(finalCompilation);
-        string il = getIl(peFile);
-        string decompiledCSharp = await getCSharpAsync(peFile);
-
+        ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
+        
         var compiledFiles = compiledRazorFiles.AddRange(
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
                     new("Syntax", pair.Value.GetRoot().Dump()),
-                    new("IL", il),
-                    new("C#", decompiledCSharp) { Priority = 1 },
+                    new("IL", () =>
+                    {
+                        peFile ??= getPeFile(finalCompilation);
+                        return getIl(peFile);
+                    }),
+                    new("C#", async () =>
+                    {
+                        peFile ??= getPeFile(finalCompilation);
+                        return await getCSharpAsync(peFile);
+                    })
+                    {
+                        Priority = 1
+                    },
                     new("Run", () =>
                     {
                         var executableCompilation = finalCompilation
