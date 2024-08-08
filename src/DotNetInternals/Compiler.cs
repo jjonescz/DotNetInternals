@@ -162,10 +162,12 @@ public static class Compiler
                     new("Syntax", pair.Value.GetRoot().Dump()),
                     new("IL", il),
                     new("C#", decompiledCSharp) { Priority = 1 },
-                    new("Run", async () =>
+                    new("Run", () =>
                     {
-                        await Task.Delay(5_000);
-                        return "TBD";
+                        var executableCompilation = finalCompilation
+                            .WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
+                        var emitStream = getEmitStream(executableCompilation);
+                        return emitStream is null ? "" : Executor.Execute(emitStream);
                     }),
                 ]))));
 
@@ -221,7 +223,7 @@ public static class Compiler
             return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
         }
 
-        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        static MemoryStream? getEmitStream(CSharpCompilation compilation)
         {
             var stream = new MemoryStream();
             var emitResult = compilation.Emit(stream);
@@ -231,7 +233,14 @@ public static class Compiler
             }
 
             stream.Position = 0;
-            return new(compilation.AssemblyName ?? "", stream);
+            return stream;
+        }
+
+        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        {
+            return getEmitStream(compilation) is { } stream
+                ? new(compilation.AssemblyName ?? "", stream)
+                : null;
         }
 
         static string getIl(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
@@ -334,6 +343,12 @@ public sealed class CompiledFileOutput
         text = lazyText;
     }
 
+    public CompiledFileOutput(string type, Func<string> lazyTextSync)
+    {
+        Type = type;
+        text = lazyTextSync;
+    }
+
     public string Type { get; }
     public int Priority { get; init; }
 
@@ -379,6 +394,13 @@ public sealed class CompiledFileOutput
             var task = lazyText();
             text = task;
             return task;
+        }
+
+        if (text is Func<string> lazyTextSync)
+        {
+            var result = lazyTextSync();
+            text = result;
+            return new(result);
         }
 
         throw new InvalidOperationException();
