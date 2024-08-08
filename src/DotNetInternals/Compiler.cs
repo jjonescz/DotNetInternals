@@ -151,13 +151,6 @@ public static class Compiler
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        var diagnostics = finalCompilation
-            .GetDiagnostics()
-            .Where(d => d.Severity != DiagnosticSeverity.Hidden);
-        string diagnosticsText = getActualDiagnosticsText(diagnostics);
-        int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
-        int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
-
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
         
         var compiledFiles = compiledRazorFiles.AddRange(
@@ -185,16 +178,26 @@ public static class Compiler
                         var emitStream = getEmitStream(executableCompilation);
                         return emitStream is null ? "" : Executor.Execute(emitStream);
                     }),
-                    new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
-                    {
-                        Priority = numErrors > 0 ? 2 : 0,
-                    },
                 ]))));
+        
+        var diagnostics = finalCompilation
+            .GetDiagnostics()
+            .Where(d => d.Severity != DiagnosticSeverity.Hidden);
+        string diagnosticsText = getActualDiagnosticsText(diagnostics);
+        int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+        int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
 
         return new CompiledAssembly(
             Files: compiledFiles,
             NumWarnings: numWarnings,
-            NumErrors: numErrors);
+            NumErrors: numErrors,
+            GlobalOutputs:
+            [
+                new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
+                {
+                    Priority = numErrors > 0 ? 2 : 0,
+                },
+            ]);
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
@@ -331,9 +334,18 @@ public sealed record InputCode
     public string FileExtension => Path.GetExtension(FileName);
 }
 
-public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledFile> Files, int NumWarnings, int NumErrors)
+public sealed record CompiledAssembly(
+    ImmutableDictionary<string, CompiledFile> Files,
+    ImmutableArray<CompiledFileOutput> GlobalOutputs,
+    int NumWarnings,
+    int NumErrors)
 {
     public static readonly string DiagnosticsOutputType = "Error List";
+
+    public CompiledFileOutput? GetGlobalOutput(string type)
+    {
+        return GlobalOutputs.FirstOrDefault(o => o.Type == type);
+    }
 }
 
 public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)

@@ -22,4 +22,9 @@ public static class Util
         stdout = stdoutWriter.ToString();
         stderr = stderrWriter.ToString();
     }
+
+    public static IEnumerable<T> TryConcat<T>(this IEnumerable<T>? a, IEnumerable<T>? b)
+    {
+        return [.. (a ?? []), .. (b ?? [])];
+    }
 }

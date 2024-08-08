@@ -134,6 +134,17 @@
                             @output.Type
                         </option>
                     }
+
+                    @if (compiled.GlobalOutputs.Length > 0)
+                    {
+                        <hr />
+                        @foreach (var output in compiled.GlobalOutputs)
+                        {
+                            <option value="@output.Type">
+                                @output.Type
+                            </option>
+                        }
+                    }
                 </select>
 
                 @* Error List button *@
@@ -270,10 +281,12 @@
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
-        if (CurrentCompiledFile?.Outputs.Length > 0 &&
-            (selectedOutputType == null || CurrentCompiledFile.GetOutput(selectedOutputType) == null))
+        if (CurrentCompiledFile?.Outputs.Length + compiled?.GlobalOutputs.Length > 0 &&
+            (selectedOutputType == null || GetOutput(selectedOutputType) == null))
         {
-            selectedOutputType = CurrentCompiledFile.Outputs.MaxBy(static o => o.Priority)!.Type;
+            selectedOutputType = CurrentCompiledFile?.Outputs
+                .TryConcat(compiled?.GlobalOutputs)
+                .MaxBy(static o => o.Priority)!.Type;
             StateHasChanged();
         }
     }
@@ -423,14 +436,15 @@
         var other => LoadOutput(other),
     };
 
+    private CompiledFileOutput? GetOutput(string type)
+    {
+        return CurrentCompiledFile?.GetOutput(type)
+            ?? compiled?.GetGlobalOutput(type);
+    }
+
     private string LoadOutput(string type)
     {
-        if (CurrentCompiledFile is null)
-        {
-            return "";
-        }
-
-        var output = CurrentCompiledFile.GetOutput(type);
+        var output = GetOutput(type);
 
         if (output is null)
         {
