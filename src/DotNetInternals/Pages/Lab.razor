@@ -426,7 +426,60 @@
         // Compile.
         compiled = Compiler.Compile(inputCodes);
 
+        await DisplaySquiggles();
+
         compilationInProgress = false;
+    }
+
+    private async Task DisplaySquiggles()
+    {
+        foreach (var input in inputs)
+        {
+            List<MarkerData> markers = compiled?.Diagnostics
+                .SelectNonNull(d =>
+                {
+                    string? filePath = d.Location.SourceTree?.FilePath;
+                    FileLinePositionSpan lineSpan;
+
+                    if (string.IsNullOrEmpty(filePath) &&
+                        d.Location.GetMappedLineSpan() is { IsValid: true, HasMappedPath: true } mappedLineSpan)
+                    {
+                        filePath = mappedLineSpan.Path;
+                        lineSpan = mappedLineSpan;
+                    }
+                    else
+                    {
+                        lineSpan = d.Location.GetLineSpan();
+                    }
+
+                    if (filePath != compiled.BaseDirectory + input.FileName)
+                    {
+                        return null;
+                    }
+                    
+                    return new MarkerData
+                    {
+                        CodeAsObject = new()
+                        {
+                            Value = d.Id,
+                            TargetUri = d.Descriptor.HelpLinkUri,
+                        },
+                        Message = d.GetMessage(),
+                        StartLineNumber = lineSpan.StartLinePosition.Line + 1,
+                        StartColumn = lineSpan.StartLinePosition.Character + 1,
+                        EndLineNumber = lineSpan.EndLinePosition.Line + 1,
+                        EndColumn = lineSpan.EndLinePosition.Character + 1,
+                        Severity = d.Severity switch
+                        {
+                            DiagnosticSeverity.Error => MarkerSeverity.Error,
+                            DiagnosticSeverity.Warning => MarkerSeverity.Warning,
+                            _ => MarkerSeverity.Info,
+                        },
+                    };
+                })
+                .ToList() ?? [];
+            await BlazorMonaco.Editor.Global.SetModelMarkers(JSRuntime, input.Model, "Lab", markers);
+        }
     }
 
     private string Output => selectedOutputType switch
