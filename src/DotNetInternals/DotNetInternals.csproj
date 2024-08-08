@@ -36,6 +36,10 @@
 	<ItemGroup>
 		<NpmInput Include="Npm\**" Exclude="Npm\node_modules\**;Npm\package-lock.json" />
 		<NpmOutput Include="wwwroot\js\jslib.js" />
+
+		<!-- Mark as Content so it's included in `service-worker-assets.js`. -->
+		<None Remove="@(NpmOutput)" />
+		<Content Include="@(NpmOutput)" />
 	</ItemGroup>
 
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Inputs="@(NpmInput)" Outputs="@(NpmOutput)">
