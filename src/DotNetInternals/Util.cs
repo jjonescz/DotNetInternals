@@ -23,6 +23,17 @@ public static class Util
         stderr = stderrWriter.ToString();
     }
 
+    public static IEnumerable<TResult> SelectNonNull<T, TResult>(this IEnumerable<T> source, Func<T, TResult?> selector)
+    {
+        foreach (var item in source)
+        {
+            if (selector(item) is TResult result)
+            {
+                yield return result;
+            }
+        }
+    }
+
     public static IEnumerable<T> TryConcat<T>(this IEnumerable<T>? a, IEnumerable<T>? b)
     {
         return [.. (a ?? []), .. (b ?? [])];

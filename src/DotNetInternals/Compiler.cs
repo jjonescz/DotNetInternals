@@ -180,17 +180,20 @@ public static class Compiler
                     }),
                 ]))));
         
-        var diagnostics = finalCompilation
+        ImmutableArray<Diagnostic> diagnostics = finalCompilation
             .GetDiagnostics()
-            .Where(d => d.Severity != DiagnosticSeverity.Hidden);
+            .Where(d => d.Severity != DiagnosticSeverity.Hidden)
+            .ToImmutableArray();
         string diagnosticsText = getActualDiagnosticsText(diagnostics);
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
         int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
 
         return new CompiledAssembly(
+            BaseDirectory: directory,
             Files: compiledFiles,
             NumWarnings: numWarnings,
             NumErrors: numErrors,
+            Diagnostics: diagnostics,
             GlobalOutputs:
             [
                 new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
@@ -338,7 +341,9 @@ public sealed record CompiledAssembly(
     ImmutableDictionary<string, CompiledFile> Files,
     ImmutableArray<CompiledFileOutput> GlobalOutputs,
     int NumWarnings,
-    int NumErrors)
+    int NumErrors,
+    ImmutableArray<Diagnostic> Diagnostics,
+    string BaseDirectory)
 {
     public static readonly string DiagnosticsOutputType = "Error List";
 
