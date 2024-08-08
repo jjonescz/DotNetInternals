@@ -134,10 +134,6 @@
                             @output.Type
                         </option>
                     }
-
-                    <option value="@diagnosticsOutputType">
-                        Error List
-                    </option>
                 </select>
 
                 @* Error List button *@
@@ -146,7 +142,7 @@
                     var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
                     <button type="button" class="btn @cls"
                             title="Display Error List"
-                            @onclick="() => selectedOutputType = diagnosticsOutputType">
+                            @onclick="() => selectedOutputType = CompiledAssembly.DiagnosticsOutputType">
                         @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
                     </button>
                 }
@@ -188,8 +184,6 @@
 </div>
 
 @code {
-    private const string diagnosticsOutputType = "Diagnostics";
-
     private readonly List<Input> inputs = new();
     private int currentInputIndex;
     private string? renamingTo;
@@ -276,8 +270,7 @@
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
-        if (selectedOutputType != diagnosticsOutputType &&
-            CurrentCompiledFile?.Outputs.Length > 0 &&
+        if (CurrentCompiledFile?.Outputs.Length > 0 &&
             (selectedOutputType == null || CurrentCompiledFile.GetOutput(selectedOutputType) == null))
         {
             selectedOutputType = CurrentCompiledFile.Outputs.MaxBy(static o => o.Priority)!.Type;
@@ -427,7 +420,6 @@
     {
         _ when compiled is null => "",
         null => "",
-        diagnosticsOutputType => compiled.Diagnostics,
         var other => LoadOutput(other),
     };
 
