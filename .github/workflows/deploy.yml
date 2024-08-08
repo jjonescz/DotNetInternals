@@ -44,6 +44,6 @@ jobs:
       - name: Get deploy URL
         id: get-url
         run: |
-          echo "url=https://${BRANCH_NAME//\//-}.dotnetinternals.pages.dev/" > "$GITHUB_OUTPUT"
+          echo "url=https://${BRANCH_NAME//[\/.]/-}.dotnetinternals.pages.dev/" > "$GITHUB_OUTPUT"
         env:
           BRANCH_NAME: ${{ github.head_ref || format('deploy/{0}', inputs.simulate_fork_pr || github.event.number) }}
