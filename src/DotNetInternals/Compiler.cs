@@ -9,6 +9,8 @@ using Microsoft.CodeAnalysis.Test.Utilities;
 using ProtoBuf;
 using Roslyn.Test.Utilities;
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace DotNetInternals;
@@ -64,7 +66,7 @@ public static class Compiler
 
         """);
 
-    public static async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    public static CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -138,35 +140,64 @@ public static class Compiler
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
             [
-                ..compiledRazorFiles.Values.Select((file) => CSharpSyntaxTree.ParseText(file.GetOutput("C#")!)),
+                ..compiledRazorFiles.Values.Select(static (file) =>
+                {
+                    var success = file.GetOutput("C#")!.TryGetEagerText(out var cSharpText);
+                    Debug.Assert(success);
+                    return CSharpSyntaxTree.ParseText(cSharpText!);
+                }),
                 ..cSharp.Values,
             ],
             Basic.Reference.Assemblies.AspNet80.References.All,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        var peFile = getPeFile(finalCompilation);
-        string il = getIl(peFile);
-        string decompiledCSharp = await getCSharpAsync(peFile);
-
+        ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
+        
         var compiledFiles = compiledRazorFiles.AddRange(
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
                     new("Syntax", pair.Value.GetRoot().Dump()),
-                    new("IL", il),
-                    new("C#", decompiledCSharp) { Priority = 1 },
+                    new("IL", () =>
+                    {
+                        peFile ??= getPeFile(finalCompilation);
+                        return getIl(peFile);
+                    }),
+                    new("C#", async () =>
+                    {
+                        peFile ??= getPeFile(finalCompilation);
+                        return await getCSharpAsync(peFile);
+                    })
+                    {
+                        Priority = 1
+                    },
+                    new("Run", () =>
+                    {
+                        var executableCompilation = finalCompilation
+                            .WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
+                        var emitStream = getEmitStream(executableCompilation);
+                        return emitStream is null ? "" : Executor.Execute(emitStream);
+                    }),
                 ]))));
-
+        
         var diagnostics = finalCompilation
             .GetDiagnostics()
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
         string diagnosticsText = getActualDiagnosticsText(diagnostics);
+        int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+        int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
 
         return new CompiledAssembly(
             Files: compiledFiles,
-            Diagnostics: diagnosticsText,
-            NumWarnings: diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning),
-            NumErrors: diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error));
+            NumWarnings: numWarnings,
+            NumErrors: numErrors,
+            GlobalOutputs:
+            [
+                new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
+                {
+                    Priority = numErrors > 0 ? 2 : 0,
+                },
+            ]);
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
@@ -209,7 +240,7 @@ public static class Compiler
             return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
         }
 
-        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        static MemoryStream? getEmitStream(CSharpCompilation compilation)
         {
             var stream = new MemoryStream();
             var emitResult = compilation.Emit(stream);
@@ -219,7 +250,14 @@ public static class Compiler
             }
 
             stream.Position = 0;
-            return new(compilation.AssemblyName ?? "", stream);
+            return stream;
+        }
+
+        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        {
+            return getEmitStream(compilation) is { } stream
+                ? new(compilation.AssemblyName ?? "", stream)
+                : null;
         }
 
         static string getIl(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
@@ -296,14 +334,104 @@ public sealed record InputCode
     public string FileExtension => Path.GetExtension(FileName);
 }
 
-public sealed record CompiledAssembly(ImmutableDictionary<string, CompiledFile> Files, string Diagnostics, int NumWarnings, int NumErrors);
+public sealed record CompiledAssembly(
+    ImmutableDictionary<string, CompiledFile> Files,
+    ImmutableArray<CompiledFileOutput> GlobalOutputs,
+    int NumWarnings,
+    int NumErrors)
+{
+    public static readonly string DiagnosticsOutputType = "Error List";
+
+    public CompiledFileOutput? GetGlobalOutput(string type)
+    {
+        return GlobalOutputs.FirstOrDefault(o => o.Type == type);
+    }
+}
 
 public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
 {
-    public string? GetOutput(string type) => Outputs.FirstOrDefault(o => o.Type == type)?.Text;
+    public CompiledFileOutput? GetOutput(string type)
+    {
+        return Outputs.FirstOrDefault(o => o.Type == type);
+    }
 }
 
-public sealed record CompiledFileOutput(string Type, string Text)
+public sealed class CompiledFileOutput
 {
+    private object text;
+
+    public CompiledFileOutput(string type, string eagerText)
+    {
+        Type = type;
+        text = eagerText;
+    }
+
+    public CompiledFileOutput(string type, Func<ValueTask<string>> lazyText)
+    {
+        Type = type;
+        text = lazyText;
+    }
+
+    public CompiledFileOutput(string type, Func<string> lazyTextSync)
+    {
+        Type = type;
+        text = lazyTextSync;
+    }
+
+    public string Type { get; }
     public int Priority { get; init; }
+
+    public bool IsLazy => !TryGetEagerText(out _);
+
+    public bool TryGetEagerText([NotNullWhen(returnValue: true)] out string? result)
+    {
+        if (text is string eagerText)
+        {
+            result = eagerText;
+            return true;
+        }
+
+        if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
+        {
+            text = taskResult;
+            result = taskResult;
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
+    public ValueTask<string> GetTextAsync()
+    {
+        Debug.Assert(Thread.CurrentThread is { IsThreadPoolThread: false, IsBackground: false },
+            "Expected this to run on the UI thread only (we don't perform any synchronization " +
+            "when invoking the lazy text function)");
+
+        if (TryGetEagerText(out var eagerText))
+        {
+            return new(eagerText);
+        }
+
+        if (text is ValueTask<string> existingTask)
+        {
+            return existingTask;
+        }
+
+        if (text is Func<ValueTask<string>> lazyText)
+        {
+            var task = lazyText();
+            text = task;
+            return task;
+        }
+
+        if (text is Func<string> lazyTextSync)
+        {
+            var result = lazyTextSync();
+            text = result;
+            return new(result);
+        }
+
+        throw new InvalidOperationException();
+    }
 }
