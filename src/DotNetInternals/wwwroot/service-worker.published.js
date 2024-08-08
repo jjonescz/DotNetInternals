@@ -8,7 +8,7 @@ self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
-const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/ ];
+const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm$/, /\.html$/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/, /\.ttf$/ ];
 const offlineAssetsExclude = [ /^service-worker\.js$/ ];
 
 // Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
@@ -23,7 +23,14 @@ async function onInstall(event) {
     const assetsRequests = self.assetsManifest.assets
         .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
-        .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
+        .map(asset => {
+            // Some files are requested as pre-compressed `.br` by `index.html`.
+            if (asset.url.endsWith('.wasm') || asset.url == '_framework/blazor.boot.json') {
+                return new Request(asset.url + '.br', { cache: 'no-cache' });
+            }
+
+            return new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' });
+        });
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
 }
 
@@ -48,8 +55,38 @@ async function onFetch(event) {
 
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);
-        cachedResponse = await cache.match(request);
+        // We ignore search query (so our pre-cached `app.css` matches request `app.css?v=2`),
+        // we have pre-cached the latest versions of all static assets.
+        cachedResponse = await cache.match(request, { ignoreSearch: true });
+
+        if (cachedResponse?.redirected) {
+            cachedResponse = await cleanResponse(cachedResponse);
+            cache.put(request, cachedResponse.clone());
+        }
     }
 
     return cachedResponse || fetch(event.request);
+}
+
+/**
+ * Removes `redirected` flag from a response
+ * so it's servable by the service worker.
+ * 
+ * @see https://stackoverflow.com/a/45440505/9080566
+ * @see https://github.com/dotnet/aspnetcore/issues/33872
+ */
+async function cleanResponse(response) {
+    const clonedResponse = response.clone();
+  
+    // Not all browsers support the Response.body stream,
+    // so fall back to reading the entire body into memory as a blob.
+    const body = 'body' in clonedResponse
+        ? clonedResponse.body
+        : await clonedResponse.blob();
+  
+    return new Response(body, {
+        headers: clonedResponse.headers,
+        status: clonedResponse.status,
+        statusText: clonedResponse.statusText,
+    });
 }
