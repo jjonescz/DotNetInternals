@@ -13,7 +13,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Compiler\Compiler.csproj" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\Compiler\Compiler.csproj" />
 		<ProjectReference Include="..\Shared\Shared.csproj" />
 	</ItemGroup>
 

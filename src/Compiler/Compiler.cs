@@ -13,10 +13,6 @@ namespace DotNetInternals;
 
 public class Compiler : ICompiler
 {
-    private Compiler() { }
-
-    public static Compiler Instance { get; } = new();
-
     public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
