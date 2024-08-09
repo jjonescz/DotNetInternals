@@ -2,6 +2,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 namespace DotNetInternals;
 
@@ -14,8 +15,10 @@ internal sealed class CompilerProxy : ICompiler
 {
     public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
-        // TODO: Load the compiler DLL dynamically.
-        return null!;
+        Assembly compilerAssembly = Assembly.Load("DotNetInternals.Compiler");
+        Type compilerType = compilerAssembly.GetType("DotNetInternals.Compiler")!;
+        ICompiler compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
+        return compiler.Compile(inputs);
     }
 }
 
