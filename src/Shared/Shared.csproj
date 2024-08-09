@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="protobuf-net" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
+    <ProjectReference Include="..\RoslynAccess\RoslynAccess.csproj" />
+  </ItemGroup>
+
+</Project>

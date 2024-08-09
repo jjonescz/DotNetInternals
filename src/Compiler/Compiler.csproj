@@ -13,9 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\App\App.csproj" />
     <ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
     <ProjectReference Include="..\RoslynAccess\RoslynAccess.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
 </Project>

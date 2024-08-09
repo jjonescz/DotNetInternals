@@ -23,8 +23,9 @@ Razor REPLs (all can only render HTML):
 - `src/Compiler`: self-contained project referencing Roslyn/Razor.
   It's reloaded at runtime with a user-chosen version of Roslyn/Razor.
   It should be small (for best reloading perf). It can reference shared code
-  which does not depend on Roslyn/Razor from elsewhere (e.g., `App`).
+  which does not depend on Roslyn/Razor from elsewhere (e.g., `Shared.csproj`).
 - `src/RazorAccess`: `internal` access to Razor DLLs (via fake assembly name).
 - `src/RoslynAccess`: `internal` access to Roslyn DLLs (via fake assembly name).
+- `src/Shared`: code used by `Compiler` that does not depend on Roslyn/Razor.
 - `test/UnitTests`
   - `dotnet test`
