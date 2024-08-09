@@ -3,9 +3,10 @@
 C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
 - Razor/CSHTML to generated C# code / IR / Syntax Tree / Errors.
-- C# to IL / Syntax / decompiled-C# / Errors.
+- C# to IL / Syntax / decompiled-C# / Errors / Execution console output.
 - More in the future?
 - Offline support (PWA).
+- VSCode Monaco Editor.
 
 ## Related work
 
