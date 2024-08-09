@@ -1,7 +1,8 @@
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
+@inject Lazy<NuGetDownloader> NuGetDownloader
 
-<button type="button" class="btn btn-outline-secondary" @onclick="() => modalOpen = true">
+<button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
     Settings
 </button>
 
@@ -15,6 +16,7 @@
                     <button type="button" class="btn-close" aria-label="Close" @onclick="() => modalOpen = false"></button>
                 </div>
                 <div class="modal-body">
+                    @* Word wrap check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="wordWrap" @bind="WordWrap"
                             @bind:after="OnWordWrapChanged" />
@@ -22,12 +24,48 @@
                             Word wrap
                         </label>
                     </div>
+
+                    @* Use VIM check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="vim" @bind="UseVim"
                             @bind:after="OnVimChanged" />
                         <label class="form-check-label" for="vim">
                             Use VIM
                         </label>
+                    </div>
+
+                    <h6 class="mt-3 h5">Compilers</h6>
+
+                    @* Roslyn version select *@
+                    <div class="mb-3">
+                        <label for="roslynVersion" class="form-label">
+                            Roslyn
+                            <button type="button" class="btn btn-outline-secondary btn-sm ms-2"
+                                    @onclick="RefreshRoslynVersionsAsync">
+                                Refresh
+                                @if (refreshingRoslynVersions)
+                                {
+                                    <div class="spinner-border spinner-border-sm ms-2" role="status">
+                                        <span class="visually-hidden">Refreshing...</span>
+                                    </div>
+                                }
+                            </button>
+                        </label>
+                        <select class="form-select" id="roslynVersion">
+                            <optgroup label="Local">
+                                <option>vX.Y.Z</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    @* Razor version select *@
+                    <div class="mb-3">
+                        <label for="razorVersion" class="form-label">Razor</label>
+                        <select class="form-select" id="razorVersion">
+                            <optgroup label="Local">
+                                <option>vX.Y.Z</option>
+                            </optgroup>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -41,6 +79,8 @@
 @code {
     private bool modalOpen;
     private IJSObjectReference? vimDisposable;
+    private bool refreshingRoslynVersions;
+    private ImmutableArray<NuGetVersion> roslynVersions;
 
     [Parameter] public bool WordWrap { get; set; }
     [Parameter] public EventCallback<bool> WordWrapChanged { get; set; }
@@ -61,6 +101,41 @@
             UseVim = await LocalStorage.GetItemAsync<bool>(nameof(UseVim));
             await OnVimChanged();
         }
+    }
+
+    private Task OpenModalAsync()
+    {
+        if (modalOpen)
+        {
+            return Task.CompletedTask;
+        }
+
+        modalOpen = true;
+
+        Task roslynTask = Task.CompletedTask;
+        Task razorTask = Task.CompletedTask;
+
+        if (roslynVersions.IsDefault)
+        {
+            roslynTask = RefreshRoslynVersionsAsync();
+        }
+
+        return Task.WhenAll(roslynTask, razorTask);
+    }
+
+    private async Task RefreshRoslynVersionsAsync()
+    {
+        if (refreshingRoslynVersions)
+        {
+            return;
+        }
+
+        refreshingRoslynVersions = true;
+        await RefreshAsync();
+
+        roslynVersions = await NuGetDownloader.Value.GetVersionsAsync(CompilerProxy.RoslynPackageId);
+
+        refreshingRoslynVersions = false;
     }
 
     private async Task OnWordWrapChanged()

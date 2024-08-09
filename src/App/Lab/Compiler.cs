@@ -4,6 +4,8 @@ namespace DotNetInternals.Lab;
 
 internal sealed class CompilerProxy : ICompiler
 {
+    public static readonly string RoslynPackageId = "Microsoft.Net.Compilers.Toolset";
+
     public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
         Assembly compilerAssembly = Assembly.Load("DotNetInternals.Compiler");
