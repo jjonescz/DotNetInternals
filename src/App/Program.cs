@@ -11,5 +11,6 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddSingleton<ICompiler, CompilerProxy>();
+builder.Services.AddSingleton<Lazy<NuGetDownloader>>();
 
 await builder.Build().RunAsync();
