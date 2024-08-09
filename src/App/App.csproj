@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
 	<PropertyGroup>
-		<AssemblyName>DotNetInternals.App</AssemblyName>
 		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
 	</PropertyGroup>
 

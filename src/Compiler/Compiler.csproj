@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <AssemblyName>DotNetInternals.Compiler</AssemblyName>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Basic.Reference.Assemblies.AspNet80" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
