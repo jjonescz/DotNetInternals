@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace DotNetInternals;
+namespace DotNetInternals.Lab;
 
 internal sealed class CompilerProxy : ICompiler
 {

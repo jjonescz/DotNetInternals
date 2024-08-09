@@ -2,7 +2,7 @@ using System.Buffers.Text;
 using System.IO.Compression;
 using ProtoBuf;
 
-namespace DotNetInternals;
+namespace DotNetInternals.Lab;
 
 internal static class Compressor
 {

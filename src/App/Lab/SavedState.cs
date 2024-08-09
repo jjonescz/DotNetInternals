@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using ProtoBuf;
 
-namespace DotNetInternals;
+namespace DotNetInternals.Lab;
 
 [ProtoContract]
 internal sealed class SavedState
