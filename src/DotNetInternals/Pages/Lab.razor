@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
+@inject ICompiler Compiler
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
@@ -247,8 +248,8 @@
             }
 
             var fileName = input.FileName;
-            return fileName == Compiler.InitialRazorCode.SuggestedFileName ||
-                fileName == Compiler.InitialCSharpCode.SuggestedFileName;
+            return fileName == InitialCode.Razor.SuggestedFileName ||
+                fileName == InitialCode.CSharp.SuggestedFileName;
         }
     }
 
@@ -256,7 +257,7 @@
     {
         get
         {
-            return CurrentInput?.FileName == Compiler.InitialRazorCode.SuggestedFileName
+            return CurrentInput?.FileName == InitialCode.Razor.SuggestedFileName
                 ? SpecialInput.AddRazor
                 : SpecialInput.AddCSharp;
         }
@@ -307,15 +308,15 @@
         switch (selectedInputIndex)
         {
             case (int)SpecialInput.AddRazor:
-                await AddInputAsync(Compiler.InitialRazorCode);
+                await AddInputAsync(InitialCode.Razor);
                 break;
 
             case (int)SpecialInput.AddCSharp:
-                await AddInputAsync(Compiler.InitialCSharpCode);
+                await AddInputAsync(InitialCode.CSharp);
                 break;
 
             case (int)SpecialInput.AddCshtml:
-                await AddInputAsync(Compiler.InitialCshtmlCode);
+                await AddInputAsync(InitialCode.Cshtml);
                 break;
 
             case (int)SpecialInput.CloseOtherTabs:
@@ -341,8 +342,8 @@
 
         inputs.Clear();
         await AddInputAsync(input == SpecialInput.AddRazor
-            ? Compiler.InitialRazorCode
-            : Compiler.InitialCSharpCode);
+            ? InitialCode.Razor
+            : InitialCode.CSharp);
         Debug.Assert(SimpleMode);
 
         await SaveInputStateToUrlAsync();
@@ -436,46 +437,25 @@
         foreach (var input in inputs)
         {
             List<MarkerData> markers = compiled?.Diagnostics
-                .SelectNonNull(d =>
+                .Where(d => d.FilePath == compiled.BaseDirectory + input.FileName)
+                .Select(d => new MarkerData
                 {
-                    string? filePath = d.Location.SourceTree?.FilePath;
-                    FileLinePositionSpan lineSpan;
-
-                    if (string.IsNullOrEmpty(filePath) &&
-                        d.Location.GetMappedLineSpan() is { IsValid: true, HasMappedPath: true } mappedLineSpan)
+                    CodeAsObject = new()
                     {
-                        filePath = mappedLineSpan.Path;
-                        lineSpan = mappedLineSpan;
-                    }
-                    else
+                        Value = d.Id,
+                        TargetUri = d.HelpLinkUri,
+                    },
+                    Message = d.Message,
+                    StartLineNumber = d.StartLineNumber,
+                    StartColumn = d.StartColumn,
+                    EndLineNumber = d.EndLineNumber,
+                    EndColumn = d.EndColumn,
+                    Severity = d.Severity switch
                     {
-                        lineSpan = d.Location.GetLineSpan();
-                    }
-
-                    if (filePath != compiled.BaseDirectory + input.FileName)
-                    {
-                        return null;
-                    }
-                    
-                    return new MarkerData
-                    {
-                        CodeAsObject = new()
-                        {
-                            Value = d.Id,
-                            TargetUri = d.Descriptor.HelpLinkUri,
-                        },
-                        Message = d.GetMessage(),
-                        StartLineNumber = lineSpan.StartLinePosition.Line + 1,
-                        StartColumn = lineSpan.StartLinePosition.Character + 1,
-                        EndLineNumber = lineSpan.EndLinePosition.Line + 1,
-                        EndColumn = lineSpan.EndLinePosition.Character + 1,
-                        Severity = d.Severity switch
-                        {
-                            DiagnosticSeverity.Error => MarkerSeverity.Error,
-                            DiagnosticSeverity.Warning => MarkerSeverity.Warning,
-                            _ => MarkerSeverity.Info,
-                        },
-                    };
+                        DiagnosticDataSeverity.Error => MarkerSeverity.Error,
+                        DiagnosticDataSeverity.Warning => MarkerSeverity.Warning,
+                        _ => MarkerSeverity.Info,
+                    },
                 })
                 .ToList() ?? [];
             await BlazorMonaco.Editor.Global.SetModelMarkers(JSRuntime, input.Model, "Lab", markers);
@@ -560,7 +540,7 @@
 
         if (string.IsNullOrWhiteSpace(slug))
         {
-            await AddInputAsync(Compiler.InitialRazorCode);
+            await AddInputAsync(InitialCode.Razor);
         }
         else
         {

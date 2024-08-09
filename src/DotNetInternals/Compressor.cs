@@ -1,6 +1,5 @@
 using System.Buffers.Text;
 using System.IO.Compression;
-using DotNetInternals.RazorAccess;
 using ProtoBuf;
 
 namespace DotNetInternals;

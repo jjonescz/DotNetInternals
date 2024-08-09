@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using DotNetInternals.RazorAccess;
 using ProtoBuf;
 
 namespace DotNetInternals;
