@@ -20,7 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_", "_", "{494F0FD9-0786-45
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{AC28F7A2-BCAD-48A8-B498-78E802B8872D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetInternals.Tests", "test\DotNetInternals.Tests\DotNetInternals.Tests.csproj", "{DA01142C-555F-4EF7-9E71-C5F988D5C3D7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "test\UnitTests\UnitTests.csproj", "{DA01142C-555F-4EF7-9E71-C5F988D5C3D7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoslynAccess", "src\RoslynAccess\RoslynAccess.csproj", "{2C13EAB4-7ACC-4F8D-9E41-E37C25E4DEBD}"
 EndProject
