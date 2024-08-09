@@ -2,7 +2,6 @@
 
 	<PropertyGroup>
 		<AssemblyName>DotNetInternals.App</AssemblyName>
-		<RootNamespace>DotNetInternals</RootNamespace>
 		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
 	</PropertyGroup>
 

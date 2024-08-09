@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <AssemblyName>DotNetInternals.Compiler</AssemblyName>
-    <RootNamespace>DotNetInternals</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

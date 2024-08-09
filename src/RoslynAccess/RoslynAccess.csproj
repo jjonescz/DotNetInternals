@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <AssemblyName>Microsoft.CodeAnalysis.CSharp.Test.Utilities</AssemblyName>
-    <RootNamespace>DotNetInternals.RoslynAccess</RootNamespace>
     <KeyOriginatorFile>$(PkgMicrosoft_DotNet_Arcade_Sdk)\tools\snk\35MSSharedLib1024.snk</KeyOriginatorFile>
     <PublicSign>true</PublicSign>
   </PropertyGroup>

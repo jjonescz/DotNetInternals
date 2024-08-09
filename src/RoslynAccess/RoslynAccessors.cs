@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace DotNetInternals.RoslynAccess;
+namespace DotNetInternals;
 
 public static class RoslynAccessors
 {

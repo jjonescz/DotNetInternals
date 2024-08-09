@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <AssemblyName>Microsoft.CodeAnalysis.Razor.Test</AssemblyName>
-    <RootNamespace>DotNetInternals.RazorAccess</RootNamespace>
     <KeyOriginatorFile>$(PkgMicrosoft_DotNet_Arcade_Sdk)\tools\snk\AspNetCore.snk</KeyOriginatorFile>
   </PropertyGroup>
 

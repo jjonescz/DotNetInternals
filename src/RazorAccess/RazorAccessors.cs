@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.NET.Sdk.Razor.SourceGenerators;
 
-namespace DotNetInternals.RazorAccess;
+namespace DotNetInternals;
 
 public static class RazorAccessors
 {
