@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CAAE4B1C-41E0-4C18-B9D3-513F5135B7A2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetInternals", "src\DotNetInternals\DotNetInternals.csproj", "{FCA5EE33-745E-4DF5-A250-04D5260AD806}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "App", "src\App\App.csproj", "{FCA5EE33-745E-4DF5-A250-04D5260AD806}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RazorAccess", "src\RazorAccess\RazorAccess.csproj", "{E3B85FCE-4793-4C91-916B-0D3199EEC20B}"
 EndProject

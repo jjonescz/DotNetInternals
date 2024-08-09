@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotNetInternals\DotNetInternals.csproj" />
+    <ProjectReference Include="..\App\App.csproj" />
     <ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
     <ProjectReference Include="..\RoslynAccess\RoslynAccess.csproj" />
   </ItemGroup>
