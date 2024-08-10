@@ -21,13 +21,27 @@ internal sealed class CompilerProxy(
 
     public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
-        if (compiler is null || dependencyRegistry.Iteration != iteration)
+        try
         {
-            compiler = await LoadCompilerAsync();
-            iteration = dependencyRegistry.Iteration;
-        }
+            if (compiler is null || dependencyRegistry.Iteration != iteration)
+            {
+                compiler = await LoadCompilerAsync();
+                iteration = dependencyRegistry.Iteration;
+            }
 
-        return await compiler.CompileAsync(inputs);
+            return await compiler.CompileAsync(inputs);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to compile.");
+            return new(
+                BaseDirectory: "/",
+                Files: ImmutableDictionary<string, CompiledFile>.Empty,
+                Diagnostics: [],
+                GlobalOutputs: [new(CompiledAssembly.DiagnosticsOutputType, ex.ToString())],
+                NumErrors: 1,
+                NumWarnings: 0);
+        }
     }
 
     private async Task<ICompiler> LoadCompilerAsync()

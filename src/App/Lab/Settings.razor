@@ -66,6 +66,12 @@
                                     target="_blank">@roslynInfo.Commit</a>.
                             </div>
                         }
+                        @if (roslynError != null)
+                        {
+                            <div class="form-text text-danger">
+                                @roslynError
+                            </div>
+                        }
                     </div>
 
                     @* Razor version select *@
@@ -97,6 +103,12 @@
                                     target="_blank">@razorInfo.Commit</a>.
                             </div>
                         }
+                        @if (razorError != null)
+                        {
+                            <div class="form-text text-danger">
+                                @razorError
+                            </div>
+                        }
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -113,6 +125,7 @@
     private string? roslynVersion, razorVersion;
     private bool loadingRoslynInfo, loadingRazorInfo;
     private RepositoryMetadata? roslynInfo, razorInfo;
+    private string? roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
     [Parameter] public EventCallback<bool> WordWrapChanged { get; set; }
@@ -181,7 +194,16 @@
 
         DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
 
-        roslynInfo = await package.GetRepositoryMetadataAsync();
+        try
+        {
+            roslynInfo = await package.GetRepositoryMetadataAsync();
+            roslynError = null;
+        }
+        catch (Exception ex)
+        {
+            roslynError = ex.Message;
+            roslynInfo = null;
+        }
 
         loadingRoslynInfo = false;
     }
@@ -207,7 +229,16 @@
 
         DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
 
-        razorInfo = await package.GetRepositoryMetadataAsync();
+        try
+        {
+            razorInfo = await package.GetRepositoryMetadataAsync();
+            razorError = null;
+        }
+        catch (Exception ex)
+        {
+            razorError = ex.Message;
+            razorInfo = null;
+        }
 
         loadingRazorInfo = false;
     }

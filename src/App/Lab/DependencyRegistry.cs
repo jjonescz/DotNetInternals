@@ -99,13 +99,20 @@ internal sealed class NuGetDownloader
         async Task<MemoryStream> downloadAsync()
         {
             var stream = new MemoryStream();
-            await (await findPackageById).CopyNupkgToStreamAsync(
+            var success = await (await findPackageById).CopyNupkgToStreamAsync(
                 packageId,
                 NuGetVersion.Parse(version),
                 stream,
                 cacheContext,
                 NullLogger.Instance,
                 CancellationToken.None);
+
+            if (!success)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to download '{packageId}' version '{version}'.");
+            }
+
             return stream;
         }
     }
