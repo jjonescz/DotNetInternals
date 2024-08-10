@@ -57,7 +57,7 @@ internal sealed class DependencyRegistry
 internal sealed class LoadedAssembly
 {
     public required string Name { get; init; }
-    public required byte[] Data { get; init; }
+    public required Stream Data { get; init; }
 }
 
 internal static class NuGetUtil
@@ -159,12 +159,13 @@ internal sealed class NuGetDownloadablePackage
             {
                 ZipArchiveEntry entry = reader.GetEntry(file);
                 using var entryStream = entry.Open();
-                var buffer = new byte[entry.Length];
-                entryStream.ReadExactly(buffer, 0, buffer.Length);
+                var memoryStream = new MemoryStream(new byte[entry.Length]);
+                entryStream.CopyTo(memoryStream);
+                memoryStream.Position = 0;
                 return new LoadedAssembly()
                 {
                     Name = entry.Name[..^extension.Length],
-                    Data = buffer,
+                    Data = memoryStream,
                 };
             })
             .ToImmutableArray();

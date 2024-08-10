@@ -74,7 +74,7 @@ internal sealed class CompilerProxy(
             return new()
             {
                 Name = name,
-                Data = await client.GetByteArrayAsync($"_framework/{name}.wasm"),
+                Data = await client.GetStreamAsync($"_framework/{name}.wasm"),
             };
         }
     }
@@ -93,7 +93,7 @@ internal sealed class CompilerLoader(
         {
             logger.LogDebug("Loading {AssemblyName}", assemblyName);
 
-            return LoadFromStream(new MemoryStream(loadedAssembly.Data));
+            return LoadFromStream(loadedAssembly.Data);
         }
 
         logger.LogDebug("Skipping {AssemblyName}", assemblyName);
