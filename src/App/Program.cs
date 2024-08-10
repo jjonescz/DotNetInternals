@@ -10,7 +10,18 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddBlazoredLocalStorage();
-builder.Services.AddSingleton<ICompiler, CompilerProxy>();
-builder.Services.AddSingleton<Lazy<NuGetDownloader>>();
+builder.Services.AddScoped<ICompiler, CompilerProxy>();
+builder.Services.AddScoped<Lazy<NuGetDownloader>>();
+builder.Services.AddScoped<DependencyRegistry>();
 
-await builder.Build().RunAsync();
+if (builder.HostEnvironment.IsDevelopment())
+{
+    builder.Logging.AddFilter("DotNetInternals.*", LogLevel.Debug);
+}
+
+var host = builder.Build();
+
+host.Services.GetRequiredService<ILogger<Program>>()
+    .LogInformation("Environment: {Environment}", builder.HostEnvironment.Environment);
+
+await host.RunAsync();

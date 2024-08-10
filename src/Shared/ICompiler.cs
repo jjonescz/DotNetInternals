@@ -7,7 +7,7 @@ namespace DotNetInternals;
 
 public interface ICompiler
 {
-    CompiledAssembly Compile(IEnumerable<InputCode> inputs);
+    Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs);
 }
 
 [ProtoContract]

@@ -425,7 +425,7 @@
         await RefreshAsync();
 
         // Compile.
-        compiled = Compiler.Compile(inputCodes);
+        compiled = await Compiler.CompileAsync(inputCodes);
 
         await DisplaySquiggles();
 

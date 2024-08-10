@@ -13,7 +13,7 @@ namespace DotNetInternals;
 
 public class Compiler : ICompiler
 {
-    public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    public Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -169,7 +169,7 @@ public class Compiler : ICompiler
             })
             .ToImmutableArray();
 
-        return new CompiledAssembly(
+        var result = new CompiledAssembly(
             BaseDirectory: directory,
             Files: compiledFiles,
             NumWarnings: numWarnings,
@@ -182,6 +182,8 @@ public class Compiler : ICompiler
                     Priority = numErrors > 0 ? 2 : 0,
                 },
             ]);
+
+        return Task.FromResult(result);
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {

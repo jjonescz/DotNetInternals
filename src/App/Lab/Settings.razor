@@ -1,3 +1,4 @@
+@inject DependencyRegistry DependencyRegistry
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
 @inject Lazy<NuGetDownloader> NuGetDownloader
@@ -161,14 +162,12 @@
 
     private async Task LoadRoslynInfoAsync()
     {
-        if (loadingRoslynInfo)
-        {
-            return;
-        }
+        const string key = "roslyn";
 
         if (string.IsNullOrWhiteSpace(roslynVersion))
         {
             roslynInfo = null;
+            DependencyRegistry.RemoveAssemblies(key);
             return;
         }
 
@@ -178,7 +177,10 @@
         var package = NuGetDownloader.Value.GetPackage(
             CompilerProxy.RoslynPackageId,
             roslynVersion,
-            "lib/net8.0");
+            CompilerProxy.RoslynPackageFolder);
+
+        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
+
         roslynInfo = await package.GetRepositoryMetadataAsync();
 
         loadingRoslynInfo = false;
@@ -186,14 +188,12 @@
 
     private async Task LoadRazorInfoAsync()
     {
-        if (loadingRazorInfo)
-        {
-            return;
-        }
+        const string key = "razor";
 
         if (string.IsNullOrWhiteSpace(razorVersion))
         {
             razorInfo = null;
+            DependencyRegistry.RemoveAssemblies(key);
             return;
         }
 
@@ -203,7 +203,10 @@
         var package = NuGetDownloader.Value.GetPackage(
             CompilerProxy.RazorPackageId,
             razorVersion,
-            "source-generators");
+            CompilerProxy.RazorPackageFolder);
+
+        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
+
         razorInfo = await package.GetRepositoryMetadataAsync();
 
         loadingRazorInfo = false;

@@ -21,26 +21,43 @@ namespace DotNetInternals.Lab;
 /// </remarks>
 internal sealed class DependencyRegistry
 {
-    private readonly Dictionary<string, Func<Task<ImmutableArray<byte[]>>>> dlls = new();
+    private readonly Dictionary<string, Func<Task<ImmutableArray<LoadedAssembly>>>> assemblies = new();
 
     /// <summary>
     /// Can be used to detect changes.
     /// </summary>
     public int Iteration { get; private set; }
 
-    public async IAsyncEnumerable<ImmutableArray<byte[]>> GetDllsAsync()
+    public bool IsEmpty => assemblies.Count == 0;
+
+    public async IAsyncEnumerable<LoadedAssembly> GetAssembliesAsync()
     {
-        foreach (var dll in dlls.Values)
+        foreach (var assemblyGroup in assemblies.Values)
         {
-            yield return await dll();
+            foreach (var assembly in await assemblyGroup())
+            {
+                yield return assembly;
+            }
         }
     }
 
-    public void SetDlls(string key, Func<Task<ImmutableArray<byte[]>>> dlls)
+    public void SetAssemblies(string key, Func<Task<ImmutableArray<LoadedAssembly>>> assemblies)
     {
-        this.dlls[key] = dlls;
+        this.assemblies[key] = assemblies;
         Iteration++;
     }
+
+    public void RemoveAssemblies(string key)
+    {
+        this.assemblies.Remove(key);
+        Iteration++;
+    }
+}
+
+internal sealed class LoadedAssembly
+{
+    public required string Name { get; init; }
+    public required byte[] Data { get; init; }
 }
 
 internal static class NuGetUtil
@@ -105,31 +122,50 @@ internal sealed class NuGetDownloadablePackage
         _stream = new(streamFactory);
     }
 
-    public async Task<Stream> GetStreamAsync()
+    private async Task<Stream> GetStreamAsync()
     {
         var result = await _stream;
         result.Position = 0;
         return result;
     }
 
+    private async Task<PackageArchiveReader> GetReaderAsync()
+    {
+        return new(await GetStreamAsync(), leaveStreamOpen: true);
+    }
+
     public async Task<RepositoryMetadata> GetRepositoryMetadataAsync()
     {
-        using var reader = new PackageArchiveReader(await GetStreamAsync());
+        using var reader = await GetReaderAsync();
         return reader.NuspecReader.GetRepositoryMetadata();
     }
 
-    public async Task<ImmutableArray<byte[]>> GetDllsAsync()
+    public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
     {
-        using var reader = new PackageArchiveReader(await GetStreamAsync());
-        return reader.GetFiles(folder)
-            .Where(static file => file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+        const string extension = ".dll";
+        using var reader = await GetReaderAsync();
+        return reader.GetFiles()
+            .Where(file =>
+            {
+                // Get only DLL files directly in the specified folder
+                // and starting with `Microsoft.`.
+                return file.EndsWith(extension, StringComparison.OrdinalIgnoreCase) &&
+                    file.StartsWith(folder, StringComparison.OrdinalIgnoreCase) &&
+                    file.LastIndexOf('/') is int lastSlashIndex &&
+                    lastSlashIndex == folder.Length &&
+                    file.AsSpan(lastSlashIndex + 1).StartsWith("Microsoft.", StringComparison.Ordinal);
+            })
             .Select(file =>
             {
                 ZipArchiveEntry entry = reader.GetEntry(file);
                 using var entryStream = entry.Open();
                 var buffer = new byte[entry.Length];
                 entryStream.ReadExactly(buffer, 0, buffer.Length);
-                return buffer;
+                return new LoadedAssembly()
+                {
+                    Name = entry.Name[..^extension.Length],
+                    Data = buffer,
+                };
             })
             .ToImmutableArray();
     }
