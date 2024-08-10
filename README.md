@@ -19,13 +19,16 @@ Razor REPLs (all can only render HTML):
 ## Development
 
 - `src/App`: the WebAssembly app.
-  - `cd src/App; dotnet watch`
+  - `cd src/App; dotnet watch` - `src/Server` is better for development though.
 - `src/Compiler`: self-contained project referencing Roslyn/Razor.
   It's reloaded at runtime with a user-chosen version of Roslyn/Razor.
   It should be small (for best reloading perf). It can reference shared code
   which does not depend on Roslyn/Razor from elsewhere (e.g., `Shared.csproj`).
 - `src/RazorAccess`: `internal` access to Razor DLLs (via fake assembly name).
 - `src/RoslynAccess`: `internal` access to Roslyn DLLs (via fake assembly name).
+- `src/Server`: a Blazor Server entrypoint for easier development of the App
+  (it has better tooling support for hot reload and debugging).
+  - `cd src/Server; dotnet watch`
 - `src/Shared`: code used by `Compiler` that does not depend on Roslyn/Razor.
 - `test/UnitTests`
   - `dotnet test`

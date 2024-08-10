@@ -2,7 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch and Debug Standalone Blazor WebAssembly App",
+            "name": "Server",
+            "type": "blazorwasm",
+            "request": "launch",
+            "hosted": true,
+            "program": "${workspaceFolder}/src/Server/bin/Debug/net9.0/DotNetInternals.Server.dll",
+            "cwd": "${workspaceFolder}/src/App"
+        },
+        {
+            "name": "App",
             "type": "blazorwasm",
             "request": "launch",
             "cwd": "${workspaceFolder}/src/App"
