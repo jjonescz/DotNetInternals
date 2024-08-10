@@ -282,10 +282,10 @@
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
-        if (CurrentCompiledFile?.Outputs.Length + compiled?.GlobalOutputs.Length > 0 &&
+        if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.GlobalOutputs.Length > 0) &&
             (selectedOutputType == null || GetOutput(selectedOutputType) == null))
         {
-            selectedOutputType = CurrentCompiledFile?.Outputs
+            selectedOutputType = (CurrentCompiledFile?.Outputs)
                 .TryConcat(compiled?.GlobalOutputs)
                 .MaxBy(static o => o.Priority)!.Type;
             StateHasChanged();

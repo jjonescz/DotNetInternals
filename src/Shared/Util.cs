@@ -101,7 +101,7 @@ public static class Util
         return builder.ToImmutable();
     }
 
-    public static IEnumerable<T> TryConcat<T>(this IEnumerable<T>? a, IEnumerable<T>? b)
+    public static IEnumerable<T> TryConcat<T>(this ImmutableArray<T>? a, ImmutableArray<T>? b)
     {
         return [.. (a ?? []), .. (b ?? [])];
     }
