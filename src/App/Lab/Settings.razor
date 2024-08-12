@@ -77,9 +77,9 @@
                         @if (roslynInfo != null)
                         {
                             <div class="form-text">
-                                Commit
-                                <a href="@roslynInfo.Url/commit/@roslynInfo.Commit"
-                                    target="_blank">@roslynInfo.Commit</a>.
+                                Using @(roslynInfo.Version)
+                                (<a href="@roslynInfo.Commit.Url"
+                                    target="_blank">@roslynInfo.Commit.ShortHash</a>).
                             </div>
                         }
                         @if (roslynError != null)
@@ -130,9 +130,9 @@
                         @if (razorInfo != null)
                         {
                             <div class="form-text">
-                                Commit
-                                <a href="@razorInfo.Url/commit/@razorInfo.Commit"
-                                    target="_blank">@razorInfo.Commit</a>.
+                                Using @(razorInfo.Version)
+                                (<a href="@razorInfo.Commit.Url"
+                                    target="_blank">@razorInfo.Commit.ShortHash</a>).
                             </div>
                         }
                         @if (razorError != null)
@@ -156,7 +156,7 @@
     private IJSObjectReference? vimDisposable;
     private string? roslynVersion, razorVersion;
     private bool loadingRoslynInfo, loadingRazorInfo;
-    private RepositoryMetadata? roslynInfo, razorInfo;
+    private NuGetPackageInfo? roslynInfo, razorInfo;
     private string? roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
@@ -228,7 +228,7 @@
 
         try
         {
-            roslynInfo = await package.GetRepositoryMetadataAsync();
+            roslynInfo = await package.GetInfoAsync();
             roslynError = null;
         }
         catch (Exception ex)
@@ -269,7 +269,7 @@
 
         try
         {
-            razorInfo = await package.GetRepositoryMetadataAsync();
+            razorInfo = await package.GetInfoAsync();
             razorError = null;
         }
         catch (Exception ex)

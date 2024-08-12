@@ -157,10 +157,19 @@ internal sealed class NuGetDownloadablePackage
         return new(await GetStreamAsync(), leaveStreamOpen: true);
     }
 
-    public async Task<RepositoryMetadata> GetRepositoryMetadataAsync()
+    public async Task<NuGetPackageInfo> GetInfoAsync()
     {
         using var reader = await GetReaderAsync();
-        return reader.NuspecReader.GetRepositoryMetadata();
+        var metadata = reader.NuspecReader.GetRepositoryMetadata();
+        return new()
+        {
+            Version = reader.GetIdentity().Version,
+            Commit = new()
+            {
+                ShortHash = metadata.Commit[..7],
+                Url = $"{metadata.Url}/commit/{metadata.Commit}",
+            },
+        };
     }
 
     public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
@@ -193,6 +202,18 @@ internal sealed class NuGetDownloadablePackage
             })
             .ToImmutableArray();
     }
+}
+
+internal sealed record NuGetPackageInfo
+{
+    public required NuGetVersion Version { get; init; }
+    public required CommitLink Commit { get; init; }
+}
+
+internal readonly record struct CommitLink
+{
+    public required string ShortHash { get; init; }
+    public required string Url { get; init; }
 }
 
 internal sealed class CustomHttpHandlerResourceV3Provider : ResourceProvider
