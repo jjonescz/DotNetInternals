@@ -56,7 +56,23 @@
                         <div class="form-text">
                             See
                             <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RoslynPackageId)"
-                                target="_blank">available Roslyn versions</a>.
+                               target="_blank">available Roslyn versions</a>.
+                            @if (roslynVersion != "latest")
+                            {
+                                <span>
+                                    Use
+                                    <a href="javascript:void" @onclick:preventDefault
+                                       @onclick="@(() => UseRoslynVersionAsync("latest"))">the latest version</a>.
+                                </span>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(roslynVersion))
+                            {
+                                <span>
+                                    Use
+                                    <a href="javascript:void" @onclick:preventDefault
+                                       @onclick="@(() => UseRoslynVersionAsync(null))">the built-in version</a>.
+                                </span>
+                            }
                         </div>
                         @if (roslynInfo != null)
                         {
@@ -93,7 +109,23 @@
                         <div class="form-text">
                             See
                             <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RazorPackageId)"
-                                target="_blank">available Razor versions</a>.
+                               target="_blank">available Razor versions</a>.
+                            @if (razorVersion != "latest")
+                            {
+                                <span>
+                                    Use
+                                    <a href="javascript:void" @onclick:preventDefault
+                                       @onclick="@(() => UseRazorVersionAsync("latest"))">the latest version</a>.
+                                </span>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(razorVersion))
+                            {
+                                <span>
+                                    Use
+                                    <a href="javascript:void" @onclick:preventDefault
+                                       @onclick="@(() => UseRazorVersionAsync(null))">the built-in version</a>.
+                                </span>
+                            }
                         </div>
                         @if (razorInfo != null)
                         {
@@ -208,6 +240,12 @@
         loadingRoslynInfo = false;
     }
 
+    private async Task UseRoslynVersionAsync(string? version)
+    {
+        roslynVersion = version;
+        await LoadRoslynInfoAsync();
+    }
+
     private async Task LoadRazorInfoAsync()
     {
         const string key = "razor";
@@ -241,6 +279,12 @@
         }
 
         loadingRazorInfo = false;
+    }
+
+    private async Task UseRazorVersionAsync(string? version)
+    {
+        razorVersion = version;
+        await LoadRazorInfoAsync();
     }
 
     private async Task OnWordWrapChanged()

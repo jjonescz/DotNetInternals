@@ -98,10 +98,26 @@ internal sealed class NuGetDownloader
 
         async Task<MemoryStream> downloadAsync()
         {
+            NuGetVersion parsedVersion;
+            if (version == "latest")
+            {
+                var versions = await (await findPackageById).GetAllVersionsAsync(
+                    packageId,
+                    cacheContext,
+                    NullLogger.Instance,
+                    CancellationToken.None);
+                parsedVersion = versions.FirstOrDefault() ??
+                    throw new InvalidOperationException($"Package '{packageId}' not found.");
+            }
+            else
+            {
+                parsedVersion = NuGetVersion.Parse(version);
+            }
+
             var stream = new MemoryStream();
             var success = await (await findPackageById).CopyNupkgToStreamAsync(
                 packageId,
-                NuGetVersion.Parse(version),
+                parsedVersion,
                 stream,
                 cacheContext,
                 NullLogger.Instance,
