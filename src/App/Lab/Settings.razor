@@ -211,7 +211,7 @@
 
         if (string.IsNullOrWhiteSpace(roslynVersion))
         {
-            roslynInfo = null;
+            roslynInfo = CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName);
             DependencyRegistry.RemoveAssemblies(key);
             return;
         }
@@ -252,7 +252,7 @@
 
         if (string.IsNullOrWhiteSpace(razorVersion))
         {
-            razorInfo = null;
+            razorInfo = CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName);
             DependencyRegistry.RemoveAssemblies(key);
             return;
         }

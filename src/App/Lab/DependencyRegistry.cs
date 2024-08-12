@@ -161,15 +161,10 @@ internal sealed class NuGetDownloadablePackage
     {
         using var reader = await GetReaderAsync();
         var metadata = reader.NuspecReader.GetRepositoryMetadata();
-        return new()
-        {
-            Version = reader.GetIdentity().Version,
-            Commit = new()
-            {
-                ShortHash = metadata.Commit[..7],
-                Url = $"{metadata.Url}/commit/{metadata.Commit}",
-            },
-        };
+        return NuGetPackageInfo.Create(
+            version: reader.GetIdentity().Version.ToString(),
+            commitHash: metadata.Commit,
+            repoUrl: metadata.Url);
     }
 
     public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
@@ -206,7 +201,24 @@ internal sealed class NuGetDownloadablePackage
 
 internal sealed record NuGetPackageInfo
 {
-    public required NuGetVersion Version { get; init; }
+    public static NuGetPackageInfo Create(string version, string commitHash, string repoUrl)
+    {
+        return new()
+        {
+            Version = version,
+            Commit = new()
+            {
+                ShortHash = commitHash[..7],
+                Url = string.IsNullOrEmpty(repoUrl)
+                    ? ""
+                    : string.IsNullOrEmpty(commitHash)
+                        ? repoUrl
+                        : $"{repoUrl}/commit/{commitHash}",
+            },
+        };
+    }
+
+    public required string Version { get; init; }
     public required CommitLink Commit { get; init; }
 }
 
