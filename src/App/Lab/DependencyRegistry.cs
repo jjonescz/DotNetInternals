@@ -1,12 +1,12 @@
-using System.Collections.Immutable;
-using System.IO.Compression;
-using System.Text.Encodings.Web;
 using NuGet.Common;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
+using System.Collections.Immutable;
+using System.IO.Compression;
+using System.Text.Encodings.Web;
 
 namespace DotNetInternals.Lab;
 

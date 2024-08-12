@@ -1,5 +1,5 @@
-using System.Collections.Immutable;
 using ProtoBuf;
+using System.Collections.Immutable;
 
 namespace DotNetInternals.Lab;
 

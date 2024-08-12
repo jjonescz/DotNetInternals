@@ -1,6 +1,6 @@
+using ProtoBuf;
 using System.Buffers.Text;
 using System.IO.Compression;
-using ProtoBuf;
 
 namespace DotNetInternals.Lab;
 

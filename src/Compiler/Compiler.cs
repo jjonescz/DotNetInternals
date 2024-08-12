@@ -99,7 +99,7 @@ public class Compiler : ICompiler
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
-        
+
         var compiledFiles = compiledRazorFiles.AddRange(
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
@@ -126,7 +126,7 @@ public class Compiler : ICompiler
                         return emitStream is null ? "" : Executor.Execute(emitStream);
                     }),
                 ]))));
-        
+
         IEnumerable<Diagnostic> diagnostics = finalCompilation
             .GetDiagnostics()
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
