@@ -44,8 +44,8 @@
                                 Roslyn
                             </label>
                             <input type="text" class="form-control" id="roslynVersion"
-                                    @bind="roslynVersion" @bind:after="LoadRoslynInfoAsync"
-                                    placeholder="Keep empty to use the built-in version" />
+                                   @bind="roslynVersion" @bind:after="LoadRoslynInfoAsync"
+                                   placeholder="version" />
                             @if (loadingRoslynInfo)
                             {
                                 <span class="input-group-text">
@@ -57,22 +57,22 @@
                             See
                             <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RoslynPackageId)"
                                target="_blank">available Roslyn versions</a>.
+                            Use
                             @if (roslynVersion != "latest")
                             {
-                                <span>
-                                    Use
-                                    <a href="javascript:void" @onclick:preventDefault
-                                       @onclick="@(() => UseRoslynVersionAsync("latest"))">the latest version</a>.
-                                </span>
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRoslynVersionAsync("latest"))">latest</a>
                             }
-                            else if (!string.IsNullOrWhiteSpace(roslynVersion))
+                            @if (!string.IsNullOrWhiteSpace(roslynVersion))
                             {
-                                <span>
-                                    Use
-                                    <a href="javascript:void" @onclick:preventDefault
-                                       @onclick="@(() => UseRoslynVersionAsync(null))">the built-in version</a>.
-                                </span>
+                                if (roslynVersion != "latest")
+                                {
+                                    @(" or ")
+                                }
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRoslynVersionAsync(null))">built-in</a>
                             }
+                            @(".")
                         </div>
                         @if (roslynInfo != null)
                         {
@@ -97,8 +97,8 @@
                                 Razor
                             </label>
                             <input type="text" class="form-control" id="razorVersion"
-                                    @bind="razorVersion" @bind:after="LoadRazorInfoAsync"
-                                    placeholder="Keep empty to use the built-in version" />
+                                   @bind="razorVersion" @bind:after="LoadRazorInfoAsync"
+                                   placeholder="version" />
                             @if (loadingRazorInfo)
                             {
                                 <span class="input-group-text">
@@ -110,22 +110,22 @@
                             See
                             <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RazorPackageId)"
                                target="_blank">available Razor versions</a>.
+                            Use
                             @if (razorVersion != "latest")
                             {
-                                <span>
-                                    Use
-                                    <a href="javascript:void" @onclick:preventDefault
-                                       @onclick="@(() => UseRazorVersionAsync("latest"))">the latest version</a>.
-                                </span>
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRazorVersionAsync("latest"))">latest</a>
                             }
-                            else if (!string.IsNullOrWhiteSpace(razorVersion))
+                            @if (!string.IsNullOrWhiteSpace(razorVersion))
                             {
-                                <span>
-                                    Use
-                                    <a href="javascript:void" @onclick:preventDefault
-                                       @onclick="@(() => UseRazorVersionAsync(null))">the built-in version</a>.
-                                </span>
+                                if (razorVersion != "latest")
+                                {
+                                    @(" or ")
+                                }
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRazorVersionAsync(null))">built-in</a>
                             }
+                            @(".")
                         </div>
                         @if (razorInfo != null)
                         {
@@ -212,6 +212,7 @@
         if (string.IsNullOrWhiteSpace(roslynVersion))
         {
             roslynInfo = CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName);
+            roslynError = null;
             DependencyRegistry.RemoveAssemblies(key);
             return;
         }
@@ -253,6 +254,7 @@
         if (string.IsNullOrWhiteSpace(razorVersion))
         {
             razorInfo = CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName);
+            razorError = null;
             DependencyRegistry.RemoveAssemblies(key);
             return;
         }
