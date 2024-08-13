@@ -81,8 +81,8 @@
                         @if (inputs.Count > 1)
                         {
                             <hr />
-                            <option value="@((int)SpecialInput.CloseOtherTabs)">
-                                Close other tabs
+                            <option value="@((int)SpecialInput.RemoveOtherFiles)">
+                                Remove other files
                             </option>
                         }
                     </select>
@@ -221,7 +221,7 @@
         AddRazor = -1,
         AddCSharp = -2,
         AddCshtml = -3,
-        CloseOtherTabs = -4,
+        RemoveOtherFiles = -4,
     }
 
     private Input? CurrentInput
@@ -321,7 +321,7 @@
                 await AddInputAsync(InitialCode.Cshtml);
                 break;
 
-            case (int)SpecialInput.CloseOtherTabs:
+            case (int)SpecialInput.RemoveOtherFiles:
                 inputs.RemoveAll(i => i != CurrentInput);
                 forceAdvancedMode = true;
                 currentInputIndex = 0;
