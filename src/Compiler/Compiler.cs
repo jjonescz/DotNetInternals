@@ -89,9 +89,8 @@ public class Compiler : ICompiler
             [
                 ..compiledRazorFiles.Values.Select(static (file) =>
                 {
-                    var success = file.GetOutput("C#")!.TryGetEagerText(out var cSharpText);
-                    Debug.Assert(success);
-                    return CSharpSyntaxTree.ParseText(cSharpText!);
+                    var cSharpText = file.GetOutput("C#")!.GetEagerTextOrThrow();
+                    return CSharpSyntaxTree.ParseText(cSharpText);
                 }),
                 ..cSharp.Values,
             ],

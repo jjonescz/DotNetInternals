@@ -91,6 +91,13 @@ public sealed class CompiledFileOutput
 
     public bool IsLazy => !TryGetEagerText(out _);
 
+    public string GetEagerTextOrThrow()
+    {
+        return TryGetEagerText(out var eagerText)
+            ? eagerText
+            : throw new InvalidOperationException("The text is not available eagerly.");
+    }
+
     public bool TryGetEagerText([NotNullWhen(returnValue: true)] out string? result)
     {
         if (text is string eagerText)
