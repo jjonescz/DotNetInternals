@@ -94,11 +94,11 @@ internal sealed class CompilerProxy(
                     // Preload all built-in ones that our Compiler project depends on here
                     // (we cannot do that inside the AssemblyLoadContext because of async).
                     CompilerAssemblyName,
+                    RoslynAssemblyName,
+                    RazorAssemblyName,
                     "Basic.Reference.Assemblies.AspNet80",
                     "Microsoft.CodeAnalysis",
-                    "Microsoft.CodeAnalysis.CSharp",
                     "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
-                    "Microsoft.CodeAnalysis.Razor.Compiler",
                     "Microsoft.CodeAnalysis.Razor.Test",
                     "Microsoft.CodeAnalysis.Test.Utilities",
                 ]);
