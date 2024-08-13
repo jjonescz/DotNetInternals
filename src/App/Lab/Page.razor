@@ -174,7 +174,9 @@
 
     @* Settings button *@
     <div class="col-auto">
-        <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+        <CascadingValue IsFixed="true" Value="this">
+            <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+        </CascadingValue>
     </div>
 </div>
 
@@ -275,7 +277,7 @@
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        await LoadInputStateFromUrlAsync();
+        await LoadStateFromUrlAsync();
         StateHasChanged();
     }
 
@@ -303,7 +305,7 @@
 
     private async Task OnInputSelectedAsync(int selectedInputIndex)
     {
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         switch (selectedInputIndex)
         {
@@ -331,14 +333,14 @@
                 break;
         }
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task OnSelectSimpleInputAsync(SpecialInput input)
     {
         Debug.Assert(SimpleMode && inputs.Count == 1);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         inputs.Clear();
         await AddInputAsync(input == SpecialInput.AddRazor
@@ -346,14 +348,14 @@
             : InitialCode.CSharp);
         Debug.Assert(SimpleMode);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task RenameInputAsync()
     {
         Debug.Assert(CurrentInput != null && renamingTo != null);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         if (CurrentInput.FileName != renamingTo)
         {
@@ -369,20 +371,20 @@
         }
         renamingTo = null;
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task DeleteInputAsync()
     {
         Debug.Assert(CurrentInput != null && inputs.Count > 1);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         inputs.RemoveAt(currentInputIndex);
         currentInputIndex = 0;
         await inputEditor.SetModel(CurrentInput.Model);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
@@ -418,14 +420,12 @@
 
         compilationInProgress = true;
 
-        var inputCodes = await GetInputCodesAsync();
-
-        SaveInputStateToUrl(inputCodes);
+        var savedState = await SaveStateToUrlAsync();
 
         await RefreshAsync();
 
         // Compile.
-        compiled = await Compiler.CompileAsync(inputCodes);
+        compiled = await Compiler.CompileAsync(savedState.Inputs);
 
         await DisplaySquiggles();
 
@@ -522,66 +522,7 @@
     {
         await settings.InitializeAsync();
 
-        await LoadInputStateFromUrlAsync();
-    }
-
-    private string GetCurrentSlug()
-    {
-        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        return uri.Fragment.TrimStart('#');
-    }
-
-    private async Task LoadInputStateFromUrlAsync()
-    {
-        var slug = GetCurrentSlug();
-
-        inputs.Clear();
-        currentInputIndex = 0;
-
-        if (string.IsNullOrWhiteSpace(slug))
-        {
-            await AddInputAsync(InitialCode.Razor);
-        }
-        else
-        {
-            var savedState = Compressor.Uncompress(slug);
-            foreach (var (index, input) in savedState.Inputs.Index())
-            {
-                var model = await CreateModelAsync(input);
-                inputs.Add(new(input.FileName, model));
-
-                if (index == 0)
-                {
-                    await inputEditor.SetModel(model);
-                }
-            }
-        }
-    }
-
-    private async Task<ImmutableArray<InputCode>> GetInputCodesAsync()
-    {            
-        var builder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
-        foreach (var (fileName, model) in inputs)
-        {
-            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            builder.Add(new() { FileName = fileName, Text = text });
-        }
-        return builder.ToImmutable();
-    }
-
-    private async Task SaveInputStateToUrlAsync()
-    {
-        SaveInputStateToUrl(await GetInputCodesAsync());
-    }
-
-    private void SaveInputStateToUrl(ImmutableArray<InputCode> inputCodes)
-    {
-        var currentSlug = GetCurrentSlug();
-        var newSlug = Compressor.Compress(new SavedState { Inputs = inputCodes });
-        if (newSlug != currentSlug)
-        {
-            NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + newSlug, forceLoad: false);
-        }
+        await LoadStateFromUrlAsync();
     }
 
     private async Task<TextModel> CreateModelAsync(InputCode inputCode)

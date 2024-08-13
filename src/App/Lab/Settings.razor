@@ -44,7 +44,7 @@
                                 Roslyn
                             </label>
                             <input type="text" class="form-control" id="roslynVersion"
-                                   @bind="roslynVersion" @bind:after="LoadRoslynInfoAsync"
+                                   @bind="roslynVersion" @bind:after="() => LoadRoslynInfoAsync()"
                                    placeholder="version" />
                             @if (loadingRoslynInfo)
                             {
@@ -97,7 +97,7 @@
                                 Razor
                             </label>
                             <input type="text" class="form-control" id="razorVersion"
-                                   @bind="razorVersion" @bind:after="LoadRazorInfoAsync"
+                                   @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
                                    placeholder="version" />
                             @if (loadingRazorInfo)
                             {
@@ -164,6 +164,7 @@
     [Parameter] public bool UseVim { get; set; }
     [Parameter] public EventCallback<bool> UseVimChanged { get; set; }
     [Parameter, EditorRequired] public required StandaloneCodeEditor Editor { get; set; }
+    [CascadingParameter] public required Page Page { get; set; }
 
     public async Task InitializeAsync()
     {
@@ -194,42 +195,77 @@
 
         if (roslynInfo is null)
         {
-            roslynTask = LoadRoslynInfoAsync();
+            roslynTask = LoadRoslynInfoAsync(saveState: false);
         }
 
         if (razorInfo is null)
         {
-            razorTask = LoadRazorInfoAsync();
+            razorTask = LoadRazorInfoAsync(saveState: false);
         }
 
         return Task.WhenAll(roslynTask, razorTask);
     }
 
-    private async Task LoadRoslynInfoAsync()
+    internal Task LoadFromStateAsync(SavedState state)
     {
-        const string key = "roslyn";
+        Task roslynTask = Task.CompletedTask;
+        Task razorTask = Task.CompletedTask;
 
-        if (string.IsNullOrWhiteSpace(roslynVersion))
+        if (roslynVersion != state.RoslynVersion)
         {
-            roslynInfo = CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName);
-            roslynError = null;
+            roslynVersion = state.RoslynVersion;
+            roslynTask = LoadRoslynInfoAsync(saveState: false);
+        }
+
+        if (razorVersion != state.RazorVersion)
+        {
+            razorVersion = state.RazorVersion;
+            razorTask = LoadRazorInfoAsync(saveState: false);
+        }
+
+        return Task.WhenAll(roslynTask, razorTask);
+    }
+
+    private NuGetDownloadablePackage? LoadPackage(string? version, string key, string packageId, string packageFolder)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
             DependencyRegistry.RemoveAssemblies(key);
-            return;
+            return null;
+        }
+
+        var package = NuGetDownloader.Value.GetPackage(
+            packageId,
+            version,
+            packageFolder);
+
+        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
+
+        return package;
+    }
+
+    private async Task LoadRoslynInfoAsync(bool saveState = true)
+    {
+        if (saveState)
+        {
+            await Page.SaveStateToUrlAsync(state => state with { RoslynVersion = roslynVersion });
         }
 
         loadingRoslynInfo = true;
         await RefreshAsync();
 
-        var package = NuGetDownloader.Value.GetPackage(
-            CompilerProxy.RoslynPackageId,
-            roslynVersion,
-            CompilerProxy.RoslynPackageFolder);
-
-        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
-
         try
         {
-            roslynInfo = await package.GetInfoAsync();
+            var package = LoadPackage(
+                version: roslynVersion,
+                key: "roslyn",
+                packageId: CompilerProxy.RoslynPackageId,
+                packageFolder: CompilerProxy.RoslynPackageFolder);
+
+            roslynInfo = !modalOpen ? null : package is null
+                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName)
+                : await package.GetInfoAsync();
+
             roslynError = null;
         }
         catch (Exception ex)
@@ -247,31 +283,28 @@
         await LoadRoslynInfoAsync();
     }
 
-    private async Task LoadRazorInfoAsync()
+    private async Task LoadRazorInfoAsync(bool saveState = true)
     {
-        const string key = "razor";
-
-        if (string.IsNullOrWhiteSpace(razorVersion))
+        if (saveState)
         {
-            razorInfo = CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName);
-            razorError = null;
-            DependencyRegistry.RemoveAssemblies(key);
-            return;
+            await Page.SaveStateToUrlAsync(state => state with { RazorVersion = razorVersion });
         }
 
         loadingRazorInfo = true;
         await RefreshAsync();
 
-        var package = NuGetDownloader.Value.GetPackage(
-            CompilerProxy.RazorPackageId,
-            razorVersion,
-            CompilerProxy.RazorPackageFolder);
-
-        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
-
         try
         {
-            razorInfo = await package.GetInfoAsync();
+            var package = LoadPackage(
+                version: razorVersion,
+                key: "razor",
+                packageId: CompilerProxy.RazorPackageId,
+                packageFolder: CompilerProxy.RazorPackageFolder);
+
+            razorInfo = !modalOpen ? null : package is null
+                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName)
+                : await package.GetInfoAsync();
+
             razorError = null;
         }
         catch (Exception ex)
