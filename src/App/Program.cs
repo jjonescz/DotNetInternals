@@ -14,9 +14,12 @@ builder.Services.AddScoped<ICompiler, CompilerProxy>();
 builder.Services.AddScoped<Lazy<NuGetDownloader>>();
 builder.Services.AddScoped<DependencyRegistry>();
 
+builder.Logging.AddFilter("DotNetInternals.*",
+    static (logLevel) => logLevel >= Logging.LogLevel);
+
 if (builder.HostEnvironment.IsDevelopment())
 {
-    builder.Logging.AddFilter("DotNetInternals.*", LogLevel.Debug);
+    Logging.LogLevel = LogLevel.Debug;
 }
 
 var host = builder.Build();
