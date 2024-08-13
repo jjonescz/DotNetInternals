@@ -37,7 +37,8 @@
 
                     @* Debug logs check box *@
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="debugLogs" @bind="DebugLogs" />
+                        <input class="form-check-input" type="checkbox" id="debugLogs"
+                            @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
                         <label class="form-check-label" for="debugLogs"
                                title="Whether to display debug-level logs in the browser development console">
                             Debug logs
@@ -178,10 +179,12 @@
     private bool DebugLogs
     {
         get => Logging.LogLevel == LogLevel.Debug;
-        set
-        {
-            Logging.LogLevel = value ? LogLevel.Debug : LogLevel.Information;
-        }
+        set => Logging.LogLevel = value ? LogLevel.Debug : LogLevel.Information;
+    }
+
+    private async Task OnSetDebugLogsAsync()
+    {
+        await LocalStorage.SetItemAsync(nameof(DebugLogs), DebugLogs);
     }
 
     public async Task InitializeAsync()
@@ -196,6 +199,10 @@
         {
             UseVim = await LocalStorage.GetItemAsync<bool>(nameof(UseVim));
             await OnVimChanged();
+        }
+        if (await LocalStorage.ContainKeyAsync(nameof(DebugLogs)))
+        {
+            DebugLogs = await LocalStorage.GetItemAsync<bool>(nameof(DebugLogs));
         }
     }
 
