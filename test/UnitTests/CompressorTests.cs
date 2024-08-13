@@ -1,4 +1,6 @@
-﻿namespace DotNetInternals;
+﻿using DotNetInternals.Lab;
+
+namespace DotNetInternals;
 
 public class CompressorTests
 {
