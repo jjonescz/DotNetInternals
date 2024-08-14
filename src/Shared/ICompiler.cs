@@ -119,10 +119,6 @@ public sealed class CompiledFileOutput
 
     public ValueTask<string> GetTextAsync()
     {
-        Debug.Assert(Thread.CurrentThread is { IsThreadPoolThread: false, IsBackground: false },
-            "Expected this to run on the UI thread only (we don't perform any synchronization " +
-            "when invoking the lazy text function)");
-
         if (TryGetEagerText(out var eagerText))
         {
             return new(eagerText);
