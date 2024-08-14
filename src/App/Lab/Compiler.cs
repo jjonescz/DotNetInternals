@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Loader;
 
@@ -47,20 +48,31 @@ internal sealed class CompilerProxy(
             repoUrl: repositoryUrl);
     }
 
-    private ICompiler? compiler;
+    private LoadedCompiler? loaded;
     private int iteration;
 
     public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         try
         {
-            if (compiler is null || dependencyRegistry.Iteration != iteration)
+            if (loaded is null || dependencyRegistry.Iteration != iteration)
             {
-                compiler = await LoadCompilerAsync();
-                iteration = dependencyRegistry.Iteration;
+                var previousIteration = dependencyRegistry.Iteration;
+                var currentlyLoaded = await LoadCompilerAsync();
+
+                if (dependencyRegistry.Iteration == previousIteration)
+                {
+                    loaded = currentlyLoaded;
+                    iteration = dependencyRegistry.Iteration;
+                }
+                else
+                {
+                    Debug.Assert(loaded is not null);
+                }
             }
 
-            return await compiler.CompileAsync(inputs);
+            using var _ = loaded.LoadContext.EnterContextualReflection();
+            return await loaded.Compiler.CompileAsync(inputs);
         }
         catch (Exception ex)
         {
@@ -75,7 +87,7 @@ internal sealed class CompilerProxy(
         }
     }
 
-    private async Task<ICompiler> LoadCompilerAsync()
+    private async Task<LoadedCompiler> LoadCompilerAsync()
     {
         AssemblyLoadContext alc;
         if (dependencyRegistry.IsEmpty)
@@ -110,9 +122,11 @@ internal sealed class CompilerProxy(
             alc = new CompilerLoader(logger, assemblies, dependencyRegistry.Iteration);
         }
 
+        using var _ = alc.EnterContextualReflection();
         Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerAssemblyName));
         Type compilerType = compilerAssembly.GetType(CompilerAssemblyName)!;
-        return (ICompiler)Activator.CreateInstance(compilerType)!;
+        var compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
+        return new() { LoadContext = alc, Compiler = compiler };
 
         async Task<LoadedAssembly> reloadAssemblyAsync(string name)
         {
@@ -122,6 +136,12 @@ internal sealed class CompilerProxy(
                 Data = await client.GetStreamAsync($"_framework/{name}.wasm"),
             };
         }
+    }
+
+    private sealed class LoadedCompiler
+    {
+        public required AssemblyLoadContext LoadContext { get; init; }
+        public required ICompiler Compiler { get; init; }
     }
 }
 
