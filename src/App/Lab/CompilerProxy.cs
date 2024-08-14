@@ -156,14 +156,14 @@ internal sealed class CompilerLoader(
         if (assemblyName.Name is { } name &&
             knownAssemblies.TryGetValue(name, out var loadedAssembly))
         {
-            logger.LogDebug("Loading {AssemblyName}", assemblyName);
+            logger.LogDebug("▶️ {AssemblyName}", assemblyName);
 
             return LoadFromStream(loadedAssembly.Data);
         }
 
-        logger.LogDebug("Skipping {AssemblyName}", assemblyName);
+        logger.LogDebug("➖ {AssemblyName}", assemblyName);
 
-        return null;
+        return Default.LoadFromAssemblyName(assemblyName);
     }
 }
 
