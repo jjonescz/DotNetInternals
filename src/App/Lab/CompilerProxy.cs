@@ -157,12 +157,30 @@ internal sealed class CompilerLoader(
         {
             logger.LogDebug("▶️ {AssemblyName}", assemblyName);
 
-            return LoadFromStream(loadedAssembly.Data);
+            return verify(LoadFromStream(loadedAssembly.Data), this);
         }
 
         logger.LogDebug("➖ {AssemblyName}", assemblyName);
 
-        return Default.LoadFromAssemblyName(assemblyName);
+        return verify(Default.LoadFromAssemblyName(assemblyName), Default);
+
+        Assembly verify(Assembly? assembly, AssemblyLoadContext alc)
+        {
+            if (assembly is null)
+            {
+                throw new InvalidOperationException(
+                    $"Assembly '{assemblyName}' did not load.");
+            }
+
+            var actual = AssemblyLoadContext.GetLoadContext(assembly);
+            if (actual != alc)
+            {
+                throw new InvalidOperationException(
+                    $"Assembly '{assemblyName}' loaded in '{actual?.Name}' instead of '{alc.Name}'.");
+            }
+
+            return assembly;
+        }
     }
 }
 
