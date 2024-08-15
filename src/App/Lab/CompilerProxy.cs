@@ -71,7 +71,16 @@ internal sealed class CompilerProxy(
             }
 
             using var _ = loaded.LoadContext.EnterContextualReflection();
-            return loaded.Compiler.Compile(inputs);
+            var result = loaded.Compiler.Compile(inputs);
+
+            if (loaded.LoadContext is CompilerLoader { LastFailure: { } failure })
+            {
+                loaded = null;
+                throw new InvalidOperationException(
+                    $"Failed to load '{failure.AssemblyName}'.", failure.Exception);
+            }
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -144,12 +153,24 @@ internal sealed class CompilerProxy(
     }
 }
 
+internal readonly record struct AssemblyLoadFailure
+{
+    public required AssemblyName AssemblyName { get; init; }
+    public required Exception Exception { get; init; }
+}
+
 internal sealed class CompilerLoader(
     ILogger logger,
     ImmutableDictionary<string, LoadedAssembly> knownAssemblies,
     int iteration)
     : AssemblyLoadContext(nameof(CompilerLoader) + iteration)
 {
+    /// <summary>
+    /// In production in WebAssembly, the loader exceptions aren't propagated to the caller.
+    /// Hence this is used to fail the compilation when assembly loading fails.
+    /// </summary>
+    public AssemblyLoadFailure? LastFailure { get; set; }
+
     protected override Assembly? Load(AssemblyName assemblyName)
     {
         try
@@ -159,6 +180,7 @@ internal sealed class CompilerLoader(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load {AssemblyName}.", assemblyName);
+            LastFailure = new() { AssemblyName = assemblyName, Exception = ex };
             throw;
         }
     }
