@@ -152,6 +152,19 @@ internal sealed class CompilerLoader(
 {
     protected override Assembly? Load(AssemblyName assemblyName)
     {
+        try
+        {
+            return LoadCore(assemblyName);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load {AssemblyName}.", assemblyName);
+            throw;
+        }
+    }
+
+    private Assembly LoadCore(AssemblyName assemblyName)
+    {
         if (assemblyName.Name is { } name &&
             knownAssemblies.TryGetValue(name, out var loadedAssembly))
         {
