@@ -1,13 +1,12 @@
 using ProtoBuf;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace DotNetInternals;
 
 public interface ICompiler
 {
-    Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs);
+    CompiledAssembly Compile(IEnumerable<InputCode> inputs);
 }
 
 [ProtoContract]

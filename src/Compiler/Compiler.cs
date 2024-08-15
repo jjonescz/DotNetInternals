@@ -6,14 +6,13 @@ using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Roslyn.Test.Utilities;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Text;
 
 namespace DotNetInternals;
 
 public class Compiler : ICompiler
 {
-    public Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -182,7 +181,7 @@ public class Compiler : ICompiler
                 },
             ]);
 
-        return Task.FromResult(result);
+        return result;
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {

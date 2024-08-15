@@ -9,7 +9,6 @@ internal sealed class CompilerProxy(
     ILogger<CompilerProxy> logger,
     DependencyRegistry dependencyRegistry,
     HttpClient client)
-    : ICompiler
 {
     public static readonly string RoslynPackageId = "Microsoft.Net.Compilers.Toolset";
     public static readonly string RoslynPackageFolder = "tasks/netcore/bincore";
@@ -72,7 +71,7 @@ internal sealed class CompilerProxy(
             }
 
             using var _ = loaded.LoadContext.EnterContextualReflection();
-            return await loaded.Compiler.CompileAsync(inputs);
+            return loaded.Compiler.Compile(inputs);
         }
         catch (Exception ex)
         {
