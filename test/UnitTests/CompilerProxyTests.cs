@@ -20,7 +20,11 @@ public class CompilerProxyTests(ITestOutputHelper output)
         deps.SetAssemblies("roslyn", package.GetAssembliesAsync);
 
         using var client = new HttpClient(new MockHttpMessageHandler()) { BaseAddress = new Uri("http://localhost") };
-        var compiler = new CompilerProxy(NullLogger<CompilerProxy>.Instance, deps, client);
+        var compiler = new CompilerProxy(
+            NullLogger<CompilerProxy>.Instance,
+            deps,
+            client,
+            new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "Input.cs", Text = "#error version" }]);
 
         var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.GetEagerTextOrThrow();
@@ -39,7 +43,11 @@ public class CompilerProxyTests(ITestOutputHelper output)
         deps.SetAssemblies("razor", package.GetAssembliesAsync);
 
         using var client = new HttpClient(new MockHttpMessageHandler()) { BaseAddress = new Uri("http://localhost") };
-        var compiler = new CompilerProxy(NullLogger<CompilerProxy>.Instance, deps, client);
+        var compiler = new CompilerProxy(
+            NullLogger<CompilerProxy>.Instance,
+            deps,
+            client,
+            new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "TestComponent.razor", Text = "test" }]);
 
         var cSharpText = await compiled.Files.Single().Value.GetOutput("C#")!.GetTextAsync();

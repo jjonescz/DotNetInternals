@@ -8,7 +8,8 @@ namespace DotNetInternals.Lab;
 internal sealed class CompilerProxy(
     ILogger<CompilerProxy> logger,
     DependencyRegistry dependencyRegistry,
-    HttpClient client)
+    HttpClient client,
+    CompilerLoaderServices loaderServices)
 {
     public static readonly string RoslynPackageId = "Microsoft.Net.Compilers.Toolset";
     public static readonly string RoslynPackageFolder = "tasks/netcore/bincore";
@@ -106,7 +107,7 @@ internal sealed class CompilerProxy(
         else
         {
             var assemblies = await dependencyRegistry.GetAssembliesAsync()
-                .ToImmutableDictionaryAsync(a => a.Name, a => a, reloadAssemblyAsync,
+                .ToImmutableDictionaryAsync(a => a.Name, a => a, loadAssemblyAsync,
                 [
                     // All assemblies depending on Roslyn/Razor need to be reloaded
                     // to avoid type mismatches between assemblies from different contexts.
@@ -127,7 +128,7 @@ internal sealed class CompilerProxy(
                 assemblies.Count,
                 assemblies.Keys.JoinToString(", "));
 
-            alc = new CompilerLoader(logger, assemblies, dependencyRegistry.Iteration);
+            alc = new CompilerLoader(loaderServices, assemblies, dependencyRegistry.Iteration);
         }
 
         using var _ = alc.EnterContextualReflection();
@@ -136,7 +137,7 @@ internal sealed class CompilerProxy(
         var compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
         return new() { LoadContext = alc, Compiler = compiler };
 
-        async Task<LoadedAssembly> reloadAssemblyAsync(string name)
+        async Task<LoadedAssembly> loadAssemblyAsync(string name)
         {
             return new()
             {
@@ -159,12 +160,17 @@ internal readonly record struct AssemblyLoadFailure
     public required Exception Exception { get; init; }
 }
 
+internal sealed record CompilerLoaderServices(
+    ILogger<CompilerLoader> Logger);
+
 internal sealed class CompilerLoader(
-    ILogger logger,
-    ImmutableDictionary<string, LoadedAssembly> knownAssemblies,
+    CompilerLoaderServices services,
+    IReadOnlyDictionary<string, LoadedAssembly> knownAssemblies,
     int iteration)
     : AssemblyLoadContext(nameof(CompilerLoader) + iteration)
 {
+    private readonly Dictionary<string, Assembly> loadedAssemblies = new();
+
     /// <summary>
     /// In production in WebAssembly, the loader exceptions aren't propagated to the caller.
     /// Hence this is used to fail the compilation when assembly loading fails.
@@ -179,43 +185,40 @@ internal sealed class CompilerLoader(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to load {AssemblyName}.", assemblyName);
+            services.Logger.LogError(ex, "Failed to load {AssemblyName}.", assemblyName);
             LastFailure = new() { AssemblyName = assemblyName, Exception = ex };
             throw;
         }
     }
 
-    private Assembly LoadCore(AssemblyName assemblyName)
+    private Assembly? LoadCore(AssemblyName assemblyName)
     {
-        if (assemblyName.Name is { } name &&
-            knownAssemblies.TryGetValue(name, out var loadedAssembly))
+        if (assemblyName.Name is { } name)
         {
-            logger.LogDebug("▶️ {AssemblyName}", assemblyName);
-
-            return verify(LoadFromStream(loadedAssembly.Data), this);
-        }
-
-        logger.LogDebug("➖ {AssemblyName}", assemblyName);
-
-        return verify(Default.LoadFromAssemblyName(assemblyName), Default);
-
-        Assembly verify(Assembly? assembly, AssemblyLoadContext alc)
-        {
-            if (assembly is null)
+            if (loadedAssemblies.TryGetValue(name, out var loaded))
             {
-                throw new InvalidOperationException(
-                    $"Assembly '{assemblyName}' did not load.");
+                services.Logger.LogDebug("✔️ {AssemblyName}", assemblyName);
+
+                return loaded;
             }
 
-            var actual = AssemblyLoadContext.GetLoadContext(assembly);
-            if (actual != alc)
+            if (knownAssemblies.TryGetValue(name, out var loadedAssembly))
             {
-                throw new InvalidOperationException(
-                    $"Assembly '{assemblyName}' loaded in '{actual?.Name}' instead of '{alc.Name}'.");
+                services.Logger.LogDebug("▶️ {AssemblyName}", assemblyName);
+
+                loaded = LoadFromStream(loadedAssembly.Data);
+                loadedAssemblies.Add(name, loaded);
+                return loaded;
             }
 
-            return assembly;
+            services.Logger.LogDebug("➖ {AssemblyName}", assemblyName);
+
+            loaded = Default.LoadFromAssemblyName(assemblyName);
+            loadedAssemblies.Add(name, loaded);
+            return loaded;
         }
+
+        return null;
     }
 }
 

@@ -4,6 +4,22 @@ namespace DotNetInternals;
 
 public static class Util
 {
+    public static void AddRange<T>(this ICollection<T> collection, IEnumerable<T> items)
+    {
+        foreach (var item in items)
+        {
+            collection.Add(item);
+        }
+    }
+
+    public static void AddRange<T>(this ICollection<T> collection, ReadOnlySpan<T> items)
+    {
+        foreach (var item in items)
+        {
+            collection.Add(item);
+        }
+    }
+
     public static void CaptureConsoleOutput(Action action, out string stdout, out string stderr)
     {
         using var stdoutWriter = new StringWriter();
@@ -65,6 +81,20 @@ public static class Util
         }
     }
 
+    public static async Task<Dictionary<TKey, TValue>> ToDictionaryAsync<T, TKey, TValue>(
+        this IAsyncEnumerable<T> source,
+        Func<T, TKey> keySelector,
+        Func<T, TValue> valueSelector)
+        where TKey : notnull
+    {
+        var dictionary = new Dictionary<TKey, TValue>();
+        await foreach (var item in source)
+        {
+            dictionary.Add(keySelector(item), valueSelector(item));
+        }
+        return dictionary;
+    }
+
     public static async Task<ImmutableArray<T>> ToImmutableArrayAsync<T>(this IAsyncEnumerable<T> source)
     {
         var builder = ImmutableArray.CreateBuilder<T>();
@@ -73,6 +103,15 @@ public static class Util
             builder.Add(item);
         }
         return builder.ToImmutable();
+    }
+
+    public static Task<ImmutableDictionary<TKey, TValue>> ToImmutableDictionaryAsync<T, TKey, TValue>(
+        this IAsyncEnumerable<T> source,
+        Func<T, TKey> keySelector,
+        Func<T, TValue> valueSelector)
+        where TKey : notnull
+    {
+        return ToImmutableDictionaryAsync(source, keySelector, valueSelector, _ => Unreachable<Task<TValue>>(), []);
     }
 
     public static async Task<ImmutableDictionary<TKey, TValue>> ToImmutableDictionaryAsync<T, TKey, TValue>(
@@ -104,6 +143,11 @@ public static class Util
     public static IEnumerable<T> TryConcat<T>(this ImmutableArray<T>? a, ImmutableArray<T>? b)
     {
         return [.. (a ?? []), .. (b ?? [])];
+    }
+
+    public static T Unreachable<T>()
+    {
+        throw new InvalidOperationException($"Unreachable '{typeof(T)}'.");
     }
 
     public static string WithoutSuffix(this string s, string suffix)
