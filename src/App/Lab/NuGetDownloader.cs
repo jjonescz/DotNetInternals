@@ -3,7 +3,6 @@ using NuGet.Packaging;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
-using System.Collections.Immutable;
 using System.IO.Compression;
 using System.Text.Encodings.Web;
 

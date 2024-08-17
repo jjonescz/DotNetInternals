@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text.RegularExpressions;
 using DotNetInternals.Lab;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;

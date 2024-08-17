@@ -1,7 +1,4 @@
-﻿using System.Collections.Immutable;
-using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.Loader;
+﻿using System.Runtime.Loader;
 
 namespace DotNetInternals.Lab;
 

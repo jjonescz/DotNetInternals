@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Components;
-
 namespace DotNetInternals;
 
 public abstract class CustomComponentBase : ComponentBase
