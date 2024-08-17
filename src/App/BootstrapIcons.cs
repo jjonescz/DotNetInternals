@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
-
-namespace DotNetInternals;
+﻿namespace DotNetInternals;
 
 internal static class BootstrapIcons
 {

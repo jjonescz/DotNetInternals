@@ -4,8 +4,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Text;
-using System.Collections.Immutable;
-using System.Text;
 
 namespace DotNetInternals;
 

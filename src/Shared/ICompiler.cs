@@ -1,6 +1,4 @@
 using ProtoBuf;
-using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 
 namespace DotNetInternals;
 
