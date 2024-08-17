@@ -33,3 +33,7 @@ Razor REPLs (all can only render HTML):
 - `src/Shared`: code used by `Compiler` that does not depend on Roslyn/Razor.
 - `test/UnitTests`
   - `dotnet test`
+
+## Attribution
+
+- Icon: [OpenMoji](https://openmoji.org/library/emoji-1FAD9-200D-1F7EA/)
