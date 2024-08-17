@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Text;
 
@@ -40,6 +41,11 @@ public class Compiler : ICompiler
             }
         }
 
+        // Choose output kind EXE if there are top-level statements, otherwise DLL.
+        var outputKind = cSharp.Values.Any(tree => tree.GetRoot().DescendantNodes().OfType<GlobalStatementSyntax>().Any())
+            ? OutputKind.ConsoleApplication
+            : OutputKind.DynamicallyLinkedLibrary;
+
         var config = RazorConfiguration.Default;
 
         // Phase 1: Declaration only (to be used as a reference from which tag helpers will be discovered).
@@ -55,7 +61,7 @@ public class Compiler : ICompiler
                 ..cSharp.Values,
             ],
             Basic.Reference.Assemblies.AspNet80.References.All,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            new CSharpCompilationOptions(outputKind));
 
         // Phase 2: Full generation.
         RazorProjectEngine projectEngine = createProjectEngine([
@@ -91,7 +97,7 @@ public class Compiler : ICompiler
                 ..cSharp.Values,
             ],
             Basic.Reference.Assemblies.AspNet80.References.All,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            new CSharpCompilationOptions(outputKind));
 
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
 
