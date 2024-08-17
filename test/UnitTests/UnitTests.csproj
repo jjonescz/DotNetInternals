@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Roslyn.Test.Utilities" />
     <Using Include="Xunit" />
   </ItemGroup>
 

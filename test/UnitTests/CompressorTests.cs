@@ -13,7 +13,7 @@ public class CompressorTests
             @code {
                 [Parameter] public int Param { get; set; }
             }
-            """.NormalizeLineEndings();
+            """.ReplaceLineEndings("\r\n");
         var savedState = new SavedState() { Inputs = [new() { FileName = "", Text = source }] };
         var compressed = Compressor.Compress(savedState);
         Assert.Equal((89, 112), (source.Length, compressed.Length));
