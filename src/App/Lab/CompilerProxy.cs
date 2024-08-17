@@ -229,11 +229,14 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
 
         """);
 
-    public static readonly InitialCode CSharp = new("Class.cs", """
-        class Class
+    public static readonly InitialCode CSharp = new("Program.cs", """
+        using System;
+
+        class Program
         {
-            public void M()
+            static void Main()
             {
+                Console.WriteLine("Hello.");
             }
         }
 
