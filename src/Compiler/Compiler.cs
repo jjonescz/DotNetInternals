@@ -1,72 +1,17 @@
-﻿using DotNetInternals.RazorAccess;
-using DotNetInternals.RoslynAccess;
 using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
-using Microsoft.CodeAnalysis.Test.Utilities;
-using ProtoBuf;
-using Roslyn.Test.Utilities;
+using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace DotNetInternals;
 
-public static class Compiler
+public class Compiler : ICompiler
 {
-
-    public static readonly InitialCode InitialRazorCode = new("TestComponent.razor", """
-        <TestComponent Param="1" />
-
-        @code {
-            [Parameter] public int Param { get; set; }
-        }
-
-        """);
-
-    public static readonly InitialCode InitialCSharpCode = new("Class.cs", """
-        class Class
-        {
-            public void M()
-            {
-            }
-        }
-
-        """);
-
-    public static readonly InitialCode InitialCshtmlCode = new("TestPage.cshtml", """
-        @page
-        @using System.ComponentModel.DataAnnotations
-        @model PageModel
-        @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-
-        <form method="post">
-            Name:
-            <input asp-for="Customer.Name" />
-            <input type="submit" />
-        </form>
-
-        @functions {
-            public class PageModel
-            {
-                public Customer Customer { get; set; }
-            }
-
-            public class Customer
-            {
-                public int Id { get; set; }
-
-                [Required, StringLength(10)]
-                public string Name { get; set; }
-            }
-        }
-
-        """);
-
-    public static CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -142,9 +87,8 @@ public static class Compiler
             [
                 ..compiledRazorFiles.Values.Select(static (file) =>
                 {
-                    var success = file.GetOutput("C#")!.TryGetEagerText(out var cSharpText);
-                    Debug.Assert(success);
-                    return CSharpSyntaxTree.ParseText(cSharpText!);
+                    var cSharpText = file.GetOutput("C#")!.GetEagerTextOrThrow();
+                    return CSharpSyntaxTree.ParseText(cSharpText);
                 }),
                 ..cSharp.Values,
             ],
@@ -152,7 +96,7 @@ public static class Compiler
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
-        
+
         var compiledFiles = compiledRazorFiles.AddRange(
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
@@ -179,21 +123,55 @@ public static class Compiler
                         return emitStream is null ? "" : Executor.Execute(emitStream);
                     }),
                 ]))));
-        
-        ImmutableArray<Diagnostic> diagnostics = finalCompilation
+
+        IEnumerable<Diagnostic> diagnostics = finalCompilation
             .GetDiagnostics()
-            .Where(d => d.Severity != DiagnosticSeverity.Hidden)
-            .ToImmutableArray();
-        string diagnosticsText = getActualDiagnosticsText(diagnostics);
+            .Where(d => d.Severity != DiagnosticSeverity.Hidden);
+        string diagnosticsText = diagnostics.GetDiagnosticsText();
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
         int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
+        ImmutableArray<DiagnosticData> diagnosticData = diagnostics
+            .Select(d =>
+            {
+                string? filePath = d.Location.SourceTree?.FilePath;
+                FileLinePositionSpan lineSpan;
 
-        return new CompiledAssembly(
+                if (string.IsNullOrEmpty(filePath) &&
+                    d.Location.GetMappedLineSpan() is { IsValid: true, HasMappedPath: true } mappedLineSpan)
+                {
+                    filePath = mappedLineSpan.Path;
+                    lineSpan = mappedLineSpan;
+                }
+                else
+                {
+                    lineSpan = d.Location.GetLineSpan();
+                }
+
+                return new DiagnosticData(
+                    FilePath: filePath,
+                    Severity: d.Severity switch
+                    {
+                        DiagnosticSeverity.Error => DiagnosticDataSeverity.Error,
+                        DiagnosticSeverity.Warning => DiagnosticDataSeverity.Warning,
+                        _ => DiagnosticDataSeverity.Info,
+                    },
+                    Id: d.Id,
+                    HelpLinkUri: d.Descriptor.HelpLinkUri,
+                    Message: d.GetMessage(),
+                    StartLineNumber: lineSpan.StartLinePosition.Line + 1,
+                    StartColumn: lineSpan.StartLinePosition.Character + 1,
+                    EndLineNumber: lineSpan.EndLinePosition.Line + 1,
+                    EndColumn: lineSpan.EndLinePosition.Character + 1
+                );
+            })
+            .ToImmutableArray();
+
+        var result = new CompiledAssembly(
             BaseDirectory: directory,
             Files: compiledFiles,
             NumWarnings: numWarnings,
             NumErrors: numErrors,
-            Diagnostics: diagnostics,
+            Diagnostics: diagnosticData,
             GlobalOutputs:
             [
                 new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
@@ -201,6 +179,8 @@ public static class Compiler
                     Priority = numErrors > 0 ? 2 : 0,
                 },
             ]);
+
+        return result;
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
@@ -220,27 +200,6 @@ public static class Compiler
 
                 b.SetCSharpLanguageVersion(LanguageVersion.Preview);
             });
-        }
-
-        static string getActualDiagnosticsText(IEnumerable<Diagnostic> diagnostics)
-        {
-            var assertText = DiagnosticDescription.GetAssertText(
-            expected: [],
-            actual: diagnostics,
-            unmatchedExpected: [],
-            unmatchedActual: diagnostics);
-            var startAnchor = "Actual:" + Environment.NewLine;
-            var endAnchor = "Diff:" + Environment.NewLine;
-            var start = assertText.IndexOf(startAnchor, StringComparison.Ordinal) + startAnchor.Length;
-            var end = assertText.IndexOf(endAnchor, start, StringComparison.Ordinal);
-            var result = assertText[start..end];
-            return removeIndentation(result);
-        }
-
-        static string removeIndentation(string text)
-        {
-            var spaces = new string(' ', 16);
-            return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
         }
 
         static MemoryStream? getEmitStream(CSharpCompilation compilation)
@@ -297,146 +256,14 @@ public static class Compiler
     }
 }
 
-public record InitialCode(string SuggestedFileName, string TextTemplate)
+internal sealed class TestAdditionalText(string path, SourceText text) : AdditionalText
 {
-    public string SuggestedFileNameWithoutExtension => Path.GetFileNameWithoutExtension(SuggestedFileName);
-    public string SuggestedFileExtension => Path.GetExtension(SuggestedFileName);
-
-    public string GetFinalFileName(string suffix)
+    public TestAdditionalText(string text = "", Encoding? encoding = null, string path = "dummy")
+        : this(path, SourceText.From(text, encoding))
     {
-        return string.IsNullOrEmpty(suffix)
-            ? SuggestedFileName
-            : SuggestedFileNameWithoutExtension + suffix + SuggestedFileExtension;
     }
 
-    public InputCode ToInputCode(string? finalFileName = null)
-    {
-        finalFileName ??= SuggestedFileName;
+    public override string Path => path;
 
-        return new()
-        {
-            FileName = finalFileName,
-            Text = finalFileName == SuggestedFileName
-                ? TextTemplate
-                : TextTemplate.Replace(
-                    SuggestedFileNameWithoutExtension,
-                    Path.GetFileNameWithoutExtension(finalFileName),
-                    StringComparison.Ordinal),
-        };
-    }
-}
-
-[ProtoContract]
-public sealed record InputCode
-{
-    [ProtoMember(1)]
-    public required string FileName { get; init; }
-    [ProtoMember(2)]
-    public required string Text { get; init; }
-
-    public string FileExtension => Path.GetExtension(FileName);
-}
-
-public sealed record CompiledAssembly(
-    ImmutableDictionary<string, CompiledFile> Files,
-    ImmutableArray<CompiledFileOutput> GlobalOutputs,
-    int NumWarnings,
-    int NumErrors,
-    ImmutableArray<Diagnostic> Diagnostics,
-    string BaseDirectory)
-{
-    public static readonly string DiagnosticsOutputType = "Error List";
-
-    public CompiledFileOutput? GetGlobalOutput(string type)
-    {
-        return GlobalOutputs.FirstOrDefault(o => o.Type == type);
-    }
-}
-
-public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
-{
-    public CompiledFileOutput? GetOutput(string type)
-    {
-        return Outputs.FirstOrDefault(o => o.Type == type);
-    }
-}
-
-public sealed class CompiledFileOutput
-{
-    private object text;
-
-    public CompiledFileOutput(string type, string eagerText)
-    {
-        Type = type;
-        text = eagerText;
-    }
-
-    public CompiledFileOutput(string type, Func<ValueTask<string>> lazyText)
-    {
-        Type = type;
-        text = lazyText;
-    }
-
-    public CompiledFileOutput(string type, Func<string> lazyTextSync)
-    {
-        Type = type;
-        text = lazyTextSync;
-    }
-
-    public string Type { get; }
-    public int Priority { get; init; }
-
-    public bool IsLazy => !TryGetEagerText(out _);
-
-    public bool TryGetEagerText([NotNullWhen(returnValue: true)] out string? result)
-    {
-        if (text is string eagerText)
-        {
-            result = eagerText;
-            return true;
-        }
-
-        if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
-        {
-            text = taskResult;
-            result = taskResult;
-            return true;
-        }
-
-        result = null;
-        return false;
-    }
-
-    public ValueTask<string> GetTextAsync()
-    {
-        Debug.Assert(Thread.CurrentThread is { IsThreadPoolThread: false, IsBackground: false },
-            "Expected this to run on the UI thread only (we don't perform any synchronization " +
-            "when invoking the lazy text function)");
-
-        if (TryGetEagerText(out var eagerText))
-        {
-            return new(eagerText);
-        }
-
-        if (text is ValueTask<string> existingTask)
-        {
-            return existingTask;
-        }
-
-        if (text is Func<ValueTask<string>> lazyText)
-        {
-            var task = lazyText();
-            text = task;
-            return task;
-        }
-
-        if (text is Func<string> lazyTextSync)
-        {
-            var result = lazyTextSync();
-            text = result;
-            return new(result);
-        }
-
-        throw new InvalidOperationException();
-    }
+    public override SourceText GetText(CancellationToken cancellationToken = default) => text;
 }

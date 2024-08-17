@@ -1,0 +1,401 @@
+@inject DependencyRegistry DependencyRegistry
+@inject IJSRuntime JSRuntime
+@inject ILocalStorageService LocalStorage
+@inject Lazy<NuGetDownloader> NuGetDownloader
+
+<button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
+    Settings
+</button>
+
+@if (modalOpen)
+{
+    <div class="modal d-block bg-opacity-75 bg-secondary" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Settings</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="() => modalOpen = false"></button>
+                </div>
+                <div class="modal-body">
+                    @* Word wrap check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="wordWrap" @bind="WordWrap"
+                            @bind:after="OnWordWrapChanged" />
+                        <label class="form-check-label" for="wordWrap">
+                            Word wrap
+                        </label>
+                    </div>
+
+                    @* Use VIM check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="vim" @bind="UseVim"
+                            @bind:after="OnVimChanged" />
+                        <label class="form-check-label" for="vim">
+                            Use VIM
+                        </label>
+                    </div>
+
+                    @* Debug logs check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="debugLogs"
+                            @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
+                        <label class="form-check-label" for="debugLogs"
+                               title="Whether to display debug-level logs in the browser development console">
+                            Debug logs
+                        </label>
+                    </div>
+
+                    <h6 class="mt-3 h5">Compilers</h6>
+
+                    @* Roslyn version select *@
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <label for="roslynVersion" class="input-group-text">
+                                Roslyn
+                            </label>
+                            <input type="text" class="form-control" id="roslynVersion"
+                                   @bind="roslynVersion" @bind:after="() => LoadRoslynInfoAsync()"
+                                   placeholder="version" />
+                            @if (loadingRoslynInfo)
+                            {
+                                <span class="input-group-text">
+                                    <div class="spinner-border spinner-border-sm" role="status" title="Loading info..."></div>
+                                </span>
+                            }
+                        </div>
+                        <div class="form-text">
+                            See
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RoslynPackageId)"
+                               target="_blank">available Roslyn versions</a>.
+                            Use
+                            @if (roslynVersion != "latest")
+                            {
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRoslynVersionAsync("latest"))">latest</a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(roslynVersion))
+                            {
+                                if (roslynVersion != "latest")
+                                {
+                                    @(" or ")
+                                }
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRoslynVersionAsync(null))">built-in</a>
+                            }
+                            @(".")
+                        </div>
+                        @if (roslynInfo != null)
+                        {
+                            <div class="form-text">
+                                Using @(roslynInfo.Version)
+                                (<a href="@roslynInfo.Commit.Url"
+                                    target="_blank">@roslynInfo.Commit.ShortHash</a>).
+                            </div>
+                        }
+                        @if (roslynError != null)
+                        {
+                            <div class="form-text text-danger">
+                                @roslynError
+                            </div>
+                        }
+                    </div>
+
+                    @* Razor version select *@
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <label for="razorVersion" class="input-group-text">
+                                Razor
+                            </label>
+                            <input type="text" class="form-control" id="razorVersion"
+                                   @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
+                                   placeholder="version" />
+                            @if (loadingRazorInfo)
+                            {
+                                <span class="input-group-text">
+                                    <div class="spinner-border spinner-border-sm" role="status" title="Loading info..."></div>
+                                </span>
+                            }
+                        </div>
+                        <div class="form-text">
+                            See
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RazorPackageId)"
+                               target="_blank">available Razor versions</a>.
+                            Use
+                            @if (razorVersion != "latest")
+                            {
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRazorVersionAsync("latest"))">latest</a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(razorVersion))
+                            {
+                                if (razorVersion != "latest")
+                                {
+                                    @(" or ")
+                                }
+                                <a href="javascript:void" @onclick:preventDefault
+                                    @onclick="@(() => UseRazorVersionAsync(null))">built-in</a>
+                            }
+                            @(".")
+                        </div>
+                        @if (razorInfo != null)
+                        {
+                            <div class="form-text">
+                                Using @(razorInfo.Version)
+                                (<a href="@razorInfo.Commit.Url"
+                                    target="_blank">@razorInfo.Commit.ShortHash</a>).
+                            </div>
+                        }
+                        @if (razorError != null)
+                        {
+                            <div class="form-text text-danger">
+                                @razorError
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="() => modalOpen = false">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool modalOpen;
+    private IJSObjectReference? vimDisposable;
+    private string? roslynVersion, razorVersion;
+    private bool loadingRoslynInfo, loadingRazorInfo;
+    private NuGetPackageInfo? roslynInfo, razorInfo;
+    private string? roslynError, razorError;
+
+    [Parameter] public bool WordWrap { get; set; }
+    [Parameter] public EventCallback<bool> WordWrapChanged { get; set; }
+    [Parameter] public bool UseVim { get; set; }
+    [Parameter] public EventCallback<bool> UseVimChanged { get; set; }
+    [Parameter, EditorRequired] public required StandaloneCodeEditor Editor { get; set; }
+    [CascadingParameter] public required Page Page { get; set; }
+
+    private bool DebugLogs
+    {
+        get => Logging.LogLevel == LogLevel.Debug;
+        set => Logging.LogLevel = value ? LogLevel.Debug : LogLevel.Information;
+    }
+
+    private async Task OnSetDebugLogsAsync()
+    {
+        await LocalStorage.SetItemAsync(nameof(DebugLogs), DebugLogs);
+    }
+
+    public async Task InitializeAsync()
+    {
+        // Load settings from local storage.
+        if (await LocalStorage.ContainKeyAsync(nameof(WordWrap)))
+        {
+            WordWrap = await LocalStorage.GetItemAsync<bool>(nameof(WordWrap));
+            await OnWordWrapChanged();
+        }
+        if (await LocalStorage.ContainKeyAsync(nameof(UseVim)))
+        {
+            UseVim = await LocalStorage.GetItemAsync<bool>(nameof(UseVim));
+            await OnVimChanged();
+        }
+        if (await LocalStorage.ContainKeyAsync(nameof(DebugLogs)))
+        {
+            DebugLogs = await LocalStorage.GetItemAsync<bool>(nameof(DebugLogs));
+        }
+    }
+
+    private Task OpenModalAsync()
+    {
+        if (modalOpen)
+        {
+            return Task.CompletedTask;
+        }
+
+        modalOpen = true;
+
+        Task roslynTask = Task.CompletedTask;
+        Task razorTask = Task.CompletedTask;
+
+        if (roslynInfo is null)
+        {
+            roslynTask = LoadRoslynInfoAsync(saveState: false);
+        }
+
+        if (razorInfo is null)
+        {
+            razorTask = LoadRazorInfoAsync(saveState: false);
+        }
+
+        return Task.WhenAll(roslynTask, razorTask);
+    }
+
+    internal Task LoadFromStateAsync(SavedState state)
+    {
+        Task roslynTask = Task.CompletedTask;
+        Task razorTask = Task.CompletedTask;
+
+        if (roslynVersion != state.RoslynVersion)
+        {
+            roslynVersion = state.RoslynVersion;
+            roslynTask = LoadRoslynInfoAsync(saveState: false);
+        }
+
+        if (razorVersion != state.RazorVersion)
+        {
+            razorVersion = state.RazorVersion;
+            razorTask = LoadRazorInfoAsync(saveState: false);
+        }
+
+        return Task.WhenAll(roslynTask, razorTask);
+    }
+
+    private NuGetDownloadablePackage? LoadPackage(string? version, string key, string packageId, string packageFolder)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            DependencyRegistry.RemoveAssemblies(key);
+            return null;
+        }
+
+        var package = NuGetDownloader.Value.GetPackage(
+            packageId,
+            version,
+            packageFolder);
+
+        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
+
+        return package;
+    }
+
+    private async Task LoadRoslynInfoAsync(bool saveState = true)
+    {
+        var versionToLoad = roslynVersion;
+
+        if (saveState)
+        {
+            await Page.SaveStateToUrlAsync(state => state with { RoslynVersion = versionToLoad });
+        }
+
+        loadingRoslynInfo = true;
+        await RefreshAsync();
+
+        NuGetPackageInfo? info;
+        string? error;
+        try
+        {
+            var package = LoadPackage(
+                version: versionToLoad,
+                key: "roslyn",
+                packageId: CompilerProxy.RoslynPackageId,
+                packageFolder: CompilerProxy.RoslynPackageFolder);
+
+            info = !modalOpen ? null : package is null
+                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName)
+                : await package.GetInfoAsync();
+
+            error = null;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            info = null;
+        }
+
+        if (roslynVersion == versionToLoad)
+        {
+            roslynInfo = info;
+            roslynError = error;
+        }
+
+        loadingRoslynInfo = false;
+    }
+
+    private async Task UseRoslynVersionAsync(string? version)
+    {
+        roslynVersion = version;
+        await LoadRoslynInfoAsync();
+    }
+
+    private async Task LoadRazorInfoAsync(bool saveState = true)
+    {
+        var versionToLoad = razorVersion;
+
+        if (saveState)
+        {
+            await Page.SaveStateToUrlAsync(state => state with { RazorVersion = versionToLoad });
+        }
+
+        loadingRazorInfo = true;
+        await RefreshAsync();
+
+        NuGetPackageInfo? info;
+        string? error;
+        try
+        {
+            var package = LoadPackage(
+                version: versionToLoad,
+                key: "razor",
+                packageId: CompilerProxy.RazorPackageId,
+                packageFolder: CompilerProxy.RazorPackageFolder);
+
+            info = !modalOpen ? null : package is null
+                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName)
+                : await package.GetInfoAsync();
+
+            error = null;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            info = null;
+        }
+
+        if (razorVersion == versionToLoad)
+        {
+            razorInfo = info;
+            razorError = error;
+        }
+
+        loadingRazorInfo = false;
+    }
+
+    private async Task UseRazorVersionAsync(string? version)
+    {
+        razorVersion = version;
+        await LoadRazorInfoAsync();
+    }
+
+    private async Task OnWordWrapChanged()
+    {
+        await RefreshAsync();
+        await WordWrapChanged.InvokeAsync(WordWrap);
+        await LocalStorage.SetItemAsync(nameof(WordWrap), WordWrap);
+        await Editor.UpdateOptions(new EditorUpdateOptions { WordWrap = WordWrap ? "on" : "off" });
+    }
+
+    private async Task OnVimChanged()
+    {
+        await RefreshAsync();
+        await UseVimChanged.InvokeAsync(UseVim);
+        await LocalStorage.SetItemAsync(nameof(UseVim), UseVim);
+        if (UseVim)
+        {
+            if (vimDisposable is null)
+            {
+                vimDisposable = await JSRuntime.InvokeAsync<IJSObjectReference>("jslib.EnableVimMode", "input-editor", "vim-status");
+            }
+        }
+        else
+        {
+            if (vimDisposable is not null)
+            {
+                await vimDisposable.InvokeVoidAsync("dispose");
+                vimDisposable = null;
+            }
+        }
+
+        await Editor.Layout();
+    }
+}

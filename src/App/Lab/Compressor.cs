@@ -1,9 +1,8 @@
+using ProtoBuf;
 using System.Buffers.Text;
 using System.IO.Compression;
-using DotNetInternals.RazorAccess;
-using ProtoBuf;
 
-namespace DotNetInternals;
+namespace DotNetInternals.Lab;
 
 internal static class Compressor
 {

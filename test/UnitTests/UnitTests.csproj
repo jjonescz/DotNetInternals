@@ -1,12 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -15,11 +8,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DotNetInternals\DotNetInternals.csproj" />
+    <ProjectReference Include="..\..\src\App\App.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Roslyn.Test.Utilities" />
     <Using Include="Xunit" />
   </ItemGroup>
 

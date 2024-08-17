@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css?v=2" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <link href="DotNetInternals.styles.css?v=2" rel="stylesheet" />
+    <link href="DotNetInternals.App.styles.css?v=2" rel="stylesheet" />
     <link href="manifest.webmanifest" rel="manifest" />
     <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
@@ -35,8 +35,8 @@
     <script src="_framework/blazor.webassembly.js" autostart="false"></script>
     <script src="js/jslib.js"></script>
     <script>navigator.serviceWorker.register('service-worker.js');</script>
-    <script type="module">
-        import { BrotliDecode } from './js/decode.min.js';
+    <script src="js/decode.min.js?v=2"></script>
+    <script>
         Blazor.start({
             loadBootResource: function (type, name, defaultUri, integrity) {
                 if (type !== 'dotnetjs' && location.hostname !== 'localhost' && type !== 'configuration') {

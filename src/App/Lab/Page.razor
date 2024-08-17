@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
+@inject CompilerProxy Compiler
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
@@ -80,8 +81,8 @@
                         @if (inputs.Count > 1)
                         {
                             <hr />
-                            <option value="@((int)SpecialInput.CloseOtherTabs)">
-                                Close other tabs
+                            <option value="@((int)SpecialInput.RemoveOtherFiles)">
+                                Remove other files
                             </option>
                         }
                     </select>
@@ -173,7 +174,9 @@
 
     @* Settings button *@
     <div class="col-auto">
-        <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+        <CascadingValue IsFixed="true" Value="this">
+            <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+        </CascadingValue>
     </div>
 </div>
 
@@ -218,7 +221,7 @@
         AddRazor = -1,
         AddCSharp = -2,
         AddCshtml = -3,
-        CloseOtherTabs = -4,
+        RemoveOtherFiles = -4,
     }
 
     private Input? CurrentInput
@@ -247,8 +250,8 @@
             }
 
             var fileName = input.FileName;
-            return fileName == Compiler.InitialRazorCode.SuggestedFileName ||
-                fileName == Compiler.InitialCSharpCode.SuggestedFileName;
+            return fileName == InitialCode.Razor.SuggestedFileName ||
+                fileName == InitialCode.CSharp.SuggestedFileName;
         }
     }
 
@@ -256,7 +259,7 @@
     {
         get
         {
-            return CurrentInput?.FileName == Compiler.InitialRazorCode.SuggestedFileName
+            return CurrentInput?.FileName == InitialCode.Razor.SuggestedFileName
                 ? SpecialInput.AddRazor
                 : SpecialInput.AddCSharp;
         }
@@ -274,17 +277,17 @@
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        await LoadInputStateFromUrlAsync();
+        await LoadStateFromUrlAsync();
         StateHasChanged();
     }
 
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
-        if (CurrentCompiledFile?.Outputs.Length + compiled?.GlobalOutputs.Length > 0 &&
+        if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.GlobalOutputs.Length > 0) &&
             (selectedOutputType == null || GetOutput(selectedOutputType) == null))
         {
-            selectedOutputType = CurrentCompiledFile?.Outputs
+            selectedOutputType = (CurrentCompiledFile?.Outputs)
                 .TryConcat(compiled?.GlobalOutputs)
                 .MaxBy(static o => o.Priority)!.Type;
             StateHasChanged();
@@ -302,23 +305,23 @@
 
     private async Task OnInputSelectedAsync(int selectedInputIndex)
     {
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         switch (selectedInputIndex)
         {
             case (int)SpecialInput.AddRazor:
-                await AddInputAsync(Compiler.InitialRazorCode);
+                await AddInputAsync(InitialCode.Razor);
                 break;
 
             case (int)SpecialInput.AddCSharp:
-                await AddInputAsync(Compiler.InitialCSharpCode);
+                await AddInputAsync(InitialCode.CSharp);
                 break;
 
             case (int)SpecialInput.AddCshtml:
-                await AddInputAsync(Compiler.InitialCshtmlCode);
+                await AddInputAsync(InitialCode.Cshtml);
                 break;
 
-            case (int)SpecialInput.CloseOtherTabs:
+            case (int)SpecialInput.RemoveOtherFiles:
                 inputs.RemoveAll(i => i != CurrentInput);
                 forceAdvancedMode = true;
                 currentInputIndex = 0;
@@ -330,29 +333,29 @@
                 break;
         }
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task OnSelectSimpleInputAsync(SpecialInput input)
     {
         Debug.Assert(SimpleMode && inputs.Count == 1);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         inputs.Clear();
         await AddInputAsync(input == SpecialInput.AddRazor
-            ? Compiler.InitialRazorCode
-            : Compiler.InitialCSharpCode);
+            ? InitialCode.Razor
+            : InitialCode.CSharp);
         Debug.Assert(SimpleMode);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task RenameInputAsync()
     {
         Debug.Assert(CurrentInput != null && renamingTo != null);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         if (CurrentInput.FileName != renamingTo)
         {
@@ -368,20 +371,20 @@
         }
         renamingTo = null;
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task DeleteInputAsync()
     {
         Debug.Assert(CurrentInput != null && inputs.Count > 1);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
 
         inputs.RemoveAt(currentInputIndex);
         currentInputIndex = 0;
         await inputEditor.SetModel(CurrentInput.Model);
 
-        await SaveInputStateToUrlAsync();
+        await SaveStateToUrlAsync();
     }
 
     private async Task AddInputAsync(InitialCode initialCode)
@@ -417,14 +420,12 @@
 
         compilationInProgress = true;
 
-        var inputCodes = await GetInputCodesAsync();
-
-        SaveInputStateToUrl(inputCodes);
+        var savedState = await SaveStateToUrlAsync();
 
         await RefreshAsync();
 
         // Compile.
-        compiled = Compiler.Compile(inputCodes);
+        compiled = await Compiler.CompileAsync(savedState.Inputs);
 
         await DisplaySquiggles();
 
@@ -436,46 +437,25 @@
         foreach (var input in inputs)
         {
             List<MarkerData> markers = compiled?.Diagnostics
-                .SelectNonNull(d =>
+                .Where(d => d.FilePath == compiled.BaseDirectory + input.FileName)
+                .Select(d => new MarkerData
                 {
-                    string? filePath = d.Location.SourceTree?.FilePath;
-                    FileLinePositionSpan lineSpan;
-
-                    if (string.IsNullOrEmpty(filePath) &&
-                        d.Location.GetMappedLineSpan() is { IsValid: true, HasMappedPath: true } mappedLineSpan)
+                    CodeAsObject = new()
                     {
-                        filePath = mappedLineSpan.Path;
-                        lineSpan = mappedLineSpan;
-                    }
-                    else
+                        Value = d.Id,
+                        TargetUri = d.HelpLinkUri,
+                    },
+                    Message = d.Message,
+                    StartLineNumber = d.StartLineNumber,
+                    StartColumn = d.StartColumn,
+                    EndLineNumber = d.EndLineNumber,
+                    EndColumn = d.EndColumn,
+                    Severity = d.Severity switch
                     {
-                        lineSpan = d.Location.GetLineSpan();
-                    }
-
-                    if (filePath != compiled.BaseDirectory + input.FileName)
-                    {
-                        return null;
-                    }
-                    
-                    return new MarkerData
-                    {
-                        CodeAsObject = new()
-                        {
-                            Value = d.Id,
-                            TargetUri = d.Descriptor.HelpLinkUri,
-                        },
-                        Message = d.GetMessage(),
-                        StartLineNumber = lineSpan.StartLinePosition.Line + 1,
-                        StartColumn = lineSpan.StartLinePosition.Character + 1,
-                        EndLineNumber = lineSpan.EndLinePosition.Line + 1,
-                        EndColumn = lineSpan.EndLinePosition.Character + 1,
-                        Severity = d.Severity switch
-                        {
-                            DiagnosticSeverity.Error => MarkerSeverity.Error,
-                            DiagnosticSeverity.Warning => MarkerSeverity.Warning,
-                            _ => MarkerSeverity.Info,
-                        },
-                    };
+                        DiagnosticDataSeverity.Error => MarkerSeverity.Error,
+                        DiagnosticDataSeverity.Warning => MarkerSeverity.Warning,
+                        _ => MarkerSeverity.Info,
+                    },
                 })
                 .ToList() ?? [];
             await BlazorMonaco.Editor.Global.SetModelMarkers(JSRuntime, input.Model, "Lab", markers);
@@ -542,66 +522,7 @@
     {
         await settings.InitializeAsync();
 
-        await LoadInputStateFromUrlAsync();
-    }
-
-    private string GetCurrentSlug()
-    {
-        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        return uri.Fragment.TrimStart('#');
-    }
-
-    private async Task LoadInputStateFromUrlAsync()
-    {
-        var slug = GetCurrentSlug();
-
-        inputs.Clear();
-        currentInputIndex = 0;
-
-        if (string.IsNullOrWhiteSpace(slug))
-        {
-            await AddInputAsync(Compiler.InitialRazorCode);
-        }
-        else
-        {
-            var savedState = Compressor.Uncompress(slug);
-            foreach (var (index, input) in savedState.Inputs.Index())
-            {
-                var model = await CreateModelAsync(input);
-                inputs.Add(new(input.FileName, model));
-
-                if (index == 0)
-                {
-                    await inputEditor.SetModel(model);
-                }
-            }
-        }
-    }
-
-    private async Task<ImmutableArray<InputCode>> GetInputCodesAsync()
-    {            
-        var builder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
-        foreach (var (fileName, model) in inputs)
-        {
-            var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            builder.Add(new() { FileName = fileName, Text = text });
-        }
-        return builder.ToImmutable();
-    }
-
-    private async Task SaveInputStateToUrlAsync()
-    {
-        SaveInputStateToUrl(await GetInputCodesAsync());
-    }
-
-    private void SaveInputStateToUrl(ImmutableArray<InputCode> inputCodes)
-    {
-        var currentSlug = GetCurrentSlug();
-        var newSlug = Compressor.Compress(new SavedState { Inputs = inputCodes });
-        if (newSlug != currentSlug)
-        {
-            NavigationManager.NavigateTo(NavigationManager.BaseUri + "#" + newSlug, forceLoad: false);
-        }
+        await LoadStateFromUrlAsync();
     }
 
     private async Task<TextModel> CreateModelAsync(InputCode inputCode)
