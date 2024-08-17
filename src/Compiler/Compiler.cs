@@ -3,8 +3,7 @@ using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Razor;
-using Microsoft.CodeAnalysis.Test.Utilities;
-using Roslyn.Test.Utilities;
+using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
 using System.Text;
 
@@ -128,7 +127,7 @@ public class Compiler : ICompiler
         IEnumerable<Diagnostic> diagnostics = finalCompilation
             .GetDiagnostics()
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
-        string diagnosticsText = getActualDiagnosticsText(diagnostics);
+        string diagnosticsText = diagnostics.GetDiagnosticsText();
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
         int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
         ImmutableArray<DiagnosticData> diagnosticData = diagnostics
@@ -203,27 +202,6 @@ public class Compiler : ICompiler
             });
         }
 
-        static string getActualDiagnosticsText(IEnumerable<Diagnostic> diagnostics)
-        {
-            var assertText = DiagnosticDescription.GetAssertText(
-            expected: [],
-            actual: diagnostics,
-            unmatchedExpected: [],
-            unmatchedActual: diagnostics);
-            var startAnchor = "Actual:" + Environment.NewLine;
-            var endAnchor = "Diff:" + Environment.NewLine;
-            var start = assertText.IndexOf(startAnchor, StringComparison.Ordinal) + startAnchor.Length;
-            var end = assertText.IndexOf(endAnchor, start, StringComparison.Ordinal);
-            var result = assertText[start..end];
-            return removeIndentation(result);
-        }
-
-        static string removeIndentation(string text)
-        {
-            var spaces = new string(' ', 16);
-            return text.Trim().Replace(Environment.NewLine + spaces, Environment.NewLine);
-        }
-
         static MemoryStream? getEmitStream(CSharpCompilation compilation)
         {
             var stream = new MemoryStream();
@@ -276,4 +254,16 @@ public class Compiler : ICompiler
             return decompiler.DecompileWholeModuleAsString();
         }
     }
+}
+
+internal sealed class TestAdditionalText(string path, SourceText text) : AdditionalText
+{
+    public TestAdditionalText(string text = "", Encoding? encoding = null, string path = "dummy")
+        : this(path, SourceText.From(text, encoding))
+    {
+    }
+
+    public override string Path => path;
+
+    public override SourceText GetText(CancellationToken cancellationToken = default) => text;
 }

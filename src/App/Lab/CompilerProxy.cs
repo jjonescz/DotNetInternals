@@ -121,7 +121,6 @@ internal sealed class CompilerProxy(
                     "Microsoft.CodeAnalysis",
                     "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
                     "Microsoft.CodeAnalysis.Razor.Test",
-                    "Microsoft.CodeAnalysis.Test.Utilities",
                 ]);
 
             logger.LogDebug("Available assemblies ({Count}): {Assemblies}",
