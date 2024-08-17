@@ -109,17 +109,22 @@ public class Compiler : ICompiler
                     {
                         peFile ??= getPeFile(finalCompilation);
                         return await getCSharpAsync(peFile);
+                    }),
+                    new("Run", () =>
+                    {
+                        var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
+                            ? finalCompilation
+                            : finalCompilation.WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
+                        var emitStream = getEmitStream(executableCompilation);
+                        return emitStream is null
+                            ? executableCompilation.GetDiagnostics().FirstOrDefault(d => d.Id == "CS5001") is { } error
+                                ? error.GetMessage(CultureInfo.InvariantCulture)
+                                : "Cannot execute due to compilation errors."
+                            : Executor.Execute(emitStream);
                     })
                     {
                         Priority = 1
                     },
-                    new("Run", () =>
-                    {
-                        var executableCompilation = finalCompilation
-                            .WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
-                        var emitStream = getEmitStream(executableCompilation);
-                        return emitStream is null ? "" : Executor.Execute(emitStream);
-                    }),
                 ]))));
 
         IEnumerable<Diagnostic> diagnostics = finalCompilation
