@@ -327,17 +327,15 @@
             }
             else
             {
-                var commit = await SdkDownloader.GetCommitAsync(versionToLoad);
-
-                info = new()
-                    {
-                        SdkVersion = versionToLoad!,
-                        Commit = commit,
-                        RoslynVersion = "",
-                        RazorVersion = "",
-                    };
-
+                info = !modalOpen ? null : await SdkDownloader.GetInfoAsync(versionToLoad);
                 error = null;
+
+                if (saveState)
+                {
+                    await Task.WhenAll(
+                        UseRoslynVersionAsync(info?.RoslynVersion),
+                        UseRazorVersionAsync(info?.RazorVersion));
+                }
             }
         }
         catch (Exception ex)
@@ -507,13 +505,5 @@
         }
 
         await Editor.Layout();
-    }
-
-    private sealed record SdkInfo
-    {
-        public required string SdkVersion { get; init; }
-        public required CommitLink Commit { get; init; }
-        public required string RoslynVersion { get; init; }
-        public required string RazorVersion { get; init; }
     }
 }
