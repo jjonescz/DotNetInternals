@@ -3,8 +3,8 @@
 	<PropertyGroup>
 		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
 		<!--
-			Cannot trim because we allow loading any compiler DLL from NuGet
-			which might depend on methods unknown at compile time.
+			Cannot trim because we dynamically execute programs
+			which might depend on methods unreferenced at compile time.
 		-->
 		<PublishTrimmed>false</PublishTrimmed>
 	</PropertyGroup>

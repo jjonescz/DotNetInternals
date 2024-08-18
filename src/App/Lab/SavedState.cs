@@ -78,6 +78,9 @@ internal sealed record SavedState
     [ProtoMember(1)]
     public ImmutableArray<InputCode> Inputs { get; init; }
 
+    [ProtoMember(4)]
+    public string? SdkVersion { get; init; }
+
     [ProtoMember(2)]
     public string? RoslynVersion { get; init; }
 
