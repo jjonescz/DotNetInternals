@@ -154,15 +154,7 @@ internal sealed record NuGetPackageInfo
         return new()
         {
             Version = version,
-            Commit = new()
-            {
-                ShortHash = commitHash[..7],
-                Url = string.IsNullOrEmpty(repoUrl)
-                    ? ""
-                    : string.IsNullOrEmpty(commitHash)
-                        ? repoUrl
-                        : $"{repoUrl}/commit/{commitHash}",
-            },
+            Commit = CommitLink.Create(commitHash, repoUrl),
         };
     }
 
@@ -172,6 +164,19 @@ internal sealed record NuGetPackageInfo
 
 internal readonly record struct CommitLink
 {
+    public static CommitLink Create(string? commitHash, string repoUrl)
+    {
+        return new()
+        {
+            ShortHash = commitHash?[..7] ?? "",
+            Url = string.IsNullOrEmpty(repoUrl)
+                ? ""
+                : string.IsNullOrEmpty(commitHash)
+                    ? repoUrl
+                    : $"{repoUrl}/commit/{commitHash}",
+        };
+    }
+
     public required string ShortHash { get; init; }
     public required string Url { get; init; }
 }
@@ -207,8 +212,7 @@ internal sealed class CorsClientHandler : HttpClientHandler
     {
         if (request.RequestUri?.AbsolutePath.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase) == true)
         {
-            request.RequestUri = new Uri("https://cloudflare-cors-anywhere.knowpicker.workers.dev/?" +
-                UrlEncoder.Default.Encode(request.RequestUri.ToString()));
+            request.RequestUri = request.RequestUri.WithCorsProxy();
         }
 
         return base.SendAsync(request, cancellationToken);

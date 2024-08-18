@@ -2,6 +2,7 @@
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
 @inject Lazy<NuGetDownloader> NuGetDownloader
+@inject SdkDownloader SdkDownloader
 
 <button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
     Settings
@@ -46,6 +47,44 @@
                     </div>
 
                     <h6 class="mt-3 h5">Compilers</h6>
+
+                    @* SDK version select *@
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <label for="sdkVersion" class="input-group-text">
+                                SDK
+                            </label>
+                            <input type="text" class="form-control" id="sdkVersion"
+                                   @bind="sdkVersion" @bind:after="() => LoadSdkInfoAsync()"
+                                   placeholder="version" />
+                            @if (loadingSdkInfo)
+                            {
+                                <span class="input-group-text">
+                                    <div class="spinner-border spinner-border-sm" role="status" title="Loading info..."></div>
+                                </span>
+                            }
+                        </div>
+                        <div class="form-text">
+                            Enter a .NET SDK version above to automatically get
+                            the corresponding Roslyn and Razor version numbers below.
+                        </div>
+                        @if (sdkInfo != null)
+                        {
+                            <div class="form-text">
+                                SDK @(sdkInfo.SdkVersion)
+                                (<a href="@sdkInfo.Commit.Url"
+                                    target="_blank">@sdkInfo.Commit.ShortHash</a>)
+                                has roslyn @(sdkInfo.RoslynVersion)
+                                and razor @(sdkInfo.RazorVersion).
+                            </div>
+                        }
+                        @if (sdkError != null)
+                        {
+                            <div class="form-text text-danger">
+                                @sdkError
+                            </div>
+                        }
+                    </div>
 
                     @* Roslyn version select *@
                     <div class="mb-3">
@@ -164,10 +203,11 @@
 @code {
     private bool modalOpen;
     private IJSObjectReference? vimDisposable;
-    private string? roslynVersion, razorVersion;
-    private bool loadingRoslynInfo, loadingRazorInfo;
+    private string? sdkVersion, roslynVersion, razorVersion;
+    private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
+    private SdkInfo? sdkInfo;
     private NuGetPackageInfo? roslynInfo, razorInfo;
-    private string? roslynError, razorError;
+    private string? sdkError, roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
     [Parameter] public EventCallback<bool> WordWrapChanged { get; set; }
@@ -215,8 +255,14 @@
 
         modalOpen = true;
 
+        Task sdkTask = Task.CompletedTask;
         Task roslynTask = Task.CompletedTask;
         Task razorTask = Task.CompletedTask;
+
+        if (sdkInfo is null)
+        {
+            sdkTask = LoadSdkInfoAsync(saveState: false);
+        }
 
         if (roslynInfo is null)
         {
@@ -228,13 +274,20 @@
             razorTask = LoadRazorInfoAsync(saveState: false);
         }
 
-        return Task.WhenAll(roslynTask, razorTask);
+        return Task.WhenAll(sdkTask, roslynTask, razorTask);
     }
 
     internal Task LoadFromStateAsync(SavedState state)
     {
+        Task sdkTask = Task.CompletedTask;
         Task roslynTask = Task.CompletedTask;
         Task razorTask = Task.CompletedTask;
+
+        if (sdkVersion != state.SdkVersion)
+        {
+            sdkVersion = state.SdkVersion;
+            sdkTask = LoadSdkInfoAsync(saveState: false);
+        }
 
         if (roslynVersion != state.RoslynVersion)
         {
@@ -248,7 +301,64 @@
             razorTask = LoadRazorInfoAsync(saveState: false);
         }
 
-        return Task.WhenAll(roslynTask, razorTask);
+        return Task.WhenAll(sdkTask, roslynTask, razorTask);
+    }
+
+    private async Task LoadSdkInfoAsync(bool saveState = true)
+    {
+        var versionToLoad = sdkVersion;
+
+        if (saveState)
+        {
+            await Page.SaveStateToUrlAsync(state => state with { SdkVersion = versionToLoad });
+        }
+
+        loadingSdkInfo = true;
+        await RefreshAsync();
+
+        SdkInfo? info;
+        string? error;
+        try
+        {
+            if (string.IsNullOrEmpty(versionToLoad))
+            {
+                info = null;
+                error = null;
+            }
+            else
+            {
+                var commit = await SdkDownloader.GetCommitAsync(versionToLoad);
+
+                info = new()
+                    {
+                        SdkVersion = versionToLoad!,
+                        Commit = commit,
+                        RoslynVersion = "",
+                        RazorVersion = "",
+                    };
+
+                error = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            info = null;
+        }
+
+        if (sdkVersion == versionToLoad)
+        {
+            sdkInfo = info;
+            sdkError = error;
+        }
+
+        loadingSdkInfo = false;
+    }
+
+    private async Task UseSdkVersionAsync(string? version)
+    {
+        sdkVersion = version;
+        await LoadSdkInfoAsync();
     }
 
     private NuGetDownloadablePackage? LoadPackage(string? version, string key, string packageId, string packageFolder)
@@ -397,5 +507,13 @@
         }
 
         await Editor.Layout();
+    }
+
+    private sealed record SdkInfo
+    {
+        public required string SdkVersion { get; init; }
+        public required CommitLink Commit { get; init; }
+        public required string RoslynVersion { get; init; }
+        public required string RazorVersion { get; init; }
     }
 }
