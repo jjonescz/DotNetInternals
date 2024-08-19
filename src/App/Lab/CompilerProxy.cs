@@ -27,9 +27,9 @@ internal sealed class CompilerProxy(
             {
                 case "System.Reflection.AssemblyInformationalVersionAttribute"
                     when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
-                        informationalVersion.IndexOf('+') is >= 0 and var plusIndex:
-                    version = informationalVersion[..plusIndex];
-                    hash = informationalVersion[(plusIndex + 1)..];
+                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
+                    version = parsedVersion;
+                    hash = parsedHash;
                     break;
 
                 case "System.Reflection.AssemblyMetadataAttribute"

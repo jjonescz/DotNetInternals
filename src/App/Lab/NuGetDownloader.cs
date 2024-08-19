@@ -166,8 +166,8 @@ internal sealed record CommitLink
 {
     public required string RepoUrl { get; init; }
     public required string Hash { get; init; }
-    public string ShortHash => Hash[..7];
-    public string Url => string.IsNullOrEmpty(Hash) ? "" : $"{RepoUrl}/commit/{Hash}";
+    public string ShortHash => VersionUtil.GetShortCommitHash(Hash);
+    public string Url => string.IsNullOrEmpty(Hash) ? "" : VersionUtil.GetCommitUrl(RepoUrl, Hash);
 }
 
 internal sealed class CustomHttpHandlerResourceV3Provider : ResourceProvider
