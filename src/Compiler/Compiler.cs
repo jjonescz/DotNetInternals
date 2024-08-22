@@ -48,6 +48,8 @@ public class Compiler : ICompiler
 
         var config = RazorConfiguration.Default;
 
+        var references = Basic.Reference.Assemblies.AspNet90.References.All;
+
         // Phase 1: Declaration only (to be used as a reference from which tag helpers will be discovered).
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
         var declarationCompilation = CSharpCompilation.Create("TestAssembly",
@@ -60,12 +62,12 @@ public class Compiler : ICompiler
                 }),
                 ..cSharp.Values,
             ],
-            Basic.Reference.Assemblies.AspNet80.References.All,
+            references,
             new CSharpCompilationOptions(outputKind));
 
         // Phase 2: Full generation.
         RazorProjectEngine projectEngine = createProjectEngine([
-            ..Basic.Reference.Assemblies.AspNet80.References.All,
+            ..references,
             declarationCompilation.ToMetadataReference()]);
         var compiledRazorFiles = fileSystem.Inner.EnumerateItems("/")
             .ToImmutableDictionary(
@@ -96,7 +98,7 @@ public class Compiler : ICompiler
                 }),
                 ..cSharp.Values,
             ],
-            Basic.Reference.Assemblies.AspNet80.References.All,
+            references,
             new CSharpCompilationOptions(outputKind));
 
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
