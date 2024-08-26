@@ -13,14 +13,6 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
 |---|---|
 | ![C# screenshot](docs/screenshots/csharp.png) | ![Razor screenshot](docs/screenshots/razor.png) |
 
-## Related work
-
-Razor REPLs (all can only render HTML):
-- https://blazorrepl.telerik.com/
-- https://netcorerepl.telerik.com/
-- https://try.mudblazor.com/snippet
-- https://blazorfiddle.com/
-
 ## Development
 
 - `src/App`: the WebAssembly app.
@@ -43,3 +35,22 @@ Razor REPLs (all can only render HTML):
 - Logo: [OpenMoji](https://openmoji.org/library/emoji-1FAD9-200D-1F7EA/)
 - Style: [Bootstrap](https://getbootstrap.com/)
 - Icons: [Bootstrap Icons](https://icons.getbootstrap.com/)
+
+## Related work
+
+Razor REPLs:
+- https://blazorrepl.telerik.com/
+- https://netcorerepl.telerik.com/
+- https://try.mudblazor.com/snippet
+- https://blazorfiddle.com/
+
+C# REPLs:
+- https://dotnetfiddle.net/
+- https://onecompiler.com/csharp
+
+C# compiler playgrounds:
+- https://sharplab.io/
+- https://godbolt.org/
+
+XAML REPLs:
+- https://playground.platform.uno/
