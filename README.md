@@ -40,4 +40,6 @@ Razor REPLs (all can only render HTML):
 
 ## Attribution
 
-- Icon: [OpenMoji](https://openmoji.org/library/emoji-1FAD9-200D-1F7EA/)
+- Logo: [OpenMoji](https://openmoji.org/library/emoji-1FAD9-200D-1F7EA/)
+- Style: [Bootstrap](https://getbootstrap.com/)
+- Icons: [Bootstrap Icons](https://icons.getbootstrap.com/)
