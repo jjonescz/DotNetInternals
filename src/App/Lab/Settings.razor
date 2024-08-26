@@ -1,3 +1,4 @@
+@implements IDisposable
 @inject DependencyRegistry DependencyRegistry
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
@@ -6,6 +7,11 @@
 
 <button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
     Settings
+
+    @if (!hideUpdateAvailableBadge && UpdateInfo.UpdateIsAvailable)
+    {
+        <span class="badge bg-info ms-1" title="Update is available">1</span>
+    }
 </button>
 
 @if (modalOpen)
@@ -198,6 +204,14 @@
                         <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
                         commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
                     </p>
+
+                    @if (UpdateInfo.UpdateIsAvailable)
+                    {
+                        <div class="alert alert-info" role="alert">
+                            <strong>An update is available.</strong>
+                            Close all app tabs and reopen to activate the update.
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-primary" @onclick="() => modalOpen = false">Close</button>
@@ -208,7 +222,7 @@
 }
 
 @code {
-    private bool modalOpen;
+    private bool modalOpen, hideUpdateAvailableBadge;
     private IJSObjectReference? vimDisposable;
     private string? sdkVersion, roslynVersion, razorVersion;
     private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
@@ -251,10 +265,19 @@
         {
             DebugLogs = await LocalStorage.GetItemAsync<bool>(nameof(DebugLogs));
         }
+
+        UpdateInfo.UpdateBecameAvailable += StateHasChanged;
+    }
+
+    void IDisposable.Dispose()
+    {
+        UpdateInfo.UpdateBecameAvailable -= StateHasChanged;
     }
 
     private Task OpenModalAsync()
     {
+        hideUpdateAvailableBadge = true;
+
         if (modalOpen)
         {
             return Task.CompletedTask;

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
 	<PropertyGroup>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
 		<!--
 			Cannot trim because we dynamically execute programs
