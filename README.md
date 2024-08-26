@@ -2,16 +2,18 @@
 
 C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
+| [C#](https://lab.razor.fyi/#4yrn4gooyk8vSszVSy4WyiwtzsxLVwiuLC5JzbXm4krOSSwuVoAq4KrmUgCC4pLEksxkhbL8zBQF38TMPA1NsDBEEgSc8_OK83NS9cKLMktSfTLzUjWUPFJzcvL1lDStwYpquWq5AA) | [Razor](https://lab.razor.fyi/#48rlEg5JLS5xzs8tyM9LzSvRK0qsyi8SCrNBEVUISCxKzLVVMlRS0Lfj4nJIzk9JVajmUgCCaLBUaklqUaxCQWlSTmayQiZMg0K1QnpqibVCMYio5arlAgA) |
+|:-:|:-:|
+| ![C# screenshot](docs/screenshots/csharp.png) | ![Razor screenshot](docs/screenshots/razor.png) |
+
+## Features
+
 - Razor/CSHTML to generated C# code / IR / Syntax Tree / Errors.
 - C# to IL / Syntax / decompiled-C# / Errors / Execution console output.
 - Any Roslyn/Razor compiler version (NuGet daily builds).
 - Offline support (PWA).
 - VSCode Monaco Editor.
 - Multiple input sources (especially useful for interlinked Razor components).
-
-| [C#](https://lab.razor.fyi/#4yrn4gooyk8vSszVSy4WyiwtzsxLVwiuLC5JzbXm4krOSSwuVoAq4KrmUgCC4pLEksxkhbL8zBQF38TMPA1NsDBEEgSc8_OK83NS9cKLMktSfTLzUjWUPFJzcvL1lDStwYpquWq5AA) | [Razor](https://lab.razor.fyi/#48rlEg5JLS5xzs8tyM9LzSvRK0qsyi8SCrNBEVUISCxKzLVVMlRS0Lfj4nJIzk9JVajmUgCCaLBUaklqUaxCQWlSTmayQiZMg0K1QnpqibVCMYio5arlAgA) |
-|:-:|:-:|
-| ![C# screenshot](docs/screenshots/csharp.png) | ![Razor screenshot](docs/screenshots/razor.png) |
 
 ## Development
 
