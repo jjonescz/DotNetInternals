@@ -168,21 +168,50 @@
             <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
         </CascadingValue>
     </div>
+
+    @* Layout buttons *@
+    <div class="col-auto">
+        <div class="btn-group">
+            @if (layout != Layout.InputOnly)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.InputOnly"
+                        title="Display input (left side) only">
+                    @BootstrapIcons.LayoutSidebarReverse
+                </button>
+            }
+            @if (layout != Layout.Split)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.Split"
+                        title="Display both input and output side-by-side">
+                    @BootstrapIcons.LayoutSplit
+                </button>
+            }
+            @if (layout != Layout.OutputOnly)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.OutputOnly"
+                        title="Display output (right side) only">
+                    @BootstrapIcons.LayoutSidebar
+                </button>
+            }
+        </div>
+    </div>
 </div>
 
 @* Input / output text areas *@
 @{
     var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
+    var inputStyle = layout == Layout.OutputOnly ? "display: none !important" : "";
+    var outputStyle = layout == Layout.InputOnly ? "display: none !important" : "";
 }
 <div class="row g-0 flex-grow-1">
-    <div class="col d-flex flex-column">
+    <div class="col d-flex flex-column" style="@inputStyle">
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
                 ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync" />
         </div>
     </div>
-    <div class="col">
+    <div class="col" style="@outputStyle">
         <textarea value="@Output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
     </div>
 </div>
@@ -199,6 +228,7 @@
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
+    private Layout layout;
 
     private sealed record Input(string FileName, TextModel Model)
     {
@@ -219,6 +249,13 @@
         AddCSharp = -2,
         AddCshtml = -3,
         RemoveOtherFiles = -4,
+    }
+
+    private enum Layout
+    {
+        Split,
+        InputOnly,
+        OutputOnly,
     }
 
     private Input? CurrentInput
