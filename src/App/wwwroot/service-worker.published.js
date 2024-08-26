@@ -47,22 +47,13 @@ async function onActivate(event) {
 async function onFetch(event) {
     let cachedResponse = null;
     if (event.request.method === 'GET') {
-        // For .wasm requests, serve .wasm.br resources decompressed
-        // (they don't exist uncompressed on the server for space reasons).
-        const shouldDecompress = event.request.url.endsWith('.wasm');
-        const requestUrl = event.request.url + (shouldDecompress ? '.br' : '');
-
         // For all navigation requests, try to serve index.html from cache,
         // unless that request is for an offline resource.
         // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
         const shouldServeIndexHtml = event.request.mode === 'navigate'
-            && !manifestUrlList.some(url => url === requestUrl);
+            && !manifestUrlList.some(url => url === event.request.url);
 
-        const request = shouldServeIndexHtml
-            ? 'index.html'
-            : shouldDecompress
-                ? requestUrl
-                : event.request;
+        const request = shouldServeIndexHtml ? 'index.html' : event.request;
 
         const cache = await caches.open(cacheName);
         // We ignore search query (so our pre-cached `app.css` matches request `app.css?v=2`),
@@ -72,20 +63,6 @@ async function onFetch(event) {
         if (cachedResponse?.redirected) {
             cachedResponse = await cleanResponse(cachedResponse);
             cache.put(request, cachedResponse.clone());
-        }
-
-        if (shouldDecompress && cachedResponse) {
-            try {
-                const originalResponseBuffer = await cachedResponse.arrayBuffer();
-                const originalResponseArray = new Int8Array(originalResponseBuffer);
-                const decompressedResponseArray = BrotliDecode(originalResponseArray);
-                cachedResponse = new Response(decompressedResponseArray, {
-                    headers: { 'content-type': 'application/wasm' },
-                });
-            } catch (error) {
-                console.error('Failed to decompress response:', error);
-                cachedResponse = undefined;
-            }
         }
     }
 
