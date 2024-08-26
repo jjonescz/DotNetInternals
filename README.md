@@ -9,6 +9,10 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
 - VSCode Monaco Editor.
 - Multiple input sources (especially useful for interlinked Razor components).
 
+| | |
+|---|---|
+| ![C# screenshot](docs/screenshots/csharp.png) | ![Razor screenshot](docs/screenshots/razor.png) |
+
 ## Related work
 
 Razor REPLs (all can only render HTML):
