@@ -231,6 +231,13 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
 
     public static readonly InitialCode CSharp = new("Program.cs", """
         using System;
+        using System.Collections.Generic;
+        using System.Collections.Immutable;
+        using System.Diagnostics;
+        using System.Diagnostics.CodeAnalysis;
+        using System.Linq;
+        using System.Threading;
+        using System.Threading.Tasks;
 
         class Program
         {
@@ -257,7 +264,7 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
         @functions {
             public class PageModel
             {
-                public Customer Customer { get; set; }
+                public Customer Customer { get; set; } = new();
             }
 
             public class Customer
@@ -265,7 +272,7 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
                 public int Id { get; set; }
 
                 [Required, StringLength(10)]
-                public string Name { get; set; }
+                public string Name { get; set; } = "";
             }
         }
 
