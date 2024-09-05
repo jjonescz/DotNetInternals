@@ -46,6 +46,8 @@ public class Compiler : ICompiler
             ? OutputKind.ConsoleApplication
             : OutputKind.DynamicallyLinkedLibrary;
 
+        var options = new CSharpCompilationOptions(outputKind, allowUnsafe: true);
+
         var config = RazorConfiguration.Default;
 
         var references = Basic.Reference.Assemblies.AspNet90.References.All;
@@ -63,7 +65,7 @@ public class Compiler : ICompiler
                 ..cSharp.Values,
             ],
             references,
-            new CSharpCompilationOptions(outputKind));
+            options);
 
         // Phase 2: Full generation.
         RazorProjectEngine projectEngine = createProjectEngine([
@@ -99,7 +101,7 @@ public class Compiler : ICompiler
                 ..cSharp.Values,
             ],
             references,
-            new CSharpCompilationOptions(outputKind));
+            options);
 
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
 
