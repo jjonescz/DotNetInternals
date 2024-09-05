@@ -231,6 +231,13 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
 
     public static readonly InitialCode CSharp = new("Program.cs", """
         using System;
+        using System.Collections.Generic;
+        using System.Collections.Immutable;
+        using System.Diagnostics;
+        using System.Diagnostics.CodeAnalysis;
+        using System.Linq;
+        using System.Threading;
+        using System.Threading.Tasks;
 
         class Program
         {
