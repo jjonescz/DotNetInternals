@@ -264,7 +264,7 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
         @functions {
             public class PageModel
             {
-                public Customer Customer { get; set; }
+                public Customer Customer { get; set; } = new();
             }
 
             public class Customer
@@ -272,7 +272,7 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
                 public int Id { get; set; }
 
                 [Required, StringLength(10)]
-                public string Name { get; set; }
+                public string Name { get; set; } = "";
             }
         }
 
