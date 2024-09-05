@@ -46,7 +46,7 @@ public class Compiler : ICompiler
             ? OutputKind.ConsoleApplication
             : OutputKind.DynamicallyLinkedLibrary;
 
-        var options = new CSharpCompilationOptions(outputKind, allowUnsafe: true);
+        var options = new CSharpCompilationOptions(outputKind, allowUnsafe: true, nullableContextOptions: NullableContextOptions.Enable);
 
         var config = RazorConfiguration.Default;
 
