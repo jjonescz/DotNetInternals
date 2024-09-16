@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
 	<PropertyGroup>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -45,6 +45,12 @@
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Inputs="@(NpmInput)" Outputs="@(NpmOutput)">
 		<Exec Command="npm install" WorkingDirectory="Npm" />
 		<Exec Command="npm run build" WorkingDirectory="Npm" />
+		<!--
+			Ensure the outputs are modified (even if Webpack did not touch them
+			because the input changes were irrelevant to build output)
+			so this target does not re-run unnecessarily.
+		-->
+		<Touch Files="@(NpmOutput)" AlwaysCreate="true" />
 	</Target>
 
 </Project>
