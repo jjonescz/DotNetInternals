@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
@@ -153,9 +153,9 @@
                 @if (outputLoading)
                 {
                     <span class="input-group-text">
-                        <div class="spinner-border spinner-border-sm" role="status" title="Output is loading">
+                        <span class="spinner-border spinner-border-sm" role="status" title="Output is loading">
                             <span class="visually-hidden">Output loading...</span>
-                        </div>
+                        </span>
                     </span>
                 }
             </div>
