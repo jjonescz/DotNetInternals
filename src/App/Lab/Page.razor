@@ -1,8 +1,9 @@
-@page "/"
+﻿@page "/"
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject CompilerProxy Compiler
+@inject LanguageServerController LanguageServerController
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
@@ -271,9 +272,11 @@
         }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         NavigationManager.LocationChanged += OnLocationChanged;
+
+        await LanguageServerController.StartInWorkerAsync();
     }
 
     void IDisposable.Dispose()

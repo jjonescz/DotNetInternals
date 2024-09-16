@@ -1,4 +1,5 @@
 using Blazored.LocalStorage;
+using BlazorWorker.Core;
 using DotNetInternals;
 using DotNetInternals.Lab;
 using Microsoft.AspNetCore.Components.Web;
@@ -10,12 +11,14 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddWorkerFactory();
 
 builder.Services.AddScoped<CompilerLoaderServices>();
 builder.Services.AddScoped<CompilerProxy>();
 builder.Services.AddScoped<DependencyRegistry>();
 builder.Services.AddScoped<Lazy<NuGetDownloader>>();
 builder.Services.AddScoped<SdkDownloader>();
+builder.Services.AddScoped<LanguageServerController>();
 
 builder.Logging.AddFilter("DotNetInternals.*",
     static (logLevel) => logLevel >= Logging.LogLevel);

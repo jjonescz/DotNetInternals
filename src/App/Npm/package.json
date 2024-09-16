@@ -19,6 +19,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "monaco-languageclient": "8.8.3",
     "monaco-vim": "^0.4.1"
   }
 }
