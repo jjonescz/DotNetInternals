@@ -430,7 +430,7 @@
                 packageFolder: CompilerProxy.RoslynPackageFolder);
 
             info = !modalOpen ? null : package is null
-                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName)
+                ? NuGetPackageInfo.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName)
                 : await package.GetInfoAsync();
 
             error = null;
@@ -479,7 +479,7 @@
                 packageFolder: CompilerProxy.RazorPackageFolder);
 
             info = !modalOpen ? null : package is null
-                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName)
+                ? NuGetPackageInfo.GetBuiltInInfo(CompilerProxy.RazorAssemblyName)
                 : await package.GetInfoAsync();
 
             error = null;

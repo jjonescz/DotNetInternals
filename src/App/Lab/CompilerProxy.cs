@@ -16,35 +16,6 @@ internal sealed class CompilerProxy(
     public static readonly string RoslynAssemblyName = "Microsoft.CodeAnalysis.CSharp";
     public static readonly string RazorAssemblyName = "Microsoft.CodeAnalysis.Razor.Compiler";
 
-    public static NuGetPackageInfo GetBuiltInInfo(string assemblyName)
-    {
-        string version = "";
-        string hash = "";
-        string repositoryUrl = "";
-        foreach (var attribute in Assembly.Load(assemblyName).CustomAttributes)
-        {
-            switch (attribute.AttributeType.FullName)
-            {
-                case "System.Reflection.AssemblyInformationalVersionAttribute"
-                    when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
-                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
-                    version = parsedVersion;
-                    hash = parsedHash;
-                    break;
-
-                case "System.Reflection.AssemblyMetadataAttribute"
-                    when attribute.ConstructorArguments is [{ Value: "RepositoryUrl" }, { Value: string repoUrl }]:
-                    repositoryUrl = repoUrl;
-                    break;
-            }
-        }
-
-        return NuGetPackageInfo.Create(
-            version: version,
-            commitHash: hash,
-            repoUrl: repositoryUrl);
-    }
-
     private LoadedCompiler? loaded;
     private int iteration;
 

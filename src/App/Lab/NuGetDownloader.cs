@@ -4,7 +4,6 @@ using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using System.IO.Compression;
-using System.Text.Encodings.Web;
 
 namespace DotNetInternals.Lab;
 
@@ -156,6 +155,35 @@ internal sealed record NuGetPackageInfo
             Version = version,
             Commit = new() { Hash = commitHash, RepoUrl = repoUrl },
         };
+    }
+
+    public static NuGetPackageInfo GetBuiltInInfo(string assemblyName)
+    {
+        string version = "";
+        string hash = "";
+        string repositoryUrl = "";
+        foreach (var attribute in Assembly.Load(assemblyName).CustomAttributes)
+        {
+            switch (attribute.AttributeType.FullName)
+            {
+                case "System.Reflection.AssemblyInformationalVersionAttribute"
+                    when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
+                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
+                    version = parsedVersion;
+                    hash = parsedHash;
+                    break;
+
+                case "System.Reflection.AssemblyMetadataAttribute"
+                    when attribute.ConstructorArguments is [{ Value: "RepositoryUrl" }, { Value: string repoUrl }]:
+                    repositoryUrl = repoUrl;
+                    break;
+            }
+        }
+
+        return Create(
+            version: version,
+            commitHash: hash,
+            repoUrl: repositoryUrl);
     }
 
     public required string Version { get; init; }
