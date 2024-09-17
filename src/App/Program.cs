@@ -16,6 +16,7 @@ builder.Services.AddScoped<CompilerProxy>();
 builder.Services.AddScoped<DependencyRegistry>();
 builder.Services.AddScoped<Lazy<NuGetDownloader>>();
 builder.Services.AddScoped<SdkDownloader>();
+builder.Services.AddScoped<LanguageServices>();
 
 builder.Logging.AddFilter("DotNetInternals.*",
     static (logLevel) => logLevel >= Logging.LogLevel);

@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject CompilerProxy Compiler
+@inject LanguageServices LanguageServices
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
@@ -208,7 +209,9 @@
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
-                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync" />
+                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
+                OnDidChangeModel="LanguageServices.OnDidChangeModel"
+                OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
         </div>
     </div>
     <div class="col" style="@outputStyle">
@@ -470,25 +473,7 @@
         {
             List<MarkerData> markers = compiled?.Diagnostics
                 .Where(d => d.FilePath == compiled.BaseDirectory + input.FileName)
-                .Select(d => new MarkerData
-                {
-                    CodeAsObject = new()
-                    {
-                        Value = d.Id,
-                        TargetUri = d.HelpLinkUri,
-                    },
-                    Message = d.Message,
-                    StartLineNumber = d.StartLineNumber,
-                    StartColumn = d.StartColumn,
-                    EndLineNumber = d.EndLineNumber,
-                    EndColumn = d.EndColumn,
-                    Severity = d.Severity switch
-                    {
-                        DiagnosticDataSeverity.Error => MarkerSeverity.Error,
-                        DiagnosticDataSeverity.Warning => MarkerSeverity.Warning,
-                        _ => MarkerSeverity.Info,
-                    },
-                })
+                .Select(d => d.ToMarkerData())
                 .ToList() ?? [];
             await BlazorMonaco.Editor.Global.SetModelMarkers(JSRuntime, input.Model, "Lab", markers);
         }
@@ -553,6 +538,8 @@
     private async Task EditorInitAsync()
     {
         await settings.InitializeAsync();
+
+        await LanguageServices.RegisterAsync();
 
         await LoadStateFromUrlAsync();
     }
