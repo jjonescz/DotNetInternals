@@ -11,12 +11,14 @@
     <PackageVersion Include="BlazorMonaco" Version="3.2.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.0" />
     <PackageVersion Include="ICSharpCode.Decompiler" Version="8.2.0.7535" />
+    <PackageVersion Include="KristofferStrube.Blazor.WebWorkers" Version="0.1.0-alpha.6" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.0-rc.1.24452.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.0-rc.1.24452.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.0-rc.1.24452.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0-1.24372.18" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.12.0-1.24372.18" />
     <PackageVersion Include="Microsoft.DotNet.Arcade.Sdk" Version="9.0.0-beta.24372.7" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0-rc.1.24431.7" />
     <PackageVersion Include="Microsoft.Net.Compilers.Razor.Toolset" Version="9.0.0-preview.24373.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
     <PackageVersion Include="NuGet.Protocol" Version="6.10.1" />

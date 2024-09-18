@@ -68,6 +68,16 @@ public static class Util
         return string.Join(separator, source);
     }
 
+    public static async Task<IEnumerable<TResult>> SelectAsync<T, TResult>(this IEnumerable<T> source, Func<T, Task<TResult>> selector)
+    {
+        var results = new List<TResult>(source.TryGetNonEnumeratedCount(out var count) ? count : 0);
+        foreach (var item in source)
+        {
+            results.Add(await selector(item));
+        }
+        return results;
+    }
+
     public static IEnumerable<TResult> SelectNonNull<T, TResult>(this IEnumerable<T> source, Func<T, TResult?> selector)
     {
         foreach (var item in source)

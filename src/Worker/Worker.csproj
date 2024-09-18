@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+		<PublishTrimmed>false</PublishTrimmed>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="KristofferStrube.Blazor.WebWorkers" />
+		<PackageReference Include="Microsoft.Extensions.Logging" />
+		<PackageReference Include="NuGet.Protocol" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Shared\Shared.csproj" />
+	</ItemGroup>
+
+</Project>

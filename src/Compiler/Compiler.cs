@@ -10,7 +10,7 @@ namespace DotNetInternals;
 
 public class Compiler : ICompiler
 {
-    public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -46,7 +46,11 @@ public class Compiler : ICompiler
             ? OutputKind.ConsoleApplication
             : OutputKind.DynamicallyLinkedLibrary;
 
-        var options = new CSharpCompilationOptions(outputKind, allowUnsafe: true, nullableContextOptions: NullableContextOptions.Enable);
+        var options = new CSharpCompilationOptions(
+            outputKind,
+            allowUnsafe: true,
+            nullableContextOptions: NullableContextOptions.Enable,
+            concurrentBuild: false);
 
         var config = RazorConfiguration.Default;
 
@@ -85,9 +89,9 @@ public class Compiler : ICompiler
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
                     return new CompiledFile([
-                        new("Syntax", syntax),
-                        new("IR", ir),
-                        new("C#", cSharp) { Priority = 1 },
+                        new() { Type = "Syntax", Text = syntax },
+                        new() { Type = "IR", Text = ir },
+                        new() { Type = "C#", Text = cSharp, Priority = 1 },
                     ]);
                 });
 
@@ -95,7 +99,7 @@ public class Compiler : ICompiler
             [
                 ..compiledRazorFiles.Values.Select(static (file) =>
                 {
-                    var cSharpText = file.GetOutput("C#")!.GetEagerTextOrThrow();
+                    var cSharpText = file.GetOutput("C#")!.Text!;
                     return CSharpSyntaxTree.ParseText(cSharpText);
                 }),
                 ..cSharp.Values,
@@ -106,21 +110,21 @@ public class Compiler : ICompiler
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
 
         var compiledFiles = compiledRazorFiles.AddRange(
-            cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
+            await cSharp.SelectAsync(async (pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
-                    new("Syntax", pair.Value.GetRoot().Dump()),
-                    new("IL", () =>
+                    new() { Type = "Syntax", Text = pair.Value.GetRoot().Dump() },
+                    new() { Type = "IL", Text = get(() =>
                     {
                         peFile ??= getPeFile(finalCompilation);
                         return getIl(peFile);
-                    }),
-                    new("C#", async () =>
+                    }) },
+                    new() { Type = "C#", Text = await getAsync(async () =>
                     {
                         peFile ??= getPeFile(finalCompilation);
                         return await getCSharpAsync(peFile);
-                    }),
-                    new("Run", () =>
+                    }) },
+                    new() { Type = "Run", Text = get(() =>
                     {
                         var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
                             ? finalCompilation
@@ -131,8 +135,7 @@ public class Compiler : ICompiler
                                 ? error.GetMessage(CultureInfo.InvariantCulture)
                                 : "Cannot execute due to compilation errors."
                             : Executor.Execute(emitStream);
-                    })
-                    {
+                    }),
                         Priority = 1
                     },
                 ]))));
@@ -155,13 +158,19 @@ public class Compiler : ICompiler
             Diagnostics: diagnosticData,
             GlobalOutputs:
             [
-                new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
+                new()
                 {
+                    Type = CompiledAssembly.DiagnosticsOutputType,
+                    Text = diagnosticsText,
                     Priority = numErrors > 0 ? 2 : 0,
                 },
             ]);
 
         return result;
+
+        // TODO: Make the outputs lazy again and remove this.
+        Task<string> getAsync(Func<Task<string>> factory) => factory();
+        string get(Func<string> factory) => factory();
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {

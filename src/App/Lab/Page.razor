@@ -2,7 +2,7 @@
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
-@inject CompilerProxy Compiler
+@inject WorkerController Worker
 @inject LanguageServices LanguageServices
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
@@ -460,7 +460,7 @@
         await RefreshAsync();
 
         // Compile.
-        compiled = await Compiler.CompileAsync(savedState.Inputs);
+        compiled = await Worker.CompileAsync(savedState.Inputs);
 
         await DisplaySquiggles();
 
@@ -501,7 +501,7 @@
             return "";
         }
 
-        if (output.TryGetEagerText(out var text))
+        if (output.Text is { } text)
         {
             return text;
         }
@@ -517,8 +517,9 @@
             outputLoading = true;
             await RefreshAsync();
 
+            // TODO:
             // The text will be cached and loaded synchronously next.
-            await output.GetTextAsync();
+            //await output.GetTextAsync();
 
             outputLoading = false;
             StateHasChanged();

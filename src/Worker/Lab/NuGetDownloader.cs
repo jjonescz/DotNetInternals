@@ -7,7 +7,7 @@ using System.IO.Compression;
 
 namespace DotNetInternals.Lab;
 
-internal static class NuGetUtil
+public static class NuGetUtil
 {
     public static string GetPackageVersionListUrl(string packageId)
     {
@@ -146,7 +146,7 @@ internal sealed class NuGetDownloadablePackage
     }
 }
 
-internal sealed record NuGetPackageInfo
+public sealed record NuGetPackageInfo
 {
     public static NuGetPackageInfo Create(string version, string commitHash, string repoUrl)
     {
@@ -190,7 +190,7 @@ internal sealed record NuGetPackageInfo
     public required CommitLink Commit { get; init; }
 }
 
-internal sealed record CommitLink
+public sealed record CommitLink
 {
     public required string RepoUrl { get; init; }
     public required string Hash { get; init; }

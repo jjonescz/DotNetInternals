@@ -5,7 +5,7 @@ namespace DotNetInternals;
 
 public interface ICompiler
 {
-    CompiledAssembly Compile(IEnumerable<InputCode> inputs);
+    Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs);
 }
 
 [ProtoContract]
@@ -83,6 +83,17 @@ public sealed record CompiledAssembly(
 {
     public static readonly string DiagnosticsOutputType = "Error List";
 
+    public static CompiledAssembly Fail(string output)
+    {
+        return new(
+            BaseDirectory: "/",
+            Files: ImmutableDictionary<string, CompiledFile>.Empty,
+            Diagnostics: [],
+            GlobalOutputs: [new() { Type = DiagnosticsOutputType, Text = output }],
+            NumErrors: 1,
+            NumWarnings: 0);
+    }
+
     public CompiledFileOutput? GetGlobalOutput(string type)
     {
         return GlobalOutputs.FirstOrDefault(o => o.Type == type);
@@ -99,83 +110,7 @@ public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
 
 public sealed class CompiledFileOutput
 {
-    private object text;
-
-    public CompiledFileOutput(string type, string eagerText)
-    {
-        Type = type;
-        text = eagerText;
-    }
-
-    public CompiledFileOutput(string type, Func<ValueTask<string>> lazyText)
-    {
-        Type = type;
-        text = lazyText;
-    }
-
-    public CompiledFileOutput(string type, Func<string> lazyTextSync)
-    {
-        Type = type;
-        text = lazyTextSync;
-    }
-
-    public string Type { get; }
+    public required string Type { get; init; }
     public int Priority { get; init; }
-
-    public bool IsLazy => !TryGetEagerText(out _);
-
-    public string GetEagerTextOrThrow()
-    {
-        return TryGetEagerText(out var eagerText)
-            ? eagerText
-            : throw new InvalidOperationException("The text is not available eagerly.");
-    }
-
-    public bool TryGetEagerText([NotNullWhen(returnValue: true)] out string? result)
-    {
-        if (text is string eagerText)
-        {
-            result = eagerText;
-            return true;
-        }
-
-        if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
-        {
-            text = taskResult;
-            result = taskResult;
-            return true;
-        }
-
-        result = null;
-        return false;
-    }
-
-    public ValueTask<string> GetTextAsync()
-    {
-        if (TryGetEagerText(out var eagerText))
-        {
-            return new(eagerText);
-        }
-
-        if (text is ValueTask<string> existingTask)
-        {
-            return existingTask;
-        }
-
-        if (text is Func<ValueTask<string>> lazyText)
-        {
-            var task = lazyText();
-            text = task;
-            return task;
-        }
-
-        if (text is Func<string> lazyTextSync)
-        {
-            var result = lazyTextSync();
-            text = result;
-            return new(result);
-        }
-
-        throw new InvalidOperationException();
-    }
+    public string? Text { get; set; }
 }

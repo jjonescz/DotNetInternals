@@ -1,9 +1,7 @@
 @implements IDisposable
-@inject DependencyRegistry DependencyRegistry
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
-@inject Lazy<NuGetDownloader> NuGetDownloader
-@inject SdkDownloader SdkDownloader
+@inject WorkerController Worker
 
 <button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
     Settings
@@ -110,7 +108,7 @@
                         </div>
                         <div class="form-text">
                             See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RoslynPackageId)"
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RoslynPackageId)"
                                target="_blank">available Roslyn versions</a>.
                             Use
                             @if (roslynVersion != "latest")
@@ -163,7 +161,7 @@
                         </div>
                         <div class="form-text">
                             See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RazorPackageId)"
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RazorPackageId)"
                                target="_blank">available Razor versions</a>.
                             Use
                             @if (razorVersion != "latest")
@@ -357,7 +355,7 @@
             }
             else
             {
-                info = !modalOpen ? null : await SdkDownloader.GetInfoAsync(versionToLoad);
+                info = !modalOpen ? null : await Worker.GetSdkInfoAsync(versionToLoad);
                 error = null;
 
                 if (saveState)
@@ -389,24 +387,6 @@
         await LoadSdkInfoAsync();
     }
 
-    private NuGetDownloadablePackage? LoadPackage(string? version, string key, string packageId, string packageFolder)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-        {
-            DependencyRegistry.RemoveAssemblies(key);
-            return null;
-        }
-
-        var package = NuGetDownloader.Value.GetPackage(
-            packageId,
-            version,
-            packageFolder);
-
-        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
-
-        return package;
-    }
-
     private async Task LoadRoslynInfoAsync(bool saveState = true)
     {
         var versionToLoad = roslynVersion;
@@ -423,15 +403,18 @@
         string? error;
         try
         {
-            var package = LoadPackage(
-                version: versionToLoad,
-                key: "roslyn",
-                packageId: CompilerProxy.RoslynPackageId,
-                packageFolder: CompilerProxy.RoslynPackageFolder);
+            const string key = "roslyn";
 
-            info = !modalOpen ? null : package is null
-                ? NuGetPackageInfo.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName)
-                : await package.GetInfoAsync();
+            Worker.UsePackage(
+                version: versionToLoad,
+                key: key,
+                packageId: CompilerConstants.RoslynPackageId,
+                packageFolder: CompilerConstants.RoslynPackageFolder);
+
+            info = !modalOpen
+                ? null
+                : await Worker.GetPackageInfoAsync(key)
+                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RoslynAssemblyName);
 
             error = null;
         }
@@ -472,15 +455,18 @@
         string? error;
         try
         {
-            var package = LoadPackage(
-                version: versionToLoad,
-                key: "razor",
-                packageId: CompilerProxy.RazorPackageId,
-                packageFolder: CompilerProxy.RazorPackageFolder);
+            const string key = "razor";
 
-            info = !modalOpen ? null : package is null
-                ? NuGetPackageInfo.GetBuiltInInfo(CompilerProxy.RazorAssemblyName)
-                : await package.GetInfoAsync();
+            Worker.UsePackage(
+                version: versionToLoad,
+                key: key,
+                packageId: CompilerConstants.RazorPackageId,
+                packageFolder: CompilerConstants.RazorPackageFolder);
+
+            info = !modalOpen
+                ? null
+                : await Worker.GetPackageInfoAsync(key)
+                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RazorAssemblyName);
 
             error = null;
         }
