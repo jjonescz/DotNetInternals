@@ -1,19 +1,20 @@
-﻿using BlazorMonaco;
+﻿global using MonacoCompletionContext = BlazorMonaco.Languages.CompletionContext;
+global using MonacoCompletionItem = BlazorMonaco.Languages.CompletionItem;
+global using MonacoCompletionList = BlazorMonaco.Languages.CompletionList;
+global using MonacoRange = BlazorMonaco.Range;
+global using RoslynCompletionItem = Microsoft.CodeAnalysis.Completion.CompletionItem;
+global using RoslynCompletionList = Microsoft.CodeAnalysis.Completion.CompletionList;
+
+using BlazorMonaco;
 using BlazorMonaco.Editor;
 using BlazorMonaco.Languages;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Tags;
 using Microsoft.CodeAnalysis.Text;
 
-using MonacoCompletionItem = BlazorMonaco.Languages.CompletionItem;
-using MonacoCompletionList = BlazorMonaco.Languages.CompletionList;
-using MonacoRange = BlazorMonaco.Range;
-using RoslynCompletionItem = Microsoft.CodeAnalysis.Completion.CompletionItem;
-using RoslynCompletionList = Microsoft.CodeAnalysis.Completion.CompletionList;
-
 namespace DotNetInternals;
 
-internal static class Conversions
+public static class MonacoConversions
 {
     public static MonacoCompletionList ToCompletionList(this RoslynCompletionList completions, TextLineCollection lines)
     {

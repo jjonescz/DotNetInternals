@@ -1,4 +1,7 @@
-﻿using KristofferStrube.Blazor.DOM;
+﻿using BlazorMonaco;
+using BlazorMonaco.Editor;
+using BlazorMonaco.Languages;
+using KristofferStrube.Blazor.DOM;
 using KristofferStrube.Blazor.WebWorkers;
 using KristofferStrube.Blazor.Window;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -124,5 +127,26 @@ internal sealed class WorkerController
         return await PostAndReceiveMessageAsync(
             new WorkerInputMessage.GetSdkInfo(versionToLoad),
             deserializeAs: default(SdkInfo));
+    }
+
+    public async Task<CompletionList> ProvideCompletionItemsAsync(string modelUri, Position position, CompletionContext context)
+    {
+        return await PostAndReceiveMessageAsync(
+            new WorkerInputMessage.ProvideCompletionItems(modelUri, position, context),
+            deserializeAs: default(CompletionList));
+    }
+
+    public async Task<ImmutableArray<MarkerData>> OnDidChangeModelAsync(string code)
+    {
+        return await PostAndReceiveMessageAsync(
+            new WorkerInputMessage.OnDidChangeModel(code),
+            deserializeAs: default(ImmutableArray<MarkerData>));
+    }
+
+    public async Task<ImmutableArray<MarkerData>> OnDidChangeModelContentAsync(ModelContentChangedEvent args)
+    {
+        return await PostAndReceiveMessageAsync(
+            new WorkerInputMessage.OnDidChangeModelContent(args),
+            deserializeAs: default(ImmutableArray<MarkerData>));
     }
 }

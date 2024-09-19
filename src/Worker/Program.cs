@@ -20,6 +20,7 @@ services.AddScoped<DependencyRegistry>();
 services.AddScoped<PackageRegistry>();
 services.AddScoped<Lazy<NuGetDownloader>>();
 services.AddScoped<SdkDownloader>();
+services.AddScoped<LanguageServices>();
 var serviceProvider = services.BuildServiceProvider();
 
 Imports.RegisterOnMessage(async e =>

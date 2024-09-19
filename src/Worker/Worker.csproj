@@ -7,13 +7,15 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="BlazorMonaco" />
 		<PackageReference Include="KristofferStrube.Blazor.WebWorkers" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" />
 		<PackageReference Include="Microsoft.Extensions.Logging" />
 		<PackageReference Include="NuGet.Protocol" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Shared\Shared.csproj" />
+		<ProjectReference Include="..\Compiler\Compiler.csproj" />
 	</ItemGroup>
 
 </Project>

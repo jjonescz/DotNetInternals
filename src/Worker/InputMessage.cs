@@ -1,4 +1,6 @@
-﻿using DotNetInternals.Lab;
+﻿using BlazorMonaco;
+using BlazorMonaco.Editor;
+using DotNetInternals.Lab;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
 
@@ -8,6 +10,9 @@ namespace DotNetInternals;
 [JsonDerivedType(typeof(UsePackage), nameof(UsePackage))]
 [JsonDerivedType(typeof(GetPackageInfo), nameof(GetPackageInfo))]
 [JsonDerivedType(typeof(GetSdkInfo), nameof(GetSdkInfo))]
+[JsonDerivedType(typeof(ProvideCompletionItems), nameof(ProvideCompletionItems))]
+[JsonDerivedType(typeof(OnDidChangeModel), nameof(OnDidChangeModel))]
+[JsonDerivedType(typeof(OnDidChangeModelContent), nameof(OnDidChangeModelContent))]
 public abstract record WorkerInputMessage
 {
     public abstract Task<object?> HandleNonGenericAsync(IServiceProvider services);
@@ -70,6 +75,33 @@ public abstract record WorkerInputMessage
         {
             var sdkDownloader = services.GetRequiredService<SdkDownloader>();
             return await sdkDownloader.GetInfoAsync(VersionToLoad);
+        }
+    }
+
+    public sealed record ProvideCompletionItems(string ModelUri, Position Position, MonacoCompletionContext Context) : WorkerInputMessage<MonacoCompletionList>
+    {
+        public override Task<MonacoCompletionList> HandleAsync(IServiceProvider services)
+        {
+            var languageServices = services.GetRequiredService<LanguageServices>();
+            return languageServices.ProvideCompletionItemsAsync(ModelUri, Position, Context);
+        }
+    }
+
+    public sealed record OnDidChangeModel(string Code) : WorkerInputMessage<ImmutableArray<MarkerData>>
+    {
+        public override Task<ImmutableArray<MarkerData>> HandleAsync(IServiceProvider services)
+        {
+            var languageServices = services.GetRequiredService<LanguageServices>();
+            return languageServices.OnDidChangeModel(Code);
+        }
+    }
+
+    public sealed record OnDidChangeModelContent(ModelContentChangedEvent Args) : WorkerInputMessage<ImmutableArray<MarkerData>>
+    {
+        public override Task<ImmutableArray<MarkerData>> HandleAsync(IServiceProvider services)
+        {
+            var languageServices = services.GetRequiredService<LanguageServices>();
+            return languageServices.OnDidChangeModelContentAsync(Args);
         }
     }
 }
