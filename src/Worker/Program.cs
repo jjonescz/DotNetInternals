@@ -25,21 +25,38 @@ var serviceProvider = services.BuildServiceProvider();
 
 Imports.RegisterOnMessage(async e =>
 {
-    var data = e.GetPropertyAsString("data") ?? string.Empty;
-    var incoming = JsonSerializer.Deserialize<WorkerInputMessage>(data);
-    var outgoing = await incoming!.HandleNonGenericAsync(serviceProvider);
-    if (!ReferenceEquals(outgoing, NoOutput.Instance))
+    WorkerInputMessage? incoming = null;
+    try
     {
-        Imports.PostMessage(JsonSerializer.Serialize(outgoing));
+        var data = e.GetPropertyAsString("data") ?? string.Empty;
+        incoming = JsonSerializer.Deserialize<WorkerInputMessage>(data);
+        var outgoing = await incoming!.HandleNonGenericAsync(serviceProvider);
+        if (ReferenceEquals(outgoing, NoOutput.Instance))
+        {
+            PostMessage(new WorkerOutputMessage.Empty { Id = incoming.Id });
+        }
+        else
+        {
+            PostMessage(new WorkerOutputMessage.Success(outgoing) { Id = incoming.Id });
+        }
+    }
+    catch (Exception ex)
+    {
+        PostMessage(new WorkerOutputMessage.Failure(ex.ToString()) { Id = incoming?.Id ?? -1 });
     }
 });
 
-Imports.PostMessage("ready");
+PostMessage(new WorkerOutputMessage.Ready { Id = -1 });
 
 // Keep running.
 while (true)
 {
     await Task.Delay(100);
+}
+
+static void PostMessage(WorkerOutputMessage message)
+{
+    Imports.PostMessage(JsonSerializer.Serialize(message));
 }
 
 [SupportedOSPlatform("browser")]

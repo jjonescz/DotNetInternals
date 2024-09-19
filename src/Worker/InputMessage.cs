@@ -15,6 +15,8 @@ namespace DotNetInternals;
 [JsonDerivedType(typeof(OnDidChangeModelContent), nameof(OnDidChangeModelContent))]
 public abstract record WorkerInputMessage
 {
+    public required int Id { get; init; }
+
     public abstract Task<object?> HandleNonGenericAsync(IServiceProvider services);
 
     public sealed record Compile(IEnumerable<InputCode> Inputs) : WorkerInputMessage<CompiledAssembly>

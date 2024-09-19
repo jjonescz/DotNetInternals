@@ -12,14 +12,17 @@ namespace DotNetInternals.Lab;
 
 internal sealed class WorkerController
 {
+    private readonly ILogger<WorkerController> logger;
     private readonly IJSRuntime jsRuntime;
     private readonly IWebAssemblyHostEnvironment hostEnvironment;
     private readonly Lazy<Task<SlimWorker>> worker;
-    private readonly Queue<string> workerMessages = new();
+    private readonly Dictionary<int, WorkerOutputMessage> workerMessages = new();
     private TaskCompletionSource workerMessageArrived = new();
+    private int messageId;
 
-    public WorkerController(IJSRuntime jsRuntime, IWebAssemblyHostEnvironment hostEnvironment)
+    public WorkerController(ILogger<WorkerController> logger, IJSRuntime jsRuntime, IWebAssemblyHostEnvironment hostEnvironment)
     {
+        this.logger = logger;
         this.jsRuntime = jsRuntime;
         this.hostEnvironment = hostEnvironment;
         worker = new(CreateWorker);
@@ -36,14 +39,23 @@ internal sealed class WorkerController
             args: [hostEnvironment.BaseAddress]);
         var listener = await EventListener<MessageEvent>.CreateAsync(jsRuntime, async e =>
         {
-            var data = await e.Data.GetValueAsync() as string;
-            if (data == "ready")
+            var data = await e.Data.GetValueAsync() as string ?? string.Empty;
+            var message = JsonSerializer.Deserialize<WorkerOutputMessage>(data)!;
+            logger.LogDebug("📩 {Id}: {Type} ({Size})",
+                message.Id,
+                message.GetType().Name, 
+                data.Length.SeparateThousands());
+            if (message is WorkerOutputMessage.Ready)
             {
                 workerReady.SetResult();
             }
+            else if (message.Id < 0)
+            {
+                logger.LogError("Unpaired message {Message}", message);
+            }
             else
             {
-                workerMessages.Enqueue(data ?? string.Empty);
+                workerMessages.Add(message.Id, message);
                 workerMessageArrived.TrySetResult();
             }
         });
@@ -52,21 +64,16 @@ internal sealed class WorkerController
         return worker;
     }
 
-    private async Task<string> ReceiveWorkerMessageAsync()
+    private async Task<WorkerOutputMessage> ReceiveWorkerMessageAsync(int id)
     {
-        if (workerMessages.TryDequeue(out var result))
+        WorkerOutputMessage? result;
+        while (!workerMessages.TryGetValue(id, out result))
         {
-            return result;
-        }
-
-        await workerMessageArrived.Task;
-        if (workerMessages.Count == 0)
-        {
-            workerMessageArrived = new();
             await workerMessageArrived.Task;
+            workerMessageArrived = new();
         }
 
-        return workerMessages.Dequeue();
+        return result;
     }
 
     private async Task PostMessageUnsafeAsync(WorkerInputMessage message)
@@ -74,13 +81,22 @@ internal sealed class WorkerController
         SlimWorker worker = await Worker;
         // TODO: Use ProtoBuf.
         var serialized = JsonSerializer.Serialize(message);
+        logger.LogDebug("📨 {Id}: {Type} ({Size})",
+            message.Id,
+            message.GetType().Name,
+            serialized.Length.SeparateThousands());
         await worker.PostMessageAsync(serialized);
     }
 
-    private Task PostMessageAsync<T>(T message)
+    private async Task PostMessageAsync<T>(T message)
         where T : WorkerInputMessage<NoOutput>
     {
-        return PostMessageUnsafeAsync(message);
+        await PostMessageUnsafeAsync(message);
+        var incoming = await ReceiveWorkerMessageAsync(message.Id);
+        if (incoming is not WorkerOutputMessage.Empty)
+        {
+            throw new InvalidOperationException($"Unexpected non-empty message type: {incoming}");
+        }
     }
 
     private async Task<TIn> PostAndReceiveMessageAsync<TOut, TIn>(
@@ -90,17 +106,24 @@ internal sealed class WorkerController
         where TOut : WorkerInputMessage<TIn>
     {
         await PostMessageUnsafeAsync(message);
-        var incoming = await ReceiveWorkerMessageAsync();
-        fallback ??= static incoming => throw new InvalidOperationException("Failed to deserialize: " + incoming);
-        return JsonSerializer.Deserialize<TIn>(incoming)
-            ?? fallback(incoming);
+        var incoming = await ReceiveWorkerMessageAsync(message.Id);
+        return incoming switch
+        {
+            WorkerOutputMessage.Success success => ((JsonElement)success.Result!).Deserialize<TIn>()!,
+            WorkerOutputMessage.Failure failure => fallback switch
+            {
+                null => throw new InvalidOperationException(failure.Message),
+                _ => fallback(failure.Message),
+            },
+            _ => throw new InvalidOperationException($"Unexpected message type: {incoming}"),
+        };
     }
 
     public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
         return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.Compile(inputs),
-            static incoming => CompiledAssembly.Fail("Failed to deserialize: " + incoming));
+            new WorkerInputMessage.Compile(inputs) { Id = messageId++ },
+            CompiledAssembly.Fail);
     }
 
     /// <summary>
@@ -112,41 +135,44 @@ internal sealed class WorkerController
             Version: version,
             Key: key,
             PackageId: packageId,
-            PackageFolder: packageFolder));
+            PackageFolder: packageFolder)
+        {
+            Id = messageId++,
+        });
     }
 
     public async Task<NuGetPackageInfo?> GetPackageInfoAsync(string key)
     {
         return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.GetPackageInfo(key),
+            new WorkerInputMessage.GetPackageInfo(key) { Id = messageId++ },
             deserializeAs: default(NuGetPackageInfo));
     }
 
     public async Task<SdkInfo> GetSdkInfoAsync(string versionToLoad)
     {
         return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.GetSdkInfo(versionToLoad),
+            new WorkerInputMessage.GetSdkInfo(versionToLoad) { Id = messageId++ },
             deserializeAs: default(SdkInfo));
     }
 
     public async Task<CompletionList> ProvideCompletionItemsAsync(string modelUri, Position position, CompletionContext context)
     {
         return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.ProvideCompletionItems(modelUri, position, context),
+            new WorkerInputMessage.ProvideCompletionItems(modelUri, position, context) { Id = messageId++ },
             deserializeAs: default(CompletionList));
     }
 
     public async Task<ImmutableArray<MarkerData>> OnDidChangeModelAsync(string code)
     {
         return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.OnDidChangeModel(code),
+            new WorkerInputMessage.OnDidChangeModel(code) { Id = messageId++ },
             deserializeAs: default(ImmutableArray<MarkerData>));
     }
 
     public async Task<ImmutableArray<MarkerData>> OnDidChangeModelContentAsync(ModelContentChangedEvent args)
     {
         return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.OnDidChangeModelContent(args),
+            new WorkerInputMessage.OnDidChangeModelContent(args) { Id = messageId++ },
             deserializeAs: default(ImmutableArray<MarkerData>));
     }
 }
