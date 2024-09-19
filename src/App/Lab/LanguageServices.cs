@@ -14,6 +14,7 @@ internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController wo
         var cSharpLanguageSelector = new LanguageSelector("csharp");
         await CompletionItemProviderAsync.Register(jsRuntime, cSharpLanguageSelector, new()
         {
+            TriggerCharacters = [" ", "(", "=", "#", ".", "<", "[", "{", "\"", "/", ":", ">", "~"],
             ProvideCompletionItemsFunc = async (modelUri, position, context) =>
             {
                 await changingModel;
