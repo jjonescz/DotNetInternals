@@ -1,4 +1,3 @@
-using Microsoft.CodeAnalysis;
 using ProtoBuf;
 
 namespace DotNetInternals;
