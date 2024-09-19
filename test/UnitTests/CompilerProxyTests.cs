@@ -12,7 +12,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
         var nuget = new NuGetDownloader();
         var version = "4.12.0-2.24409.2";
         var commit = "2158b591";
-        var package = nuget.GetPackage(CompilerProxy.RoslynPackageId, version, CompilerProxy.RoslynPackageFolder);
+        var package = nuget.GetPackage(CompilerConstants.RoslynPackageId, version, CompilerConstants.RoslynPackageFolder);
 
         var deps = new DependencyRegistry();
         deps.SetAssemblies("roslyn", package.GetAssembliesAsync);
@@ -25,7 +25,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
             new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "Input.cs", Text = "#error version" }]);
 
-        var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.GetEagerTextOrThrow();
+        var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.Text!;
         output.WriteLine(diagnosticsText);
         Assert.Contains($"{version} ({commit})", diagnosticsText);
     }
@@ -35,7 +35,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
     {
         var nuget = new NuGetDownloader();
         var version = "9.0.0-preview.24413.5";
-        var package = nuget.GetPackage(CompilerProxy.RazorPackageId, version, CompilerProxy.RazorPackageFolder);
+        var package = nuget.GetPackage(CompilerConstants.RazorPackageId, version, CompilerConstants.RazorPackageFolder);
 
         var deps = new DependencyRegistry();
         deps.SetAssemblies("razor", package.GetAssembliesAsync);
@@ -48,7 +48,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
             new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "TestComponent.razor", Text = "test" }]);
 
-        var cSharpText = await compiled.Files.Single().Value.GetOutput("C#")!.GetTextAsync();
+        var cSharpText = compiled.Files.Single().Value.GetOutput("C#")!.Text!;
         output.WriteLine(cSharpText);
         Assert.Contains("class TestComponent", cSharpText);
     }
