@@ -147,7 +147,7 @@ public class Compiler : ICompiler
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
         int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
         ImmutableArray<DiagnosticData> diagnosticData = diagnostics
-            .Select(DiagnosticData.From)
+            .Select(d => d.ToDiagnosticData())
             .ToImmutableArray();
 
         var result = new CompiledAssembly(

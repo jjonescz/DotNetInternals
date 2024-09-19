@@ -64,7 +64,10 @@ internal static class Conversions
         };
     }
 
-    public static MarkerData ToMarkerData(this Diagnostic d) => ToMarkerData(DiagnosticData.From(d));
+    public static MarkerData ToMarkerData(this Diagnostic d)
+    {
+        return ToMarkerData(d.ToDiagnosticData());
+    }
 
     public static MonacoRange ToRange(this LinePositionSpan span)
     {
