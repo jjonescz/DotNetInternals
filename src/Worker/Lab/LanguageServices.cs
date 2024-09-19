@@ -16,7 +16,7 @@ internal sealed class LanguageServices
         var t = text;
         int caretPosition = t.Lines.GetPosition(position.ToLinePosition());
         var completions = await CompletionService.GetService(document)!.GetCompletionsAsync(document, caretPosition);
-        return completions.ToCompletionList(t.Lines);
+        return completions.ToCompletionList(t.Lines, limit: 10);
     }
 
     public Task<ImmutableArray<MarkerData>> OnDidChangeModel(string code)

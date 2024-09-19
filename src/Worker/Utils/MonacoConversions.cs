@@ -16,11 +16,21 @@ namespace DotNetInternals;
 
 public static class MonacoConversions
 {
-    public static MonacoCompletionList ToCompletionList(this RoslynCompletionList completions, TextLineCollection lines)
+    public static MonacoCompletionList ToCompletionList(this RoslynCompletionList completions, TextLineCollection lines, int limit = -1)
     {
+        IEnumerable<RoslynCompletionItem> items = completions.ItemsList;
+        var incomplete = false;
+
+        if (limit > 0 && completions.ItemsList.Count > limit)
+        {
+            items = items.Take(limit);
+            incomplete = true;
+        }
+
         return new MonacoCompletionList
         {
-            Suggestions = completions.ItemsList.Select(c => c.ToCompletionItem(lines)).ToList(),
+            Suggestions = items.Select(c => c.ToCompletionItem(lines)).ToList(),
+            Incomplete = incomplete,
         };
     }
 
