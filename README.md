@@ -29,6 +29,8 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
   (it has better tooling support for hot reload and debugging).
   - `cd src/Server; dotnet watch`
 - `src/Shared`: code used by `Compiler` that does not depend on Roslyn/Razor.
+- `src/Worker`: an app loaded in a web worker (a separate process in the browser),
+  so it does all the CPU-intensive work to avoid lagging the user interface.
 - `test/UnitTests`
   - `dotnet test`
 
