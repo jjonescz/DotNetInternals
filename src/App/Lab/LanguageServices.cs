@@ -33,22 +33,25 @@ internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController wo
         {
             var model = await BlazorMonaco.Editor.Global.GetModel(jsRuntime, args.NewModelUrl);
             var code = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            OnTextUpdated(await worker.OnDidChangeModelAsync(code));
+            worker.OnDidChangeModel(code);
+            OnTextUpdated();
         }
     }
 
-    public async void OnDidChangeModelContent(ModelContentChangedEvent args)
+    public void OnDidChangeModelContent(ModelContentChangedEvent args)
     {
-        OnTextUpdated(await worker.OnDidChangeModelContentAsync(args));
+        worker.OnDidChangeModelContent(args);
+        OnTextUpdated();
     }
 
-    private async void OnTextUpdated(ImmutableArray<MarkerData> markers)
+    private async void OnTextUpdated()
     {
         if (currentModelUrl == null)
         {
             return;
         }
 
+        var markers = await worker.GetDiagnosticsAsync();
         var model = await BlazorMonaco.Editor.Global.GetModel(jsRuntime, currentModelUrl);
         await BlazorMonaco.Editor.Global.SetModelMarkers(jsRuntime, model, "LanguageServices", markers.ToList());
     }

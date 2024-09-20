@@ -20,23 +20,26 @@ internal sealed class LanguageServices
         return completions.ToCompletionList(t.Lines);
     }
 
-    public Task<ImmutableArray<MarkerData>> OnDidChangeModel(string code)
+    public void OnDidChangeModel(string code)
     {
         text = SourceText.From(code);
-        return OnTextUpdatedAsync();
+        OnTextUpdated();
     }
 
-    public Task<ImmutableArray<MarkerData>> OnDidChangeModelContentAsync(ModelContentChangedEvent args)
+    public void OnDidChangeModelContent(ModelContentChangedEvent args)
     {
         text = text.WithChanges(args.Changes.ToTextChanges());
-        return OnTextUpdatedAsync();
+        OnTextUpdated();
     }
 
-    private async Task<ImmutableArray<MarkerData>> OnTextUpdatedAsync()
+    private void OnTextUpdated()
     {
         document = document.WithText(text);
         document.Project.Solution.Workspace.TryApplyChanges(document.Project.Solution);
+    }
 
+    public async Task<ImmutableArray<MarkerData>> GetDiagnosticsAsync()
+    {
         var comp = await document.Project.GetCompilationAsync();
         if (comp == null)
         {

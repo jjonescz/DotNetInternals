@@ -13,6 +13,7 @@ namespace DotNetInternals;
 [JsonDerivedType(typeof(ProvideCompletionItems), nameof(ProvideCompletionItems))]
 [JsonDerivedType(typeof(OnDidChangeModel), nameof(OnDidChangeModel))]
 [JsonDerivedType(typeof(OnDidChangeModelContent), nameof(OnDidChangeModelContent))]
+[JsonDerivedType(typeof(GetDiagnostics), nameof(GetDiagnostics))]
 public abstract record WorkerInputMessage
 {
     public required int Id { get; init; }
@@ -89,21 +90,32 @@ public abstract record WorkerInputMessage
         }
     }
 
-    public sealed record OnDidChangeModel(string Code) : WorkerInputMessage<ImmutableArray<MarkerData>>
+    public sealed record OnDidChangeModel(string Code) : WorkerInputMessage<NoOutput>
     {
-        public override Task<ImmutableArray<MarkerData>> HandleAsync(IServiceProvider services)
+        public override Task<NoOutput> HandleAsync(IServiceProvider services)
         {
             var languageServices = services.GetRequiredService<LanguageServices>();
-            return languageServices.OnDidChangeModel(Code);
+            languageServices.OnDidChangeModel(Code);
+            return NoOutput.AsyncInstance;
         }
     }
 
-    public sealed record OnDidChangeModelContent(ModelContentChangedEvent Args) : WorkerInputMessage<ImmutableArray<MarkerData>>
+    public sealed record OnDidChangeModelContent(ModelContentChangedEvent Args) : WorkerInputMessage<NoOutput>
+    {
+        public override Task<NoOutput> HandleAsync(IServiceProvider services)
+        {
+            var languageServices = services.GetRequiredService<LanguageServices>();
+            languageServices.OnDidChangeModelContent(Args);
+            return NoOutput.AsyncInstance;
+        }
+    }
+
+    public sealed record GetDiagnostics() : WorkerInputMessage<ImmutableArray<MarkerData>>
     {
         public override Task<ImmutableArray<MarkerData>> HandleAsync(IServiceProvider services)
         {
             var languageServices = services.GetRequiredService<LanguageServices>();
-            return languageServices.OnDidChangeModelContentAsync(Args);
+            return languageServices.GetDiagnosticsAsync();
         }
     }
 }

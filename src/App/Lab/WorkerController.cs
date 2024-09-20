@@ -89,7 +89,7 @@ internal sealed class WorkerController
         await worker.PostMessageAsync(serialized);
     }
 
-    private async Task PostMessageAsync<T>(T message)
+    private async void PostMessage<T>(T message)
         where T : WorkerInputMessage<NoOutput>
     {
         await PostMessageUnsafeAsync(message);
@@ -120,9 +120,9 @@ internal sealed class WorkerController
         };
     }
 
-    public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    public Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
     {
-        return await PostAndReceiveMessageAsync(
+        return PostAndReceiveMessageAsync(
             new WorkerInputMessage.Compile(inputs) { Id = messageId++ },
             CompiledAssembly.Fail);
     }
@@ -130,9 +130,9 @@ internal sealed class WorkerController
     /// <summary>
     /// Instructs the <see cref="DependencyRegistry"/> to use this package.
     /// </summary>
-    public async void UsePackage(string? version, string key, string packageId, string packageFolder)
+    public void UsePackage(string? version, string key, string packageId, string packageFolder)
     {
-        await PostMessageAsync(new WorkerInputMessage.UsePackage(
+        PostMessage(new WorkerInputMessage.UsePackage(
             Version: version,
             Key: key,
             PackageId: packageId,
@@ -142,38 +142,43 @@ internal sealed class WorkerController
         });
     }
 
-    public async Task<NuGetPackageInfo?> GetPackageInfoAsync(string key)
+    public Task<NuGetPackageInfo?> GetPackageInfoAsync(string key)
     {
-        return await PostAndReceiveMessageAsync(
+        return PostAndReceiveMessageAsync(
             new WorkerInputMessage.GetPackageInfo(key) { Id = messageId++ },
             deserializeAs: default(NuGetPackageInfo));
     }
 
-    public async Task<SdkInfo> GetSdkInfoAsync(string versionToLoad)
+    public Task<SdkInfo> GetSdkInfoAsync(string versionToLoad)
     {
-        return await PostAndReceiveMessageAsync(
+        return PostAndReceiveMessageAsync(
             new WorkerInputMessage.GetSdkInfo(versionToLoad) { Id = messageId++ },
             deserializeAs: default(SdkInfo));
     }
 
-    public async Task<CompletionList> ProvideCompletionItemsAsync(string modelUri, Position position, CompletionContext context)
+    public Task<CompletionList> ProvideCompletionItemsAsync(string modelUri, Position position, CompletionContext context)
     {
-        return await PostAndReceiveMessageAsync(
+        return PostAndReceiveMessageAsync(
             new WorkerInputMessage.ProvideCompletionItems(modelUri, position, context) { Id = messageId++ },
             deserializeAs: default(CompletionList));
     }
 
-    public async Task<ImmutableArray<MarkerData>> OnDidChangeModelAsync(string code)
+    public void OnDidChangeModel(string code)
     {
-        return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.OnDidChangeModel(code) { Id = messageId++ },
-            deserializeAs: default(ImmutableArray<MarkerData>));
+        PostMessage(
+            new WorkerInputMessage.OnDidChangeModel(code) { Id = messageId++ });
     }
 
-    public async Task<ImmutableArray<MarkerData>> OnDidChangeModelContentAsync(ModelContentChangedEvent args)
+    public void OnDidChangeModelContent(ModelContentChangedEvent args)
     {
-        return await PostAndReceiveMessageAsync(
-            new WorkerInputMessage.OnDidChangeModelContent(args) { Id = messageId++ },
+        PostMessage(
+            new WorkerInputMessage.OnDidChangeModelContent(args) { Id = messageId++ });
+    }
+
+    public Task<ImmutableArray<MarkerData>> GetDiagnosticsAsync()
+    {
+        return PostAndReceiveMessageAsync(
+            new WorkerInputMessage.GetDiagnostics() { Id = messageId++ },
             deserializeAs: default(ImmutableArray<MarkerData>));
     }
 }
