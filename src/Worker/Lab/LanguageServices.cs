@@ -15,7 +15,8 @@ internal sealed class LanguageServices
     {
         var t = text;
         int caretPosition = t.Lines.GetPosition(position.ToLinePosition());
-        var completions = await CompletionService.GetService(document)!.GetCompletionsAsync(document, caretPosition);
+        var service = CompletionService.GetService(document)!;
+        var completions = await service.GetCompletionsAsync(document, caretPosition);
         return completions.ToCompletionList(t.Lines);
     }
 
