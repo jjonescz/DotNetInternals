@@ -16,6 +16,11 @@ namespace DotNetInternals;
 
 public static class MonacoConversions
 {
+    public static TextSpan GetTextSpan(this ModelContentChange change)
+    {
+        return new TextSpan(change.RangeOffset, change.RangeLength);
+    }
+
     public static MonacoCompletionList ToCompletionList(this RoslynCompletionList completions, TextLineCollection lines)
     {
         return new MonacoCompletionList
@@ -125,6 +130,16 @@ public static class MonacoConversions
             EndLineNumber = span.End.Line + 1,
             EndColumn = span.End.Character + 1,
         };
+    }
+
+    public static IEnumerable<TextChange> ToTextChanges(this IEnumerable<ModelContentChange> changes)
+    {
+        return changes.Select(change => change.ToTextChange());
+    }
+
+    public static TextChange ToTextChange(this ModelContentChange change)
+    {
+        return new TextChange(change.GetTextSpan(), change.Text);
     }
 
     public static bool TryGetInsertionText(

@@ -27,7 +27,7 @@ internal sealed class LanguageServices
 
     public Task<ImmutableArray<MarkerData>> OnDidChangeModelContentAsync(ModelContentChangedEvent args)
     {
-        text = text.WithChanges(args.Changes.Select(change => new TextChange(new TextSpan(change.RangeOffset, change.RangeLength), change.Text)));
+        text = text.WithChanges(args.Changes.ToTextChanges());
         return OnTextUpdatedAsync();
     }
 
