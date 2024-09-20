@@ -7,6 +7,7 @@ using KristofferStrube.Blazor.Window;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.JSInterop;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace DotNetInternals.Lab;
 
@@ -16,8 +17,7 @@ internal sealed class WorkerController
     private readonly IJSRuntime jsRuntime;
     private readonly IWebAssemblyHostEnvironment hostEnvironment;
     private readonly Lazy<Task<SlimWorker>> worker;
-    private readonly Dictionary<int, WorkerOutputMessage> workerMessages = new();
-    private TaskCompletionSource workerMessageArrived = new();
+    private readonly Channel<WorkerOutputMessage> workerMessages = Channel.CreateUnbounded<WorkerOutputMessage>();
     private int messageId;
 
     public WorkerController(ILogger<WorkerController> logger, IJSRuntime jsRuntime, IWebAssemblyHostEnvironment hostEnvironment)
@@ -43,7 +43,7 @@ internal sealed class WorkerController
             var message = JsonSerializer.Deserialize<WorkerOutputMessage>(data)!;
             logger.LogDebug("📩 {Id}: {Type} ({Size})",
                 message.Id,
-                message.GetType().Name, 
+                message.GetType().Name,
                 data.Length.SeparateThousands());
             if (message is WorkerOutputMessage.Ready)
             {
@@ -55,8 +55,7 @@ internal sealed class WorkerController
             }
             else
             {
-                workerMessages.Add(message.Id, message);
-                workerMessageArrived.TrySetResult();
+                await workerMessages.Writer.WriteAsync(message);
             }
         });
         await worker.AddOnMessageEventListenerAsync(listener);
@@ -66,14 +65,16 @@ internal sealed class WorkerController
 
     private async Task<WorkerOutputMessage> ReceiveWorkerMessageAsync(int id)
     {
-        WorkerOutputMessage? result;
-        while (!workerMessages.TryGetValue(id, out result))
+        while (!workerMessages.Reader.TryPeek(out var result) || result.Id != id)
         {
-            await workerMessageArrived.Task;
-            workerMessageArrived = new();
+            await Task.Yield();
+            await workerMessages.Reader.WaitToReadAsync();
         }
 
-        return result;
+        var again = await workerMessages.Reader.ReadAsync();
+        Debug.Assert(again.Id == id);
+
+        return again;
     }
 
     private async Task PostMessageUnsafeAsync(WorkerInputMessage message)
