@@ -11,6 +11,7 @@ namespace DotNetInternals;
 [JsonDerivedType(typeof(GetPackageInfo), nameof(GetPackageInfo))]
 [JsonDerivedType(typeof(GetSdkInfo), nameof(GetSdkInfo))]
 [JsonDerivedType(typeof(ProvideCompletionItems), nameof(ProvideCompletionItems))]
+[JsonDerivedType(typeof(OnDidChangeWorkspace), nameof(OnDidChangeWorkspace))]
 [JsonDerivedType(typeof(OnDidChangeModel), nameof(OnDidChangeModel))]
 [JsonDerivedType(typeof(OnDidChangeModelContent), nameof(OnDidChangeModelContent))]
 [JsonDerivedType(typeof(GetDiagnostics), nameof(GetDiagnostics))]
@@ -90,23 +91,33 @@ public abstract record WorkerInputMessage
         }
     }
 
-    public sealed record OnDidChangeModel(string Code) : WorkerInputMessage<NoOutput>
+    public sealed record OnDidChangeWorkspace(ImmutableArray<ModelInfo> Models) : WorkerInputMessage<NoOutput>
     {
         public override Task<NoOutput> HandleAsync(IServiceProvider services)
         {
             var languageServices = services.GetRequiredService<LanguageServices>();
-            languageServices.OnDidChangeModel(Code);
+            languageServices.OnDidChangeWorkspace(Models);
+            return NoOutput.AsyncInstance;
+        }
+    }
+
+    public sealed record OnDidChangeModel(string ModelUri) : WorkerInputMessage<NoOutput>
+    {
+        public override Task<NoOutput> HandleAsync(IServiceProvider services)
+        {
+            var languageServices = services.GetRequiredService<LanguageServices>();
+            languageServices.OnDidChangeModel(modelUri: ModelUri);
             return NoOutput.AsyncInstance;
         }
     }
 
     public sealed record OnDidChangeModelContent(ModelContentChangedEvent Args) : WorkerInputMessage<NoOutput>
     {
-        public override Task<NoOutput> HandleAsync(IServiceProvider services)
+        public override async Task<NoOutput> HandleAsync(IServiceProvider services)
         {
             var languageServices = services.GetRequiredService<LanguageServices>();
-            languageServices.OnDidChangeModelContent(Args);
-            return NoOutput.AsyncInstance;
+            await languageServices.OnDidChangeModelContentAsync(Args);
+            return NoOutput.Instance;
         }
     }
 

@@ -236,6 +236,7 @@
     private sealed record Input(string FileName, TextModel Model)
     {
         public string FileName { get; set; } = FileName;
+        public string? NewContent { get; set; }
     }
 
     private enum InputPreset
@@ -375,6 +376,7 @@
             case (int)SpecialInput.RemoveOtherFiles:
                 inputs.RemoveAll(i => i != CurrentInput);
                 currentInputIndex = 0;
+                OnWorkspaceChanged();
                 break;
 
             case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
@@ -403,6 +405,8 @@
             {
                 await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, CurrentInput.Model, newLanguage);
             }
+
+            OnWorkspaceChanged();
         }
         renamingTo = null;
 
@@ -417,6 +421,7 @@
 
         inputs.RemoveAt(currentInputIndex);
         currentInputIndex = 0;
+        OnWorkspaceChanged();
         await inputEditor.SetModel(CurrentInput.Model);
 
         await SaveStateToUrlAsync();
@@ -427,8 +432,9 @@
         var fileName = FindUniqueName(initialCode);
         var inputCode = initialCode.ToInputCode(fileName);
         var model = await CreateModelAsync(inputCode);
-        inputs.Add(new(fileName, model));
+        inputs.Add(new(fileName, model) { NewContent = inputCode.Text });
         currentInputIndex = inputs.Count - 1;
+        OnWorkspaceChanged();
         await inputEditor.SetModel(model);
     }
 
@@ -559,4 +565,16 @@
         ".cs" => "csharp",
         _ => null,
     };
+
+    /// <summary>
+    /// Should be called before SetModel of Monaco editor whenever (after) <see cref="inputs"/> change.
+    /// </summary>
+    private void OnWorkspaceChanged()
+    {
+        var models = inputs
+            .Select(i => new ModelInfo(Uri: i.Model.Uri, FileName: i.FileName) { NewContent = i.NewContent })
+            .ToImmutableArray();
+        inputs.ForEach(i => { i.NewContent = null; });
+        Worker.OnDidChangeWorkspace(models);
+    }
 }

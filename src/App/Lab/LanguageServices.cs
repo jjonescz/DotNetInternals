@@ -7,7 +7,6 @@ namespace DotNetInternals.Lab;
 internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController worker)
 {
     private string? currentModelUrl;
-    private Task changingModel = Task.CompletedTask;
     private CancellationTokenSource completionCts = new();
     private CancellationTokenSource diagnosticsCts = new();
 
@@ -56,39 +55,32 @@ internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController wo
                     ref completionCts,
                     (modelUri, position, context),
                     new() { Suggestions = [], Incomplete = true },
-                    async args =>
-                    {
-                        // Wait until the content change is sent to the worker.
-                        await changingModel;
-
-                        return await worker.ProvideCompletionItemsAsync(args.modelUri, args.position, args.context);
-                    });
+                    args => worker.ProvideCompletionItemsAsync(args.modelUri, args.position, args.context));
             },
             ResolveCompletionItemFunc = (completionItem) => Task.FromResult(completionItem),
         });
     }
 
+    public void OnDidChangeWorkspace(ImmutableArray<ModelInfo> models)
+    {
+        worker.OnDidChangeWorkspace(models);
+        UpdateDiagnostics();
+    }
+
     public void OnDidChangeModel(ModelChangedEvent args)
     {
         currentModelUrl = args.NewModelUrl;
-        changingModel = handle();
-
-        async Task handle()
-        {
-            var model = await BlazorMonaco.Editor.Global.GetModel(jsRuntime, args.NewModelUrl);
-            var code = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
-            worker.OnDidChangeModel(code);
-            OnTextUpdated();
-        }
+        worker.OnDidChangeModel(modelUri: currentModelUrl);
+        UpdateDiagnostics();
     }
 
     public void OnDidChangeModelContent(ModelContentChangedEvent args)
     {
         worker.OnDidChangeModelContent(args);
-        OnTextUpdated();
+        UpdateDiagnostics();
     }
 
-    private void OnTextUpdated()
+    private void UpdateDiagnostics()
     {
         if (currentModelUrl == null)
         {

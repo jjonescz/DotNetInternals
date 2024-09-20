@@ -168,10 +168,16 @@ internal sealed class WorkerController
             deserializeAs: default(CompletionList));
     }
 
-    public void OnDidChangeModel(string code)
+    public void OnDidChangeWorkspace(ImmutableArray<ModelInfo> models)
     {
         PostMessage(
-            new WorkerInputMessage.OnDidChangeModel(code) { Id = messageId++ });
+            new WorkerInputMessage.OnDidChangeWorkspace(models) { Id = messageId++ });
+    }
+
+    public void OnDidChangeModel(string modelUri)
+    {
+        PostMessage(
+            new WorkerInputMessage.OnDidChangeModel(ModelUri: modelUri) { Id = messageId++ });
     }
 
     public void OnDidChangeModelContent(ModelContentChangedEvent args)
