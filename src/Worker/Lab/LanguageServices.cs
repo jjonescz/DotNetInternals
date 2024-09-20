@@ -32,7 +32,7 @@ internal sealed class LanguageServices
     {
         if (document == null)
         {
-            throw new InvalidOperationException("No current document.");
+            return new() { Suggestions = [] };
         }
 
         var text = await document.GetTextAsync();
@@ -61,8 +61,16 @@ internal sealed class LanguageServices
                     {
                         // Document has been renamed.
                         modelUris.Remove(document.Id);
-                        modelUris.Add(document.Id, model.Uri);
-                        ApplyChanges(workspace.CurrentSolution.WithDocumentFilePath(document.Id, model.FileName));
+
+                        if (IsCSharp(fileName: model.FileName))
+                        {
+                            modelUris.Add(document.Id, model.Uri);
+                            ApplyChanges(workspace.CurrentSolution.WithDocumentFilePath(document.Id, model.FileName));
+                        }
+                        else
+                        {
+                            ApplyChanges(Project.RemoveDocument(document.Id).Solution);
+                        }
                     }
                 }
                 else
@@ -84,9 +92,12 @@ internal sealed class LanguageServices
         // Add new documents.
         foreach (var model in modelLookupByUri.Values)
         {
-            var document = Project.AddDocument(model.FileName, model.NewContent ?? string.Empty);
-            modelUris.Add(document.Id, model.Uri);
-            ApplyChanges(document.Project.Solution);
+            if (IsCSharp(fileName: model.FileName))
+            {
+                var document = Project.AddDocument(model.FileName, model.NewContent ?? string.Empty);
+                modelUris.Add(document.Id, model.Uri);
+                ApplyChanges(document.Project.Solution);
+            }
         }
 
         // Update the current document.
@@ -106,16 +117,15 @@ internal sealed class LanguageServices
     public void OnDidChangeModel(string modelUri)
     {
         // We are editing a different document now.
-        DocumentId? documentId = modelUris.FirstOrDefault(kvp => kvp.Value == modelUri).Key
-            ?? throw new InvalidOperationException($"Document not found: {modelUri}");
-        document = Project.GetDocument(documentId);
+        DocumentId? documentId = modelUris.FirstOrDefault(kvp => kvp.Value == modelUri).Key;
+        document = documentId == null ? null : Project.GetDocument(documentId);
     }
 
     public async Task OnDidChangeModelContentAsync(ModelContentChangedEvent args)
     {
         if (document == null)
         {
-            throw new InvalidOperationException("No current document.");
+            return;
         }
 
         var text = await document.GetTextAsync();
@@ -147,6 +157,11 @@ internal sealed class LanguageServices
         {
             logger.LogWarning("Failed to apply changes to the workspace.");
         }
+    }
+
+    private static bool IsCSharp(string fileName)
+    {
+        return fileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
     }
 }
 
