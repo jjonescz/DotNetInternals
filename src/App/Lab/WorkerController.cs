@@ -94,9 +94,14 @@ internal sealed class WorkerController
     {
         await PostMessageUnsafeAsync(message);
         var incoming = await ReceiveWorkerMessageAsync(message.Id);
-        if (incoming is not WorkerOutputMessage.Empty)
+        switch (incoming)
         {
-            throw new InvalidOperationException($"Unexpected non-empty message type: {incoming}");
+            case WorkerOutputMessage.Empty:
+                break;
+            case WorkerOutputMessage.Failure failure:
+                throw new InvalidOperationException(failure.Message);
+            default:
+                throw new InvalidOperationException($"Unexpected non-empty message type: {incoming}");
         }
     }
 
