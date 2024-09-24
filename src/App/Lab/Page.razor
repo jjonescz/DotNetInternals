@@ -149,6 +149,15 @@
                     </button>
                 }
 
+                @* Design time / runtime toggle *@
+                @if (CurrentCompiledFile?.GetOutput(selectedOutputType)?.DesignTimeText is not null)
+                {
+                    <select class="form-select" title="Generation Strategy" @bind="generationStrategy">
+                        <option value="runtime">Runtime</option>
+                        <option value="@designTime">Design</option>
+                    </select>
+                }
+
                 @* Output loading indicator *@
                 @if (outputLoading)
                 {
@@ -222,6 +231,7 @@
     private string? renamingTo;
     private StandaloneCodeEditor inputEditor = null!;
     private string? selectedOutputType;
+    private string? generationStrategy;
     private bool compilationInProgress;
     private bool outputLoading;
     private CompiledAssembly? compiled;
@@ -229,6 +239,7 @@
     private bool wordWrap;
     private bool useVim;
     private Layout layout;
+    private const string designTime = "designTime";
 
     private sealed record Input(string FileName, TextModel Model)
     {
@@ -514,6 +525,11 @@
         if (output is null)
         {
             return "";
+        }
+
+        if (output.DesignTimeText is not null && generationStrategy == designTime)
+        {
+            return output.DesignTimeText;
         }
 
         if (output.TryGetEagerText(out var text))
