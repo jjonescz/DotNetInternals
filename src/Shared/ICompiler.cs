@@ -65,10 +65,11 @@ public sealed class CompiledFileOutput
 {
     private object text;
 
-    public CompiledFileOutput(string type, string eagerText)
+    public CompiledFileOutput(string type, string eagerText, string? designTimeText = null)
     {
         Type = type;
         text = eagerText;
+        DesignTimeText = designTimeText;
     }
 
     public CompiledFileOutput(string type, Func<ValueTask<string>> lazyText)
@@ -85,6 +86,8 @@ public sealed class CompiledFileOutput
 
     public string Type { get; }
     public int Priority { get; init; }
+
+    public string? DesignTimeText { get; }
 
     public bool IsLazy => !TryGetEagerText(out _);
 
