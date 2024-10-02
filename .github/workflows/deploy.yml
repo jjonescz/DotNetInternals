@@ -1,6 +1,6 @@
 name: Deploy info
 
-# When the "deploy" label is on a PR from a fork,
+# If there is a PR from a fork which has been approved to run GitHub Actions,
 # that PR's head is pushed to a branch directly in the repo (not the fork),
 # so it's deployed by Cloudflare Pages as a branch preview.
 
@@ -37,9 +37,8 @@ jobs:
           inputs.simulate_fork_pr ||
           github.event.pull_request.head.repo.full_name != github.repository
         run: |
-          git config --global url."https://user:${{ secrets.GITHUB_TOKEN }}@github".insteadOf https://github
           git fetch origin ${{ github.sha }}
-          git push origin ${{ github.sha }}:refs/heads/deploy/${{ inputs.simulate_fork_pr || github.event.number }}
+          git push "https://user:${{ secrets.PUSH_GITHUB_TOKEN }}@github.com/${{ github.repository }}" ${{ github.sha }}:refs/heads/deploy/${{ inputs.simulate_fork_pr || github.event.number }}
 
       - name: Get deploy URL
         id: get-url

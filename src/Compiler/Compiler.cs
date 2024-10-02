@@ -81,17 +81,20 @@ public class Compiler : ICompiler
                 elementSelector: (item) =>
                 {
                     RazorCodeDocument codeDocument = projectEngine.Process(item);
+                    RazorCodeDocument designTimeDocument = projectEngine.ProcessDesignTime(item);
 
                     string syntax = codeDocument.GetSyntaxTree().Serialize();
-
                     string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
-
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
 
+                    string designSyntax = designTimeDocument.GetSyntaxTree().Serialize();
+                    string designIr = designTimeDocument.GetDocumentIntermediateNode().Serialize();
+                    string designCSharp = designTimeDocument.GetCSharpDocument().GeneratedCode;
+
                     return new CompiledFile([
-                        new() { Type = "Syntax", Text = syntax },
-                        new() { Type = "IR", Text = ir },
-                        new() { Type = "C#", Text = cSharp, Priority = 1 },
+                        new() { Type = "Syntax", Text = syntax, DesignTimeText = designSyntax },
+                        new() { Type = "IR", Text = ir, DesignTimeText = designIr },
+                        new() { Type = "C#", Text = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
 
