@@ -115,7 +115,12 @@ internal sealed class WorkerController
         var incoming = await ReceiveWorkerMessageAsync(message.Id);
         return incoming switch
         {
-            WorkerOutputMessage.Success success => ((JsonElement)success.Result!).Deserialize<TIn>()!,
+            WorkerOutputMessage.Success success => success.Result switch
+            {
+                null => default!,
+                JsonElement jsonElement => jsonElement.Deserialize<TIn>()!,
+                var result => throw new InvalidOperationException($"Unexpected result of type '{result.GetType()}': {result}"),
+            },
             WorkerOutputMessage.Failure failure => fallback switch
             {
                 null => throw new InvalidOperationException(failure.Message),
