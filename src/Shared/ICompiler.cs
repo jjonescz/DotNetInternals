@@ -76,7 +76,6 @@ public sealed class CompiledFileOutput
 {
     public required string Type { get; init; }
     public int Priority { get; init; }
-
-    public string? DesignTimeText { get; }
-    public string? Text { get; set; }
+    public string? DesignTimeText { get; init; }
+    public string? Text { get; init; }
 }
