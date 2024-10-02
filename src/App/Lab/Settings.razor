@@ -1,4 +1,5 @@
 @implements IDisposable
+@inject ILogger<Settings> Logger
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
 @inject WorkerController Worker
@@ -368,6 +369,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to load SDK info.");
             error = ex.Message;
             info = null;
         }
@@ -420,6 +422,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to load roslyn info.");
             error = ex.Message;
             info = null;
         }
@@ -472,6 +475,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to load razor info.");
             error = ex.Message;
             info = null;
         }
