@@ -24,8 +24,8 @@ async function onInstall(event) {
         .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => {
-            // Some files are requested as pre-compressed `.br` by `index.html`.
-            if (asset.url.endsWith('.wasm') || asset.url == '_framework/blazor.boot.json') {
+            // `.wasm` files are requested as pre-compressed `.br` by `fetch-interceptor.js`.
+            if (asset.url.endsWith('.wasm')) {
                 return new Request(asset.url + '.br', { cache: 'no-cache' });
             }
 
