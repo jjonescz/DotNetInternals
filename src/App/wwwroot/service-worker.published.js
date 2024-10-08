@@ -53,6 +53,10 @@ async function onFetch(event) {
         const shouldServeIndexHtml = event.request.mode === 'navigate'
             && !manifestUrlList.some(url => url === event.request.url);
 
+        if (shouldServeIndexHtml) {
+            console.debug(`Service worker: serving index.html for ${event.request.url}`);
+        }
+
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
 
         const cache = await caches.open(cacheName);
@@ -66,13 +70,17 @@ async function onFetch(event) {
         }
     }
 
+    if (!cachedResponse) {
+        console.debug(`Service worker: cache miss for ${event.request.url}`);
+    }
+
     return cachedResponse || fetch(event.request);
 }
 
 /**
  * Removes `redirected` flag from a response
  * so it's servable by the service worker.
- * 
+ *
  * @see https://stackoverflow.com/a/45440505/9080566
  * @see https://github.com/dotnet/aspnetcore/issues/33872
  */
@@ -84,7 +92,7 @@ async function cleanResponse(response) {
     const body = 'body' in clonedResponse
         ? clonedResponse.body
         : await clonedResponse.blob();
-  
+
     return new Response(body, {
         headers: clonedResponse.headers,
         status: clonedResponse.status,
