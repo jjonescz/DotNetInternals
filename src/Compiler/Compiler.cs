@@ -143,8 +143,7 @@ public class Compiler : ICompiler
                     },
                 ]))));
 
-        IEnumerable<Diagnostic> diagnostics = finalCompilation
-            .GetDiagnostics()
+        IEnumerable<Diagnostic> diagnostics = getEmitDiagnostics(finalCompilation)
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
         string diagnosticsText = diagnostics.GetDiagnosticsText();
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
@@ -206,6 +205,12 @@ public class Compiler : ICompiler
 
             stream.Position = 0;
             return stream;
+        }
+
+        static ImmutableArray<Diagnostic> getEmitDiagnostics(CSharpCompilation compilation)
+        {
+            var emitResult = compilation.Emit(new MemoryStream());
+            return emitResult.Diagnostics;
         }
 
         static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
