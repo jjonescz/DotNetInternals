@@ -14,6 +14,7 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
 - Offline support (PWA).
 - VSCode Monaco Editor.
 - Multiple input sources (especially useful for interlinked Razor components).
+- C# Language Services (completions, live diagnostics) - experimental.
 
 ## Development
 
