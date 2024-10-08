@@ -114,7 +114,7 @@
     </div>
 
     @* Output tabs *@
-    @if (compiled != null)
+    @if (compiled is (_, var compiledOutput))
     {
         <div class="col-auto">
             <div class="input-group">
@@ -127,10 +127,10 @@
                         </option>
                     }
 
-                    @if (compiled.GlobalOutputs.Length > 0)
+                    @if (compiledOutput.GlobalOutputs.Length > 0)
                     {
                         <hr />
-                        @foreach (var output in compiled.GlobalOutputs)
+                        @foreach (var output in compiledOutput.GlobalOutputs)
                         {
                             <option value="@output.Type">
                                 @output.Type
@@ -140,13 +140,13 @@
                 </select>
 
                 @* Error List button *@
-                @if (compiled is { NumErrors: > 0 } or { NumWarnings: > 0 })
+                @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
                 {
-                    var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
+                    var cls = compiledOutput.NumErrors > 0 ? "btn-danger" : "btn-warning";
                     <button type="button" class="btn @cls"
                             title="Display Error List"
                             @onclick="() => selectedOutputType = CompiledAssembly.DiagnosticsOutputType">
-                        @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
+                        @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
                     </button>
                 }
 
@@ -237,7 +237,7 @@
     private string? generationStrategy;
     private bool compilationInProgress;
     private bool outputLoading;
-    private CompiledAssembly? compiled;
+    private (IEnumerable<InputCode> Input, CompiledAssembly Output)? compiled;
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
@@ -305,11 +305,11 @@
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
-        if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.GlobalOutputs.Length > 0) &&
+        if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.Output.GlobalOutputs.Length > 0) &&
             (selectedOutputType == null || GetOutput(selectedOutputType) == null))
         {
             selectedOutputType = (CurrentCompiledFile?.Outputs)
-                .TryConcat(compiled?.GlobalOutputs)
+                .TryConcat(compiled?.Output.GlobalOutputs)
                 .MaxBy(static o => o.Priority)!.Type;
             StateHasChanged();
         }
@@ -477,7 +477,8 @@
         await RefreshAsync();
 
         // Compile.
-        compiled = await Worker.CompileAsync(savedState.Inputs);
+        var result = await Worker.CompileAsync(savedState.Inputs);
+        compiled = (savedState.Inputs, result);
 
         await DisplaySquiggles();
 
@@ -488,8 +489,8 @@
     {
         foreach (var input in inputs)
         {
-            List<MarkerData> markers = compiled?.Diagnostics
-                .Where(d => d.FilePath == compiled.BaseDirectory + input.FileName)
+            List<MarkerData> markers = compiled?.Output.Diagnostics
+                .Where(d => d.FilePath == compiled.Value.Output.BaseDirectory + input.FileName)
                 .Select(d => d.ToMarkerData())
                 .ToList() ?? [];
             await BlazorMonaco.Editor.Global.SetModelMarkers(JSRuntime, input.Model, "Lab", markers);
@@ -505,15 +506,29 @@
 
     private CompiledFileOutput? GetOutput(string type)
     {
-        return CurrentCompiledFile?.GetOutput(type)
-            ?? compiled?.GetGlobalOutput(type);
+        return GetOutputWithPath(type)?.Output;
+    }
+
+    private (CompiledFileOutput Output, string? File)? GetOutputWithPath(string type)
+    {
+        if (CurrentCompiledFile is { } currentCompiledFile)
+        {
+            if (currentCompiledFile.GetOutput(type) is { } output)
+            {
+                return (output, CurrentFileName);
+            }
+        }
+        else if (compiled?.Output.GetGlobalOutput(type) is { } output)
+        {
+            return (output, null);
+        }
+
+        return null;
     }
 
     private string LoadOutput(string type)
     {
-        var output = GetOutput(type);
-
-        if (output is null)
+        if (GetOutputWithPath(type) is not (var output, var file))
         {
             return "";
         }
@@ -523,36 +538,41 @@
             return output.DesignTimeText;
         }
 
-        if (output.Text is { } text)
+        if (output.EagerText is { } text)
         {
             return text;
         }
 
         if (!outputLoading)
         {
-            loadAsync();
+            loadAsync(compiled!.Value.Input, file);
         }
+
         return "";
 
-        async void loadAsync()
+        async void loadAsync(IEnumerable<InputCode> inputs, string? file)
         {
             outputLoading = true;
             await RefreshAsync();
 
-            // TODO:
             // The text will be cached and loaded synchronously next.
-            //await output.GetTextAsync();
+            await output.GetTextAsync(outputFactory: async () =>
+            {
+                return await Worker.GetOutputAsync(inputs, file, output.Type);
+            });
 
             outputLoading = false;
             StateHasChanged();
         }
     }
 
+    private string CurrentFileName => CurrentInput?.FileName ?? "";
+
     private CompiledFile? CurrentCompiledFile
     {
         get
         {
-            return compiled?.Files.TryGetValue(CurrentInput?.FileName ?? "", out var file) == true
+            return compiled?.Output.Files.TryGetValue(CurrentFileName, out var file) == true
                 ? file
                 : null;
         }

@@ -47,7 +47,7 @@ internal sealed class CompilerProxy(
             }
 
             using var _ = loaded.LoadContext.EnterContextualReflection();
-            var result = await loaded.Compiler.CompileAsync(inputs);
+            var result = loaded.Compiler.Compile(inputs);
 
             if (loaded.LoadContext is CompilerLoader { LastFailure: { } failure })
             {

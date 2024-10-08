@@ -25,7 +25,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
             new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "Input.cs", Text = "#error version" }]);
 
-        var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.Text!;
+        var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.EagerText!;
         output.WriteLine(diagnosticsText);
         Assert.Contains($"{version} ({commit})", diagnosticsText);
     }
@@ -48,7 +48,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
             new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "TestComponent.razor", Text = "test" }]);
 
-        var cSharpText = compiled.Files.Single().Value.GetOutput("C#")!.Text!;
+        var cSharpText = compiled.Files.Single().Value.GetOutput("C#")!.EagerText!;
         output.WriteLine(cSharpText);
         Assert.Contains("class TestComponent", cSharpText);
     }

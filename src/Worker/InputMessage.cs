@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 namespace DotNetInternals;
 
 [JsonDerivedType(typeof(Compile), nameof(Compile))]
+[JsonDerivedType(typeof(GetOutput), nameof(GetOutput))]
 [JsonDerivedType(typeof(UsePackage), nameof(UsePackage))]
 [JsonDerivedType(typeof(GetPackageInfo), nameof(GetPackageInfo))]
 [JsonDerivedType(typeof(GetSdkInfo), nameof(GetSdkInfo))]
@@ -27,6 +28,25 @@ public abstract record WorkerInputMessage
         {
             var compiler = services.GetRequiredService<CompilerProxy>();
             return await compiler.CompileAsync(Inputs);
+        }
+    }
+
+    public sealed record GetOutput(IEnumerable<InputCode> Inputs, string? File, string OutputType) : WorkerInputMessage<string>
+    {
+        public override async Task<string> HandleAsync(IServiceProvider services)
+        {
+            var compiler = services.GetRequiredService<CompilerProxy>();
+            var result = await compiler.CompileAsync(Inputs);
+            if (File is null)
+            {
+                return await result.GetRequiredGlobalOutput(OutputType).GetTextAsync(outputFactory: null);
+            }
+            else
+            {
+                return result.Files.TryGetValue(File, out var file)
+                    ? await file.GetRequiredOutput(OutputType).GetTextAsync(outputFactory: null)
+                    : throw new InvalidOperationException($"File '{File}' not found.");
+            }
         }
     }
 

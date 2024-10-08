@@ -10,7 +10,24 @@ namespace DotNetInternals;
 
 public class Compiler : ICompiler
 {
-    public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    private (IEnumerable<InputCode> Input, CompiledAssembly Output)? lastResult;
+
+    public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    {
+        if (lastResult is { } cached)
+        {
+            if (inputs.SequenceEqual(cached.Input))
+            {
+                return cached.Output;
+            }
+        }
+
+        var result = CompileNoCache(inputs);
+        lastResult = (inputs, result);
+        return result;
+    }
+
+    private static CompiledAssembly CompileNoCache(IEnumerable<InputCode> inputs)
     {
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
@@ -92,9 +109,9 @@ public class Compiler : ICompiler
                     string designCSharp = designTimeDocument.GetCSharpDocument().GeneratedCode;
 
                     return new CompiledFile([
-                        new() { Type = "Syntax", Text = syntax, DesignTimeText = designSyntax },
-                        new() { Type = "IR", Text = ir, DesignTimeText = designIr },
-                        new() { Type = "C#", Text = cSharp, DesignTimeText = designCSharp, Priority = 1 },
+                        new() { Type = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
+                        new() { Type = "IR", EagerText = ir, DesignTimeText = designIr },
+                        new() { Type = "C#", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
 
@@ -102,7 +119,7 @@ public class Compiler : ICompiler
             [
                 ..compiledRazorFiles.Values.Select(static (file) =>
                 {
-                    var cSharpText = file.GetOutput("C#")!.Text!;
+                    var cSharpText = file.GetOutput("C#")!.EagerText!;
                     return CSharpSyntaxTree.ParseText(cSharpText);
                 }),
                 ..cSharp.Values,
@@ -113,33 +130,45 @@ public class Compiler : ICompiler
         ICSharpCode.Decompiler.Metadata.PEFile? peFile = null;
 
         var compiledFiles = compiledRazorFiles.AddRange(
-            await cSharp.SelectAsync(async (pair) => new KeyValuePair<string, CompiledFile>(
+            cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
-                    new() { Type = "Syntax", Text = pair.Value.GetRoot().Dump() },
-                    new() { Type = "IL", Text = get(() =>
+                    new() { Type = "Syntax", EagerText = pair.Value.GetRoot().Dump() },
+                    new()
                     {
-                        peFile ??= getPeFile(finalCompilation);
-                        return getIl(peFile);
-                    }) },
-                    new() { Type = "C#", Text = await getAsync(async () =>
+                        Type = "IL",
+                        LazyText = () =>
+                        {
+                            peFile ??= getPeFile(finalCompilation);
+                            return new(getIl(peFile));
+                        },
+                    },
+                    new()
                     {
-                        peFile ??= getPeFile(finalCompilation);
-                        return await getCSharpAsync(peFile);
-                    }) },
-                    new() { Type = "Run", Text = get(() =>
+                        Type = "C#",
+                        LazyText = async () =>
+                        {
+                            peFile ??= getPeFile(finalCompilation);
+                            return await getCSharpAsync(peFile);
+                        },
+                    },
+                    new()
                     {
-                        var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
-                            ? finalCompilation
-                            : finalCompilation.WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
-                        var emitStream = getEmitStream(executableCompilation);
-                        return emitStream is null
-                            ? executableCompilation.GetDiagnostics().FirstOrDefault(d => d.Id == "CS5001") is { } error
-                                ? error.GetMessage(CultureInfo.InvariantCulture)
-                                : "Cannot execute due to compilation errors."
-                            : Executor.Execute(emitStream);
-                    }),
-                        Priority = 1
+                        Type = "Run",
+                        LazyText = () =>
+                        {
+                            var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
+                                ? finalCompilation
+                                : finalCompilation.WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
+                            var emitStream = getEmitStream(executableCompilation);
+                            string output = emitStream is null
+                                ? executableCompilation.GetDiagnostics().FirstOrDefault(d => d.Id == "CS5001") is { } error
+                                    ? error.GetMessage(CultureInfo.InvariantCulture)
+                                    : "Cannot execute due to compilation errors."
+                                : Executor.Execute(emitStream);
+                            return new(output);
+                        },
+                        Priority = 1,
                     },
                 ]))));
 
@@ -163,16 +192,12 @@ public class Compiler : ICompiler
                 new()
                 {
                     Type = CompiledAssembly.DiagnosticsOutputType,
-                    Text = diagnosticsText,
+                    EagerText = diagnosticsText,
                     Priority = numErrors > 0 ? 2 : 0,
                 },
             ]);
 
         return result;
-
-        // TODO: Make the outputs lazy again and remove this.
-        Task<string> getAsync(Func<Task<string>> factory) => factory();
-        string get(Func<string> factory) => factory();
 
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {

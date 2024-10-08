@@ -4,7 +4,7 @@ namespace DotNetInternals;
 
 public interface ICompiler
 {
-    Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs);
+    CompiledAssembly Compile(IEnumerable<InputCode> inputs);
 }
 
 [ProtoContract]
@@ -53,7 +53,7 @@ public sealed record CompiledAssembly(
             BaseDirectory: "/",
             Files: ImmutableDictionary<string, CompiledFile>.Empty,
             Diagnostics: [],
-            GlobalOutputs: [new() { Type = DiagnosticsOutputType, Text = output }],
+            GlobalOutputs: [new() { Type = DiagnosticsOutputType, EagerText = output }],
             NumErrors: 1,
             NumWarnings: 0);
     }
@@ -61,6 +61,12 @@ public sealed record CompiledAssembly(
     public CompiledFileOutput? GetGlobalOutput(string type)
     {
         return GlobalOutputs.FirstOrDefault(o => o.Type == type);
+    }
+
+    public CompiledFileOutput GetRequiredGlobalOutput(string type)
+    {
+        return GetGlobalOutput(type)
+            ?? throw new InvalidOperationException($"Global output of type '{type}' not found.");
     }
 }
 
@@ -70,12 +76,84 @@ public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
     {
         return Outputs.FirstOrDefault(o => o.Type == type);
     }
+
+    public CompiledFileOutput GetRequiredOutput(string type)
+    {
+        return GetOutput(type)
+            ?? throw new InvalidOperationException($"Output of type '{type}' not found.");
+    }
 }
 
 public sealed class CompiledFileOutput
 {
+    private object? text;
+
     public required string Type { get; init; }
     public int Priority { get; init; }
     public string? DesignTimeText { get; init; }
-    public string? Text { get; init; }
+
+    public string? EagerText
+    {
+        get
+        {
+            if (text is string eagerText)
+            {
+                return eagerText;
+            }
+
+            if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
+            {
+                text = taskResult;
+                return taskResult;
+            }
+
+            return null;
+        }
+        init
+        {
+            text = value;
+        }
+    }
+
+    public Func<ValueTask<string>> LazyText
+    {
+        init
+        {
+            text = value;
+        }
+    }
+
+    public ValueTask<string> GetTextAsync(Func<ValueTask<string>>? outputFactory)
+    {
+        if (EagerText is { } eagerText)
+        {
+            return new(eagerText);
+        }
+
+        if (text is null)
+        {
+            if (outputFactory is null)
+            {
+                throw new InvalidOperationException($"For lazy outputs, {nameof(outputFactory)} must be provided.");
+            }
+
+            var output = outputFactory();
+            text = output;
+            return output;
+        }
+
+        if (text is ValueTask<string> valueTask)
+        {
+            return valueTask;
+        }
+
+        if (text is Func<ValueTask<string>> factory)
+        {
+            var result = factory();
+            text = result;
+            return result;
+        }
+
+        throw new InvalidOperationException($"Unrecognized {nameof(text)}: {text?.GetType().FullName ?? "null"}");
+    }
 }

@@ -134,7 +134,14 @@ internal sealed class WorkerController
     {
         return PostAndReceiveMessageAsync(
             new WorkerInputMessage.Compile(inputs) { Id = messageId++ },
-            CompiledAssembly.Fail);
+            fallback: CompiledAssembly.Fail);
+    }
+
+    public Task<string> GetOutputAsync(IEnumerable<InputCode> inputs, string? file, string outputType)
+    {
+        return PostAndReceiveMessageAsync(
+            new WorkerInputMessage.GetOutput(inputs, file, outputType) { Id = messageId++ },
+            deserializeAs: default(string));
     }
 
     /// <summary>
