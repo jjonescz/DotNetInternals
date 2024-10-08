@@ -10,6 +10,8 @@ internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController wo
     private CancellationTokenSource completionCts = new();
     private CancellationTokenSource diagnosticsCts = new();
 
+    public bool Disabled { get; set; }
+
     private static Task<TOut> DebounceAsync<TIn, TOut>(ref CancellationTokenSource cts, TIn args, TOut fallback, Func<TIn, Task<TOut>> handler)
     {
         cts.Cancel();
@@ -63,12 +65,22 @@ internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController wo
 
     public void OnDidChangeWorkspace(ImmutableArray<ModelInfo> models)
     {
+        if (Disabled)
+        {
+            return;
+        }
+
         worker.OnDidChangeWorkspace(models);
         UpdateDiagnostics();
     }
 
     public void OnDidChangeModel(ModelChangedEvent args)
     {
+        if (Disabled)
+        {
+            return;
+        }
+
         currentModelUrl = args.NewModelUrl;
         worker.OnDidChangeModel(modelUri: currentModelUrl);
         UpdateDiagnostics();
@@ -76,6 +88,11 @@ internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController wo
 
     public void OnDidChangeModelContent(ModelContentChangedEvent args)
     {
+        if (Disabled)
+        {
+            return;
+        }
+
         worker.OnDidChangeModelContent(args);
         UpdateDiagnostics();
     }

@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
 @inject WorkerController Worker
+@inject LanguageServices LanguageServices
 
 <button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
     Settings
@@ -48,6 +49,17 @@
                         <label class="form-check-label" for="debugLogs"
                                title="Whether to display debug-level logs in the browser development console">
                             Debug logs
+                        </label>
+                    </div>
+
+                    @* Language services check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="enableLanguageServices"
+                               @bind="EnableLanguageServices" @bind:after="OnSetEnableLanguageServicesAsync" />
+                        <label class="form-check-label" for="enableLanguageServices"
+                               title="Completions, live diagnostics">
+                            <span class="badge bg-secondary text-capitalize">experimental</span>
+                            Language services (requires restart)
                         </label>
                     </div>
 
@@ -242,13 +254,22 @@
         set => Logging.LogLevel = value ? LogLevel.Debug : LogLevel.Information;
     }
 
+    private bool EnableLanguageServices { get; set; }
+
     private async Task OnSetDebugLogsAsync()
     {
         await LocalStorage.SetItemAsync(nameof(DebugLogs), DebugLogs);
     }
 
+    private async Task OnSetEnableLanguageServicesAsync()
+    {
+        await LocalStorage.SetItemAsync(nameof(EnableLanguageServices), EnableLanguageServices);
+    }
+
     public async Task InitializeAsync()
     {
+        UpdateInfo.UpdateBecameAvailable += StateHasChanged;
+
         // Load settings from local storage.
         if (await LocalStorage.ContainKeyAsync(nameof(WordWrap)))
         {
@@ -264,8 +285,19 @@
         {
             DebugLogs = await LocalStorage.GetItemAsync<bool>(nameof(DebugLogs));
         }
+        if (await LocalStorage.ContainKeyAsync(nameof(EnableLanguageServices)))
+        {
+            EnableLanguageServices = await LocalStorage.GetItemAsync<bool>(nameof(EnableLanguageServices));
+        }
 
-        UpdateInfo.UpdateBecameAvailable += StateHasChanged;
+        if (EnableLanguageServices)
+        {
+            await LanguageServices.RegisterAsync();
+        }
+        else
+        {
+            LanguageServices.Disabled = true;
+        }
     }
 
     void IDisposable.Dispose()

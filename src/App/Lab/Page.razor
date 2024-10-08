@@ -583,8 +583,6 @@
         await settings.InitializeAsync();
 
         await LoadStateFromUrlAsync();
-
-        await LanguageServices.RegisterAsync();
     }
 
     private async Task<TextModel> CreateModelAsync(InputCode inputCode)
