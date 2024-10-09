@@ -71,6 +71,7 @@ public class Compiler : ICompiler
         RazorProjectEngine projectEngine = createProjectEngine([
             ..references,
             declarationCompilation.ToMetadataReference()]);
+        List<Diagnostic> allRazorDiagnostics = new();
         var compiledRazorFiles = fileSystem.Inner.EnumerateItems("/")
             .ToImmutableDictionary(
                 keySelector: (item) => item.RelativePhysicalPath,
@@ -82,14 +83,19 @@ public class Compiler : ICompiler
                     string syntax = codeDocument.GetSyntaxTree().Serialize();
                     string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
+                    string razorDiagnostics = codeDocument.GetCSharpDocument().Diagnostics.JoinToString(Environment.NewLine);
 
                     string designSyntax = designTimeDocument.GetSyntaxTree().Serialize();
                     string designIr = designTimeDocument.GetDocumentIntermediateNode().Serialize();
                     string designCSharp = designTimeDocument.GetCSharpDocument().GeneratedCode;
+                    string designRazorDiagnostics = designTimeDocument.GetCSharpDocument().Diagnostics.JoinToString(Environment.NewLine);
+
+                    allRazorDiagnostics.AddRange(codeDocument.GetCSharpDocument().Diagnostics.Select(RazorUtil.ToDiagnostic));
 
                     return new CompiledFile([
                         new("Syntax", syntax, designSyntax),
                         new("IR", ir, designIr),
+                        new("Razor Error List", razorDiagnostics, designRazorDiagnostics),
                         new("C#", cSharp, designCSharp) { Priority = 1 },
                     ]);
                 });
@@ -141,6 +147,7 @@ public class Compiler : ICompiler
                 ]))));
 
         IEnumerable<Diagnostic> diagnostics = getEmitDiagnostics(finalCompilation)
+            .Concat(allRazorDiagnostics)
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
         string diagnosticsText = diagnostics.GetDiagnosticsText();
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
@@ -152,7 +159,7 @@ public class Compiler : ICompiler
                 FileLinePositionSpan lineSpan;
 
                 if (string.IsNullOrEmpty(filePath) &&
-                    d.Location.GetMappedLineSpan() is { IsValid: true, HasMappedPath: true } mappedLineSpan)
+                    d.Location.GetMappedLineSpan() is { IsValid: true } mappedLineSpan)
                 {
                     filePath = mappedLineSpan.Path;
                     lineSpan = mappedLineSpan;
