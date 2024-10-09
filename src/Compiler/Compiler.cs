@@ -83,14 +83,15 @@ public class Compiler : ICompiler
                     string syntax = codeDocument.GetSyntaxTree().Serialize();
                     string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
-                    string razorDiagnostics = codeDocument.GetCSharpDocument().Diagnostics.JoinToString(Environment.NewLine);
+                    IReadOnlyList<RazorDiagnostic> razorDiagnosticsOriginal = codeDocument.GetCSharpDocument().GetDiagnostics();
+                    string razorDiagnostics = razorDiagnosticsOriginal.JoinToString(Environment.NewLine);
 
                     string designSyntax = designTimeDocument.GetSyntaxTree().Serialize();
                     string designIr = designTimeDocument.GetDocumentIntermediateNode().Serialize();
                     string designCSharp = designTimeDocument.GetCSharpDocument().GeneratedCode;
-                    string designRazorDiagnostics = designTimeDocument.GetCSharpDocument().Diagnostics.JoinToString(Environment.NewLine);
+                    string designRazorDiagnostics = designTimeDocument.GetCSharpDocument().GetDiagnostics().JoinToString(Environment.NewLine);
 
-                    allRazorDiagnostics.AddRange(codeDocument.GetCSharpDocument().Diagnostics.Select(RazorUtil.ToDiagnostic));
+                    allRazorDiagnostics.AddRange(razorDiagnosticsOriginal.Select(RazorUtil.ToDiagnostic));
 
                     return new CompiledFile([
                         new("Syntax", syntax, designSyntax),

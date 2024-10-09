@@ -6,6 +6,15 @@ namespace DotNetInternals;
 
 internal static class RazorUtil
 {
+    public static IReadOnlyList<RazorDiagnostic> GetDiagnostics(this RazorCSharpDocument document)
+    {
+        // Different razor versions return IReadOnlyList vs ImmutableArray,
+        // so we need to use reflection to avoid MissingMethodException.
+        return (IReadOnlyList<RazorDiagnostic>)document.GetType()
+            .GetProperty(nameof(document.Diagnostics))!
+            .GetValue(document)!;
+    }
+
     public static Diagnostic ToDiagnostic(this RazorDiagnostic d)
     {
         DiagnosticSeverity severity = d.Severity.ToDiagnosticSeverity();
