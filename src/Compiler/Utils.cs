@@ -46,12 +46,13 @@ internal static class RazorUtil
 
     public static LinePositionSpan ToLinePositionSpan(this SourceSpan span)
     {
+        var lineCount = span.LineCount < 1 ? 1 : span.LineCount;
         return new LinePositionSpan(
             start: new LinePosition(
                 line: span.LineIndex,
                 character: span.CharacterIndex),
             end: new LinePosition(
-                line: span.LineIndex + span.LineCount - 1,
+                line: span.LineIndex + lineCount - 1,
                 character: span.CharacterIndex + span.Length));
     }
 
