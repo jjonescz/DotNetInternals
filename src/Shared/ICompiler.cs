@@ -29,7 +29,7 @@ public sealed record DiagnosticData(
     string? FilePath,
     DiagnosticDataSeverity Severity,
     string Id,
-    string HelpLinkUri,
+    string? HelpLinkUri,
     string Message,
     int StartLineNumber,
     int StartColumn,

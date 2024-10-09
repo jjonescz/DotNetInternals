@@ -92,6 +92,7 @@ public class Compiler : ICompiler
         RazorProjectEngine projectEngine = createProjectEngine([
             ..references,
             declarationCompilation.ToMetadataReference()]);
+        List<Diagnostic> allRazorDiagnostics = new();
         var compiledRazorFiles = fileSystem.Inner.EnumerateItems("/")
             .ToImmutableDictionary(
                 keySelector: (item) => item.RelativePhysicalPath,
@@ -103,14 +104,20 @@ public class Compiler : ICompiler
                     string syntax = codeDocument.GetSyntaxTree().Serialize();
                     string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
                     string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
+                    IReadOnlyList<RazorDiagnostic> razorDiagnosticsOriginal = codeDocument.GetCSharpDocument().GetDiagnostics();
+                    string razorDiagnostics = razorDiagnosticsOriginal.JoinToString(Environment.NewLine);
 
                     string designSyntax = designTimeDocument.GetSyntaxTree().Serialize();
                     string designIr = designTimeDocument.GetDocumentIntermediateNode().Serialize();
                     string designCSharp = designTimeDocument.GetCSharpDocument().GeneratedCode;
+                    string designRazorDiagnostics = designTimeDocument.GetCSharpDocument().GetDiagnostics().JoinToString(Environment.NewLine);
+
+                    allRazorDiagnostics.AddRange(razorDiagnosticsOriginal.Select(RazorUtil.ToDiagnostic));
 
                     return new CompiledFile([
                         new() { Type = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
                         new() { Type = "IR", EagerText = ir, DesignTimeText = designIr },
+                        new() { Type = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics },
                         new() { Type = "C#", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
@@ -173,6 +180,7 @@ public class Compiler : ICompiler
                 ]))));
 
         IEnumerable<Diagnostic> diagnostics = getEmitDiagnostics(finalCompilation)
+            .Concat(allRazorDiagnostics)
             .Where(d => d.Severity != DiagnosticSeverity.Hidden);
         string diagnosticsText = diagnostics.GetDiagnosticsText();
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
