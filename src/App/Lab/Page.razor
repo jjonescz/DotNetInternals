@@ -305,13 +305,26 @@
     protected override void OnAfterRender(bool firstRender)
     {
         // Select an output type if none is selected.
-        if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.Output.GlobalOutputs.Length > 0) &&
-            (selectedOutputType == null || GetOutput(selectedOutputType) == null))
+        if (noOutputTypeSelected())
         {
             selectedOutputType = (CurrentCompiledFile?.Outputs)
                 .TryConcat(compiled?.Output.GlobalOutputs)
                 .MaxBy(static o => o.Priority)!.Type;
-            StateHasChanged();
+            if (noOutputTypeSelected())
+            {
+                // Do not call `StateHasChanged` - that would lead to stack overflow.
+                Debug.Assert(false, "Unexpected cycle in selecting default output type.");
+            }
+            else
+            {
+                StateHasChanged();
+            }
+        }
+
+        bool noOutputTypeSelected()
+        {
+            return (CurrentCompiledFile?.Outputs.Length > 0 || compiled?.Output.GlobalOutputs.Length > 0) &&
+                (selectedOutputType == null || GetOutput(selectedOutputType) == null);
         }
     }
 
@@ -518,9 +531,10 @@
                 return (output, CurrentFileName);
             }
         }
-        else if (compiled?.Output.GetGlobalOutput(type) is { } output)
+
+        if (compiled?.Output.GetGlobalOutput(type) is { } globalOutput)
         {
-            return (output, null);
+            return (globalOutput, null);
         }
 
         return null;
@@ -545,12 +559,12 @@
 
         if (!outputLoading)
         {
-            loadAsync(compiled!.Value.Input, file);
+            loadAsync(compiled!.Value.Input, file: file, outputType: type);
         }
 
         return "";
 
-        async void loadAsync(IEnumerable<InputCode> inputs, string? file)
+        async void loadAsync(IEnumerable<InputCode> inputs, string? file, string outputType)
         {
             outputLoading = true;
             await RefreshAsync();
@@ -558,7 +572,7 @@
             // The text will be cached and loaded synchronously next.
             await output.GetTextAsync(outputFactory: async () =>
             {
-                return await Worker.GetOutputAsync(inputs, file, output.Type);
+                return await Worker.GetOutputAsync(inputs, file: file, outputType: outputType);
             });
 
             outputLoading = false;
