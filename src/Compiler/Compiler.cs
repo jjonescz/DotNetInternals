@@ -159,7 +159,7 @@ public class Compiler : ICompiler
                 FileLinePositionSpan lineSpan;
 
                 if (string.IsNullOrEmpty(filePath) &&
-                    d.Location.GetMappedLineSpan() is { IsValid: true, HasMappedPath: true } mappedLineSpan)
+                    d.Location.GetMappedLineSpan() is { IsValid: true } mappedLineSpan)
                 {
                     filePath = mappedLineSpan.Path;
                     lineSpan = mappedLineSpan;
