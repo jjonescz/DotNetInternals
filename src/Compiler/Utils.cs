@@ -19,14 +19,18 @@ internal static class RazorUtil
     {
         DiagnosticSeverity severity = d.Severity.ToDiagnosticSeverity();
 
-        return Diagnostic.Create(
+        string message = d.GetMessage();
+
+        var descriptor = new DiagnosticDescriptor(
             id: d.Id,
+            title: message,
+            messageFormat: message,
             category: "Razor",
-            message: d.GetMessage(),
-            severity: severity,
             defaultSeverity: severity,
-            isEnabledByDefault: true,
-            warningLevel: 0,
+            isEnabledByDefault: true);
+
+        return Diagnostic.Create(
+            descriptor,
             location: d.Span.ToLocation());
     }
 
