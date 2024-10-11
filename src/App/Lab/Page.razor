@@ -526,8 +526,6 @@
 
     private async Task UpdateOutputDisplayAsync()
     {
-        Console.WriteLine(selectedOutputType);
-        Console.WriteLine(compiled);
         if (compiled is null || selectedOutputType is null)
         {
             await outputEditor.SetModel(await BlazorMonaco.Editor.Global.CreateModel(JSRuntime, value: ""));
@@ -547,7 +545,6 @@
     private async Task<string> LoadOutput(string type)
     {
         var output = GetOutput(type);
-        Console.WriteLine("Output is null: " + (output is null));
 
         if (output is null)
         {
