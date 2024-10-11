@@ -90,7 +90,7 @@
                     if (inputs.Count > 1)
                     {
                         <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                                @onclick="DeleteInputAsync">
+                        @onclick="DeleteInputAsync">
                             @BootstrapIcons.Trash3
                         </button>
                     }
@@ -118,7 +118,7 @@
         <div class="col-auto">
             <div class="input-group">
                 @* Output tabs *@
-                <select class="form-select" title="Output type" @bind="selectedOutputType">
+                <select class="form-select" title="Output type" @bind="selectedOutputType" @bind:after="UpdateOutputDisplayAsync">
                     @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
                     {
                         <option value="@output.Type">
@@ -143,8 +143,10 @@
                 {
                     var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
                     <button type="button" class="btn @cls"
-                            title="Display Error List"
-                            @onclick="() => selectedOutputType = CompiledAssembly.DiagnosticsOutputType">
+                    title="Display Error List" @onclick="async () => {
+                            selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
+                            await UpdateOutputDisplayAsync();
+                        }">
                         @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
                     </button>
                 }
@@ -152,7 +154,7 @@
                 @* Design time / runtime toggle *@
                 @if (CurrentCompiledFile?.GetOutput(selectedOutputType)?.DesignTimeText is not null)
                 {
-                    <select class="form-select" title="Generation Strategy" @bind="generationStrategy">
+                    <select class="form-select" title="Generation Strategy" @bind="generationStrategy" @bind:after="UpdateOutputDisplayAsync">
                         <option value="runtime">Runtime</option>
                         <option value="@designTime">Design</option>
                     </select>
@@ -184,21 +186,21 @@
             @if (layout != Layout.InputOnly)
             {
                 <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.InputOnly"
-                        title="Display input (left side) only">
+                title="Display input (left side) only">
                     @BootstrapIcons.LayoutSidebarReverse
                 </button>
             }
             @if (layout != Layout.Split)
             {
                 <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.Split"
-                        title="Display both input and output side-by-side">
+                title="Display both input and output side-by-side">
                     @BootstrapIcons.LayoutSplit
                 </button>
             }
             @if (layout != Layout.OutputOnly)
             {
                 <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.OutputOnly"
-                        title="Display output (right side) only">
+                title="Display output (right side) only">
                     @BootstrapIcons.LayoutSidebar
                 </button>
             }
@@ -221,7 +223,8 @@
         </div>
     </div>
     <div class="col" style="@outputStyle">
-        <textarea value="@Output" class="@textAreaClass" readonly placeholder="Empty output (click Compile to refresh)" spellcheck="false"></textarea>
+        <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
+            ConstructionOptions="OutputConstructionOptions" />
     </div>
 </div>
 
@@ -230,6 +233,7 @@
     private int currentInputIndex;
     private string? renamingTo;
     private StandaloneCodeEditor inputEditor = null!;
+    private StandaloneCodeEditor outputEditor = null!;
     private string? selectedOutputType;
     private string? generationStrategy;
     private bool compilationInProgress;
@@ -298,7 +302,7 @@
         StateHasChanged();
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Select an output type if none is selected.
         if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.GlobalOutputs.Length > 0) &&
@@ -308,15 +312,28 @@
                 .TryConcat(compiled?.GlobalOutputs)
                 .MaxBy(static o => o.Priority)!.Type;
             StateHasChanged();
+            await UpdateOutputDisplayAsync();
         }
     }
 
     private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
     {
-        return new StandaloneEditorConstructionOptions
+        return new()
         {
             AutomaticLayout = true,
             WordWrap = wordWrap ? "on" : "off",
+        };
+    }
+
+    private StandaloneEditorConstructionOptions OutputConstructionOptions(StandaloneCodeEditor editor)
+    {
+        return new()
+        {
+            AutomaticLayout = true,
+            ReadOnly = true,
+            WordWrap = wordWrap ? "on" : "off",
+            Value = "Empty output (click Compile to refresh)",
+            BracketPairColorization = new BracketPairColorizationOptions { Enabled = false },
         };
     }
 
@@ -473,6 +490,8 @@
         await DisplaySquiggles();
 
         compilationInProgress = false;
+
+        await UpdateOutputDisplayAsync();
     }
 
     private async Task DisplaySquiggles()
@@ -505,12 +524,17 @@
         }
     }
 
-    private string Output => selectedOutputType switch
+    private async Task UpdateOutputDisplayAsync()
     {
-        _ when compiled is null => "",
-        null => "",
-        var other => LoadOutput(other),
-    };
+        if (compiled is null || selectedOutputType is null)
+        {
+            await outputEditor.SetModel(await BlazorMonaco.Editor.Global.CreateModel(JSRuntime, value: ""));
+            return;
+        }
+
+        var output = await LoadOutput(selectedOutputType);
+        await outputEditor.SetModel(await BlazorMonaco.Editor.Global.CreateModel(JSRuntime, value: output, language: selectedOutputType == "C#" ? "csharp" : null));
+    }
 
     private CompiledFileOutput? GetOutput(string type)
     {
@@ -518,7 +542,7 @@
             ?? compiled?.GetGlobalOutput(type);
     }
 
-    private string LoadOutput(string type)
+    private async Task<string> LoadOutput(string type)
     {
         var output = GetOutput(type);
 
@@ -539,20 +563,22 @@
 
         if (!outputLoading)
         {
-            loadAsync();
+            return await loadAsync();
         }
+
         return "";
 
-        async void loadAsync()
+        async Task<string> loadAsync()
         {
             outputLoading = true;
             await RefreshAsync();
 
             // The text will be cached and loaded synchronously next.
-            await output.GetTextAsync();
+            var result = await output.GetTextAsync();
 
             outputLoading = false;
             StateHasChanged();
+            return result;
         }
     }
 
