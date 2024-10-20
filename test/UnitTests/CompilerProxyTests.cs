@@ -18,10 +18,11 @@ public class CompilerProxyTests(ITestOutputHelper output)
         deps.SetAssemblies("roslyn", package.GetAssembliesAsync);
 
         using var client = new HttpClient(new MockHttpMessageHandler()) { BaseAddress = new Uri("http://localhost") };
+        var assemblyDownloader = new AssemblyDownloader(client);
         var compiler = new CompilerProxy(
             NullLogger<CompilerProxy>.Instance,
             deps,
-            client,
+            assemblyDownloader,
             new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "Input.cs", Text = "#error version" }]);
 
@@ -41,10 +42,11 @@ public class CompilerProxyTests(ITestOutputHelper output)
         deps.SetAssemblies("razor", package.GetAssembliesAsync);
 
         using var client = new HttpClient(new MockHttpMessageHandler()) { BaseAddress = new Uri("http://localhost") };
+        var assemblyDownloader = new AssemblyDownloader(client);
         var compiler = new CompilerProxy(
             NullLogger<CompilerProxy>.Instance,
             deps,
-            client,
+            assemblyDownloader,
             new(NullLogger<CompilerLoader>.Instance));
         var compiled = await compiler.CompileAsync([new() { FileName = "TestComponent.razor", Text = "test" }]);
 
@@ -67,22 +69,36 @@ internal sealed partial class MockHttpMessageHandler : HttpMessageHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        if (UrlRegex().Match(request.RequestUri?.ToString() ?? "") is
+        if (UrlRegex.Match(request.RequestUri?.ToString() ?? "") is
             {
                 Success: true,
-                Groups: [_, { ValueSpan: var assemblyName }],
+                Groups: [_, { ValueSpan: var fileName }],
             })
         {
-            var assemblyPath = Path.Join(directory, assemblyName) + ".dll";
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            if (fileName.EndsWith(".wasm", StringComparison.Ordinal))
             {
-                Content = new StreamContent(File.OpenRead(assemblyPath)),
-            });
+                var assemblyName = fileName[..^5];
+                var assemblyPath = Path.Join(directory, assemblyName) + ".dll";
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StreamContent(File.OpenRead(assemblyPath)),
+                });
+            }
+
+            if (fileName.Equals("blazor.boot.json", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                        { "resources": { "assembly": {}, "fingerprinting": {} } }
+                        """),
+                });
+            }
         }
 
         throw new NotImplementedException(request.RequestUri?.ToString());
     }
 
-    [GeneratedRegex("""^https?://localhost/_framework/(.*)\.wasm$""")]
-    private static partial Regex UrlRegex();
+    [GeneratedRegex("""^https?://localhost/_framework/(.*)$""")]
+    private static partial Regex UrlRegex { get; }
 }
