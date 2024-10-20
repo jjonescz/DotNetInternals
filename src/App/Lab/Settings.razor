@@ -52,6 +52,16 @@
                         </label>
                     </div>
 
+                    @* Use a worker check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="enableWorker"
+                            @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
+                        <label class="form-check-label" for="enableWorker"
+                               title="Moves compilation to a separate worker thread">
+                            Use a worker (requires restart)
+                        </label>
+                    </div>
+
                     @* Language services check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="enableLanguageServices"
@@ -255,6 +265,7 @@
     }
 
     private bool EnableLanguageServices { get; set; }
+    private bool EnableWorker { get; set; }
 
     private async Task OnSetDebugLogsAsync()
     {
@@ -264,6 +275,11 @@
     private async Task OnSetEnableLanguageServicesAsync()
     {
         await LocalStorage.SetItemAsync(nameof(EnableLanguageServices), EnableLanguageServices);
+    }
+
+    private async Task OnSetEnableWorkerAsync()
+    {
+        await LocalStorage.SetItemAsync(nameof(EnableWorker), EnableWorker);
     }
 
     public async Task InitializeAsync()
@@ -289,6 +305,9 @@
         {
             EnableLanguageServices = await LocalStorage.GetItemAsync<bool>(nameof(EnableLanguageServices));
         }
+        EnableWorker = await LocalStorage.ContainKeyAsync(nameof(EnableWorker))
+            ? await LocalStorage.GetItemAsync<bool>(nameof(EnableWorker))
+            : true;
 
         if (EnableLanguageServices)
         {
@@ -298,6 +317,8 @@
         {
             LanguageServices.Disabled = true;
         }
+
+        Worker.Disabled = !EnableWorker;
     }
 
     void IDisposable.Dispose()

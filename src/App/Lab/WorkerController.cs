@@ -16,7 +16,8 @@ internal sealed class WorkerController
     private readonly ILogger<WorkerController> logger;
     private readonly IJSRuntime jsRuntime;
     private readonly IWebAssemblyHostEnvironment hostEnvironment;
-    private readonly Lazy<Task<SlimWorker>> worker;
+    private readonly Lazy<Task<SlimWorker?>> worker;
+    private readonly Lazy<IServiceProvider> workerServices;
     private readonly Channel<WorkerOutputMessage> workerMessages = Channel.CreateUnbounded<WorkerOutputMessage>();
     private int messageId;
 
@@ -26,12 +27,20 @@ internal sealed class WorkerController
         this.jsRuntime = jsRuntime;
         this.hostEnvironment = hostEnvironment;
         worker = new(CreateWorker);
+        workerServices = new(() => WorkerServices.Create(hostEnvironment.BaseAddress));
     }
 
-    private Task<SlimWorker> Worker => worker.Value;
+    public bool Disabled { get; set; }
 
-    private async Task<SlimWorker> CreateWorker()
+    private Task<SlimWorker?> Worker => worker.Value;
+
+    private async Task<SlimWorker?> CreateWorker()
     {
+        if (Disabled)
+        {
+            return null;
+        }
+
         var workerReady = new TaskCompletionSource();
         var worker = await SlimWorker.CreateAsync(
             jsRuntime,
@@ -77,9 +86,15 @@ internal sealed class WorkerController
         return again;
     }
 
-    private async Task PostMessageUnsafeAsync(WorkerInputMessage message)
+    private async Task<WorkerOutputMessage> PostMessageUnsafeAsync(WorkerInputMessage message)
     {
-        SlimWorker worker = await Worker;
+        SlimWorker? worker = await Worker;
+
+        if (worker is null)
+        {
+            return await message.HandleAndGetOutputAsync(workerServices.Value);
+        }
+
         // TODO: Use ProtoBuf.
         var serialized = JsonSerializer.Serialize(message);
         logger.LogDebug("📨 {Id}: {Type} ({Size})",
@@ -87,13 +102,14 @@ internal sealed class WorkerController
             message.GetType().Name,
             serialized.Length.SeparateThousands());
         await worker.PostMessageAsync(serialized);
+
+        return await ReceiveWorkerMessageAsync(message.Id);
     }
 
     private async void PostMessage<T>(T message)
         where T : WorkerInputMessage<NoOutput>
     {
-        await PostMessageUnsafeAsync(message);
-        var incoming = await ReceiveWorkerMessageAsync(message.Id);
+        var incoming = await PostMessageUnsafeAsync(message);
         switch (incoming)
         {
             case WorkerOutputMessage.Empty:
@@ -111,15 +127,16 @@ internal sealed class WorkerController
         TIn? deserializeAs = default)
         where TOut : WorkerInputMessage<TIn>
     {
-        await PostMessageUnsafeAsync(message);
-        var incoming = await ReceiveWorkerMessageAsync(message.Id);
+        var incoming = await PostMessageUnsafeAsync(message);
         return incoming switch
         {
             WorkerOutputMessage.Success success => success.Result switch
             {
                 null => default!,
                 JsonElement jsonElement => jsonElement.Deserialize<TIn>()!,
-                var result => throw new InvalidOperationException($"Unexpected result of type '{result.GetType()}': {result}"),
+                // Can happen when worker is turned off and we do not use serialization.
+                TIn result => result,
+                var other => throw new InvalidOperationException($"Expected result of type '{typeof(TIn)}', got '{other.GetType()}': {other}"),
             },
             WorkerOutputMessage.Failure failure => fallback switch
             {

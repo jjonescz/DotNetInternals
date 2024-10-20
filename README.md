@@ -18,6 +18,10 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
 ## Development
 
+The recommended startup app for development is `src/Server`.
+
+To hit breakpoints, it is recommended to turn off the worker (in app settings).
+
 - `src/App`: the WebAssembly app.
   - `cd src/App; dotnet watch` - `src/Server` is better for development though.
 - `src/Compiler`: self-contained project referencing Roslyn/Razor.

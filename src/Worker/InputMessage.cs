@@ -20,7 +20,27 @@ public abstract record WorkerInputMessage
 {
     public required int Id { get; init; }
 
-    public abstract Task<object?> HandleNonGenericAsync(IServiceProvider services);
+    protected abstract Task<object?> HandleNonGenericAsync(IServiceProvider services);
+
+    public async Task<WorkerOutputMessage> HandleAndGetOutputAsync(IServiceProvider services)
+    {
+        try
+        {
+            var outgoing = await HandleNonGenericAsync(services);
+            if (ReferenceEquals(outgoing, NoOutput.Instance))
+            {
+                return new WorkerOutputMessage.Empty { Id = Id };
+            }
+            else
+            {
+                return new WorkerOutputMessage.Success(outgoing) { Id = Id };
+            }
+        }
+        catch (Exception ex)
+        {
+            return new WorkerOutputMessage.Failure(ex.ToString()) { Id = Id };
+        }
+    }
 
     public sealed record Compile(IEnumerable<InputCode> Inputs) : WorkerInputMessage<CompiledAssembly>
     {
@@ -153,7 +173,7 @@ public abstract record WorkerInputMessage
 
 public abstract record WorkerInputMessage<TOutput> : WorkerInputMessage
 {
-    public sealed override async Task<object?> HandleNonGenericAsync(IServiceProvider services)
+    protected sealed override async Task<object?> HandleNonGenericAsync(IServiceProvider services)
     {
         return await HandleAsync(services);
     }
