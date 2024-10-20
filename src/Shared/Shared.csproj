@@ -4,9 +4,6 @@
     <PackageReference Include="protobuf-net" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\RazorAccess\RazorAccess.csproj" />
-    <ProjectReference Include="..\RoslynAccess\RoslynAccess.csproj" />
-  </ItemGroup>
+  <!-- IMPORTANT: Do not add references to Roslyn/Razor here. -->
 
 </Project>

@@ -23,6 +23,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Install workloads
+        run: dotnet workload install wasm-tools wasm-experimental
+
       - name: Build
         run: dotnet build -warnaserror -p:TreatWarningsAsErrors=true
 

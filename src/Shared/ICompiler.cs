@@ -47,9 +47,26 @@ public sealed record CompiledAssembly(
 {
     public static readonly string DiagnosticsOutputType = "Error List";
 
+    public static CompiledAssembly Fail(string output)
+    {
+        return new(
+            BaseDirectory: "/",
+            Files: ImmutableDictionary<string, CompiledFile>.Empty,
+            Diagnostics: [],
+            GlobalOutputs: [new() { Type = DiagnosticsOutputType, EagerText = output }],
+            NumErrors: 1,
+            NumWarnings: 0);
+    }
+
     public CompiledFileOutput? GetGlobalOutput(string type)
     {
         return GlobalOutputs.FirstOrDefault(o => o.Type == type);
+    }
+
+    public CompiledFileOutput GetRequiredGlobalOutput(string type)
+    {
+        return GetGlobalOutput(type)
+            ?? throw new InvalidOperationException($"Global output of type '{type}' not found.");
     }
 }
 
@@ -59,90 +76,84 @@ public sealed record CompiledFile(ImmutableArray<CompiledFileOutput> Outputs)
     {
         return Outputs.FirstOrDefault(o => o.Type == type);
     }
+
+    public CompiledFileOutput GetRequiredOutput(string type)
+    {
+        return GetOutput(type)
+            ?? throw new InvalidOperationException($"Output of type '{type}' not found.");
+    }
 }
 
 public sealed class CompiledFileOutput
 {
-    private object text;
+    private object? text;
 
-    public CompiledFileOutput(string type, string eagerText, string? designTimeText = null)
-    {
-        Type = type;
-        text = eagerText;
-        DesignTimeText = designTimeText;
-    }
-
-    public CompiledFileOutput(string type, Func<ValueTask<string>> lazyText)
-    {
-        Type = type;
-        text = lazyText;
-    }
-
-    public CompiledFileOutput(string type, Func<string> lazyTextSync)
-    {
-        Type = type;
-        text = lazyTextSync;
-    }
-
-    public string Type { get; }
+    public required string Type { get; init; }
     public int Priority { get; init; }
+    public string? DesignTimeText { get; init; }
 
-    public string? DesignTimeText { get; }
-
-    public bool IsLazy => !TryGetEagerText(out _);
-
-    public string GetEagerTextOrThrow()
+    public string? EagerText
     {
-        return TryGetEagerText(out var eagerText)
-            ? eagerText
-            : throw new InvalidOperationException("The text is not available eagerly.");
+        get
+        {
+            if (text is string eagerText)
+            {
+                return eagerText;
+            }
+
+            if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
+            {
+                text = taskResult;
+                return taskResult;
+            }
+
+            return null;
+        }
+        init
+        {
+            text = value;
+        }
     }
 
-    public bool TryGetEagerText([NotNullWhen(returnValue: true)] out string? result)
+    public Func<ValueTask<string>> LazyText
     {
-        if (text is string eagerText)
+        init
         {
-            result = eagerText;
-            return true;
+            text = value;
         }
-
-        if (text is ValueTask<string> { IsCompletedSuccessfully: true, Result: var taskResult })
-        {
-            text = taskResult;
-            result = taskResult;
-            return true;
-        }
-
-        result = null;
-        return false;
     }
 
-    public ValueTask<string> GetTextAsync()
+    public ValueTask<string> GetTextAsync(Func<ValueTask<string>>? outputFactory)
     {
-        if (TryGetEagerText(out var eagerText))
+        if (EagerText is { } eagerText)
         {
             return new(eagerText);
         }
 
-        if (text is ValueTask<string> existingTask)
+        if (text is null)
         {
-            return existingTask;
+            if (outputFactory is null)
+            {
+                throw new InvalidOperationException($"For lazy outputs, {nameof(outputFactory)} must be provided.");
+            }
+
+            var output = outputFactory();
+            text = output;
+            return output;
         }
 
-        if (text is Func<ValueTask<string>> lazyText)
+        if (text is ValueTask<string> valueTask)
         {
-            var task = lazyText();
-            text = task;
-            return task;
+            return valueTask;
         }
 
-        if (text is Func<string> lazyTextSync)
+        if (text is Func<ValueTask<string>> factory)
         {
-            var result = lazyTextSync();
+            var result = factory();
             text = result;
-            return new(result);
+            return result;
         }
 
-        throw new InvalidOperationException();
+        throw new InvalidOperationException($"Unrecognized {nameof(text)}: {text?.GetType().FullName ?? "null"}");
     }
 }

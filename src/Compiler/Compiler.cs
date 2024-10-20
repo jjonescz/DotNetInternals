@@ -10,7 +10,24 @@ namespace DotNetInternals;
 
 public class Compiler : ICompiler
 {
+    private (IEnumerable<InputCode> Input, CompiledAssembly Output)? lastResult;
+
     public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    {
+        if (lastResult is { } cached)
+        {
+            if (inputs.SequenceEqual(cached.Input))
+            {
+                return cached.Output;
+            }
+        }
+
+        var result = CompileNoCache(inputs);
+        lastResult = (inputs, result);
+        return result;
+    }
+
+    private static CompiledAssembly CompileNoCache(IEnumerable<InputCode> inputs)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
 
@@ -51,7 +68,8 @@ public class Compiler : ICompiler
         var options = new CSharpCompilationOptions(
             outputKind,
             allowUnsafe: true,
-            nullableContextOptions: NullableContextOptions.Enable);
+            nullableContextOptions: NullableContextOptions.Enable,
+            concurrentBuild: false);
 
         var config = RazorConfiguration.Default;
 
@@ -99,10 +117,10 @@ public class Compiler : ICompiler
                     allRazorDiagnostics.AddRange(razorDiagnosticsOriginal.Select(RazorUtil.ToDiagnostic));
 
                     return new CompiledFile([
-                        new("Syntax", syntax, designSyntax),
-                        new("IR", ir, designIr),
-                        new("Razor Error List", razorDiagnostics, designRazorDiagnostics),
-                        new("C#", cSharp, designCSharp) { Priority = 1 },
+                        new() { Type = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
+                        new() { Type = "IR", EagerText = ir, DesignTimeText = designIr },
+                        new() { Type = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics },
+                        new() { Type = "C#", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
 
@@ -110,7 +128,7 @@ public class Compiler : ICompiler
             [
                 ..compiledRazorFiles.Values.Select((file) =>
                 {
-                    var cSharpText = file.GetOutput("C#")!.GetEagerTextOrThrow();
+                    var cSharpText = file.GetOutput("C#")!.EagerText!;
                     return CSharpSyntaxTree.ParseText(cSharpText, parseOptions);
                 }),
                 ..cSharp.Values,
@@ -124,31 +142,42 @@ public class Compiler : ICompiler
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
-                    new("Syntax", pair.Value.GetRoot().Dump()),
-                    new("IL", () =>
+                    new() { Type = "Syntax", EagerText = pair.Value.GetRoot().Dump() },
+                    new()
                     {
-                        peFile ??= getPeFile(finalCompilation);
-                        return getIl(peFile);
-                    }),
-                    new("C#", async () =>
+                        Type = "IL",
+                        LazyText = () =>
+                        {
+                            peFile ??= getPeFile(finalCompilation);
+                            return new(getIl(peFile));
+                        },
+                    },
+                    new()
                     {
-                        peFile ??= getPeFile(finalCompilation);
-                        return await getCSharpAsync(peFile);
-                    }),
-                    new("Run", () =>
+                        Type = "C#",
+                        LazyText = async () =>
+                        {
+                            peFile ??= getPeFile(finalCompilation);
+                            return await getCSharpAsync(peFile);
+                        },
+                    },
+                    new()
                     {
-                        var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
-                            ? finalCompilation
-                            : finalCompilation.WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
-                        var emitStream = getEmitStream(executableCompilation);
-                        return emitStream is null
-                            ? executableCompilation.GetDiagnostics().FirstOrDefault(d => d.Id == "CS5001") is { } error
-                                ? error.GetMessage(CultureInfo.InvariantCulture)
-                                : "Cannot execute due to compilation errors."
-                            : Executor.Execute(emitStream);
-                    })
-                    {
-                        Priority = 1
+                        Type = "Run",
+                        LazyText = () =>
+                        {
+                            var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
+                                ? finalCompilation
+                                : finalCompilation.WithOptions(finalCompilation.Options.WithOutputKind(OutputKind.ConsoleApplication));
+                            var emitStream = getEmitStream(executableCompilation);
+                            string output = emitStream is null
+                                ? executableCompilation.GetDiagnostics().FirstOrDefault(d => d.Id == "CS5001") is { } error
+                                    ? error.GetMessage(CultureInfo.InvariantCulture)
+                                    : "Cannot execute due to compilation errors."
+                                : Executor.Execute(emitStream);
+                            return new(output);
+                        },
+                        Priority = 1,
                     },
                 ]))));
 
@@ -159,39 +188,7 @@ public class Compiler : ICompiler
         int numWarnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
         int numErrors = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
         ImmutableArray<DiagnosticData> diagnosticData = diagnostics
-            .Select(d =>
-            {
-                string? filePath = d.Location.SourceTree?.FilePath;
-                FileLinePositionSpan lineSpan;
-
-                if (string.IsNullOrEmpty(filePath) &&
-                    d.Location.GetMappedLineSpan() is { IsValid: true } mappedLineSpan)
-                {
-                    filePath = mappedLineSpan.Path;
-                    lineSpan = mappedLineSpan;
-                }
-                else
-                {
-                    lineSpan = d.Location.GetLineSpan();
-                }
-
-                return new DiagnosticData(
-                    FilePath: filePath,
-                    Severity: d.Severity switch
-                    {
-                        DiagnosticSeverity.Error => DiagnosticDataSeverity.Error,
-                        DiagnosticSeverity.Warning => DiagnosticDataSeverity.Warning,
-                        _ => DiagnosticDataSeverity.Info,
-                    },
-                    Id: d.Id,
-                    HelpLinkUri: d.Descriptor.HelpLinkUri,
-                    Message: d.GetMessage(),
-                    StartLineNumber: lineSpan.StartLinePosition.Line + 1,
-                    StartColumn: lineSpan.StartLinePosition.Character + 1,
-                    EndLineNumber: lineSpan.EndLinePosition.Line + 1,
-                    EndColumn: lineSpan.EndLinePosition.Character + 1
-                );
-            })
+            .Select(d => d.ToDiagnosticData())
             .ToImmutableArray();
 
         var result = new CompiledAssembly(
@@ -202,8 +199,10 @@ public class Compiler : ICompiler
             Diagnostics: diagnosticData,
             GlobalOutputs:
             [
-                new(CompiledAssembly.DiagnosticsOutputType, diagnosticsText)
+                new()
                 {
+                    Type = CompiledAssembly.DiagnosticsOutputType,
+                    EagerText = diagnosticsText,
                     Priority = numErrors > 0 ? 2 : 0,
                 },
             ]);

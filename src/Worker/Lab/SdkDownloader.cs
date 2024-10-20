@@ -81,7 +81,7 @@ public sealed class Dependencies
     }
 }
 
-internal sealed record SdkInfo
+public sealed record SdkInfo
 {
     public required string SdkVersion { get; init; }
     public required CommitLink Commit { get; init; }

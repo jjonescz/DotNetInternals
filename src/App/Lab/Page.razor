@@ -1,8 +1,9 @@
-﻿@page "/"
+@page "/"
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
-@inject CompilerProxy Compiler
+@inject WorkerController Worker
+@inject LanguageServices LanguageServices
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
@@ -113,7 +114,7 @@
     </div>
 
     @* Output tabs *@
-    @if (compiled != null)
+    @if (compiled is (_, var compiledOutput))
     {
         <div class="col-auto">
             <div class="input-group">
@@ -126,10 +127,10 @@
                         </option>
                     }
 
-                    @if (compiled.GlobalOutputs.Length > 0)
+                    @if (compiledOutput.GlobalOutputs.Length > 0)
                     {
                         <hr />
-                        @foreach (var output in compiled.GlobalOutputs)
+                        @foreach (var output in compiledOutput.GlobalOutputs)
                         {
                             <option value="@output.Type">
                                 @output.Type
@@ -139,15 +140,15 @@
                 </select>
 
                 @* Error List button *@
-                @if (compiled is { NumErrors: > 0 } or { NumWarnings: > 0 })
+                @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
                 {
-                    var cls = compiled.NumErrors > 0 ? "btn-danger" : "btn-warning";
+                    var cls = compiledOutput.NumErrors > 0 ? "btn-danger" : "btn-warning";
                     <button type="button" class="btn @cls"
                     title="Display Error List" @onclick="async () => {
                             selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
                             await UpdateOutputDisplayAsync();
                         }">
-                        @(compiled.NumErrors > 0 ? compiled.NumErrors : compiled.NumWarnings)
+                        @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
                     </button>
                 }
 
@@ -164,9 +165,9 @@
                 @if (outputLoading)
                 {
                     <span class="input-group-text">
-                        <div class="spinner-border spinner-border-sm" role="status" title="Output is loading">
+                        <span class="spinner-border spinner-border-sm" role="status" title="Output is loading">
                             <span class="visually-hidden">Output loading...</span>
-                        </div>
+                        </span>
                     </span>
                 }
             </div>
@@ -219,7 +220,9 @@
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
-                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync" />
+                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
+                OnDidChangeModel="LanguageServices.OnDidChangeModel"
+                OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
         </div>
     </div>
     <div class="col" style="@outputStyle">
@@ -238,7 +241,7 @@
     private string? generationStrategy;
     private bool compilationInProgress;
     private bool outputLoading;
-    private CompiledAssembly? compiled;
+    private (IEnumerable<InputCode> Input, CompiledAssembly Output)? compiled;
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
@@ -248,6 +251,7 @@
     private sealed record Input(string FileName, TextModel Model)
     {
         public string FileName { get; set; } = FileName;
+        public string? NewContent { get; set; }
     }
 
     private enum InputPreset
@@ -305,14 +309,27 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Select an output type if none is selected.
-        if ((CurrentCompiledFile?.Outputs.Length > 0 || compiled?.GlobalOutputs.Length > 0) &&
-            (selectedOutputType == null || GetOutput(selectedOutputType) == null))
+        if (noOutputTypeSelected())
         {
             selectedOutputType = (CurrentCompiledFile?.Outputs)
-                .TryConcat(compiled?.GlobalOutputs)
+                .TryConcat(compiled?.Output.GlobalOutputs)
                 .MaxBy(static o => o.Priority)!.Type;
-            StateHasChanged();
-            await UpdateOutputDisplayAsync();
+            if (noOutputTypeSelected())
+            {
+                // Do not call `StateHasChanged` - that would lead to stack overflow.
+                Debug.Assert(false, "Unexpected cycle in selecting default output type.");
+            }
+            else
+            {
+                StateHasChanged();
+                await UpdateOutputDisplayAsync();
+            }
+        }
+
+        bool noOutputTypeSelected()
+        {
+            return (CurrentCompiledFile?.Outputs.Length > 0 || compiled?.Output.GlobalOutputs.Length > 0) &&
+                (selectedOutputType == null || GetOutput(selectedOutputType) == null);
         }
     }
 
@@ -400,6 +417,7 @@
             case (int)SpecialInput.RemoveOtherFiles:
                 inputs.RemoveAll(i => i != CurrentInput);
                 currentInputIndex = 0;
+                OnWorkspaceChanged();
                 break;
 
             case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
@@ -428,6 +446,8 @@
             {
                 await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, CurrentInput.Model, newLanguage);
             }
+
+            OnWorkspaceChanged();
         }
         renamingTo = null;
 
@@ -442,6 +462,7 @@
 
         inputs.RemoveAt(currentInputIndex);
         currentInputIndex = 0;
+        OnWorkspaceChanged();
         await inputEditor.SetModel(CurrentInput.Model);
 
         await SaveStateToUrlAsync();
@@ -452,8 +473,9 @@
         var fileName = FindUniqueName(initialCode);
         var inputCode = initialCode.ToInputCode(fileName);
         var model = await CreateModelAsync(inputCode);
-        inputs.Add(new(fileName, model));
+        inputs.Add(new(fileName, model) { NewContent = inputCode.Text });
         currentInputIndex = inputs.Count - 1;
+        OnWorkspaceChanged();
         await inputEditor.SetModel(model);
     }
 
@@ -485,7 +507,8 @@
         await RefreshAsync();
 
         // Compile.
-        compiled = await Compiler.CompileAsync(savedState.Inputs);
+        var result = await Worker.CompileAsync(savedState.Inputs);
+        compiled = (savedState.Inputs, result);
 
         await DisplaySquiggles();
 
@@ -498,27 +521,9 @@
     {
         foreach (var input in inputs)
         {
-            List<MarkerData> markers = compiled?.Diagnostics
-                .Where(d => d.FilePath == compiled.BaseDirectory + input.FileName)
-                .Select(d => new MarkerData
-                {
-                    CodeAsObject = new()
-                    {
-                        Value = d.Id,
-                        TargetUri = d.HelpLinkUri,
-                    },
-                    Message = d.Message,
-                    StartLineNumber = d.StartLineNumber,
-                    StartColumn = d.StartColumn,
-                    EndLineNumber = d.EndLineNumber,
-                    EndColumn = d.EndColumn,
-                    Severity = d.Severity switch
-                    {
-                        DiagnosticDataSeverity.Error => MarkerSeverity.Error,
-                        DiagnosticDataSeverity.Warning => MarkerSeverity.Warning,
-                        _ => MarkerSeverity.Info,
-                    },
-                })
+            List<MarkerData> markers = compiled?.Output.Diagnostics
+                .Where(d => d.FilePath == compiled.Value.Output.BaseDirectory + input.FileName)
+                .Select(d => d.ToMarkerData())
                 .ToList() ?? [];
             await BlazorMonaco.Editor.Global.SetModelMarkers(JSRuntime, input.Model, "Lab", markers);
         }
@@ -538,15 +543,30 @@
 
     private CompiledFileOutput? GetOutput(string type)
     {
-        return CurrentCompiledFile?.GetOutput(type)
-            ?? compiled?.GetGlobalOutput(type);
+        return GetOutputWithPath(type)?.Output;
+    }
+
+    private (CompiledFileOutput Output, string? File)? GetOutputWithPath(string type)
+    {
+        if (CurrentCompiledFile is { } currentCompiledFile)
+        {
+            if (currentCompiledFile.GetOutput(type) is { } output)
+            {
+                return (output, CurrentFileName);
+            }
+        }
+
+        if (compiled?.Output.GetGlobalOutput(type) is { } globalOutput)
+        {
+            return (globalOutput, null);
+        }
+
+        return null;
     }
 
     private async Task<string> LoadOutput(string type)
     {
-        var output = GetOutput(type);
-
-        if (output is null)
+        if (GetOutputWithPath(type) is not (var output, var file))
         {
             return "";
         }
@@ -556,25 +576,28 @@
             return output.DesignTimeText;
         }
 
-        if (output.TryGetEagerText(out var text))
+        if (output.EagerText is { } text)
         {
             return text;
         }
 
         if (!outputLoading)
         {
-            return await loadAsync();
+            return await loadAsync(compiled!.Value.Input, file: file, outputType: type);
         }
 
         return "";
 
-        async Task<string> loadAsync()
+        async Task<string> loadAsync(IEnumerable<InputCode> inputs, string? file, string outputType)
         {
             outputLoading = true;
             await RefreshAsync();
 
             // The text will be cached and loaded synchronously next.
-            var result = await output.GetTextAsync();
+            var result = await output.GetTextAsync(outputFactory: async () =>
+            {
+                return await Worker.GetOutputAsync(inputs, file: file, outputType: outputType);
+            });
 
             outputLoading = false;
             StateHasChanged();
@@ -582,11 +605,13 @@
         }
     }
 
+    private string CurrentFileName => CurrentInput?.FileName ?? "";
+
     private CompiledFile? CurrentCompiledFile
     {
         get
         {
-            return compiled?.Files.TryGetValue(CurrentInput?.FileName ?? "", out var file) == true
+            return compiled?.Output.Files.TryGetValue(CurrentFileName, out var file) == true
                 ? file
                 : null;
         }
@@ -613,4 +638,16 @@
         ".cs" => "csharp",
         _ => null,
     };
+
+    /// <summary>
+    /// Should be called before SetModel of Monaco editor whenever (after) <see cref="inputs"/> change.
+    /// </summary>
+    private void OnWorkspaceChanged()
+    {
+        var models = inputs
+            .Select(i => new ModelInfo(Uri: i.Model.Uri, FileName: i.FileName) { NewContent = i.NewContent })
+            .ToImmutableArray();
+        inputs.ForEach(i => { i.NewContent = null; });
+        Worker.OnDidChangeWorkspace(models);
+    }
 }

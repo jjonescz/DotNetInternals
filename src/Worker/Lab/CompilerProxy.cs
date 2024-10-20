@@ -1,12 +1,9 @@
-﻿using System.Runtime.Loader;
+﻿using Microsoft.Extensions.Logging;
+using System.Runtime.Loader;
 
 namespace DotNetInternals.Lab;
 
-internal sealed class CompilerProxy(
-    ILogger<CompilerProxy> logger,
-    DependencyRegistry dependencyRegistry,
-    HttpClient client,
-    CompilerLoaderServices loaderServices)
+public static class CompilerConstants
 {
     public static readonly string RoslynPackageId = "Microsoft.Net.Compilers.Toolset";
     public static readonly string RoslynPackageFolder = "tasks/netcore/bincore";
@@ -15,36 +12,17 @@ internal sealed class CompilerProxy(
     public static readonly string CompilerAssemblyName = "DotNetInternals.Compiler";
     public static readonly string RoslynAssemblyName = "Microsoft.CodeAnalysis.CSharp";
     public static readonly string RazorAssemblyName = "Microsoft.CodeAnalysis.Razor.Compiler";
+}
 
-    public static NuGetPackageInfo GetBuiltInInfo(string assemblyName)
-    {
-        string version = "";
-        string hash = "";
-        string repositoryUrl = "";
-        foreach (var attribute in Assembly.Load(assemblyName).CustomAttributes)
-        {
-            switch (attribute.AttributeType.FullName)
-            {
-                case "System.Reflection.AssemblyInformationalVersionAttribute"
-                    when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
-                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
-                    version = parsedVersion;
-                    hash = parsedHash;
-                    break;
-
-                case "System.Reflection.AssemblyMetadataAttribute"
-                    when attribute.ConstructorArguments is [{ Value: "RepositoryUrl" }, { Value: string repoUrl }]:
-                    repositoryUrl = repoUrl;
-                    break;
-            }
-        }
-
-        return NuGetPackageInfo.Create(
-            version: version,
-            commitHash: hash,
-            repoUrl: repositoryUrl);
-    }
-
+/// <summary>
+/// Can load our compiler project with any given Roslyn/Razor compiler version as dependency.
+/// </summary>
+internal sealed class CompilerProxy(
+    ILogger<CompilerProxy> logger,
+    DependencyRegistry dependencyRegistry,
+    AssemblyDownloader assemblyDownloader,
+    CompilerLoaderServices loaderServices)
+{
     private LoadedCompiler? loaded;
     private int iteration;
 
@@ -83,13 +61,7 @@ internal sealed class CompilerProxy(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to compile.");
-            return new(
-                BaseDirectory: "/",
-                Files: ImmutableDictionary<string, CompiledFile>.Empty,
-                Diagnostics: [],
-                GlobalOutputs: [new(CompiledAssembly.DiagnosticsOutputType, ex.ToString())],
-                NumErrors: 1,
-                NumWarnings: 0);
+            return CompiledAssembly.Fail(ex.ToString());
         }
     }
 
@@ -111,9 +83,9 @@ internal sealed class CompilerProxy(
                     // If they are not loaded from the registry, we will reload the built-in ones.
                     // Preload all built-in ones that our Compiler project depends on here
                     // (we cannot do that inside the AssemblyLoadContext because of async).
-                    CompilerAssemblyName,
-                    RoslynAssemblyName,
-                    RazorAssemblyName,
+                    CompilerConstants.CompilerAssemblyName,
+                    CompilerConstants.RoslynAssemblyName,
+                    CompilerConstants.RazorAssemblyName,
                     "Basic.Reference.Assemblies.AspNet90",
                     "Microsoft.CodeAnalysis",
                     "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
@@ -128,8 +100,8 @@ internal sealed class CompilerProxy(
         }
 
         using var _ = alc.EnterContextualReflection();
-        Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerAssemblyName));
-        Type compilerType = compilerAssembly.GetType(CompilerAssemblyName)!;
+        Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerConstants.CompilerAssemblyName));
+        Type compilerType = compilerAssembly.GetType(CompilerConstants.CompilerAssemblyName)!;
         var compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
         return new() { LoadContext = alc, Compiler = compiler };
 
@@ -138,7 +110,7 @@ internal sealed class CompilerProxy(
             return new()
             {
                 Name = name,
-                Data = await client.GetStreamAsync($"_framework/{name}.wasm"),
+                Data = await assemblyDownloader.DownloadAsync(name),
             };
         }
     }
@@ -215,92 +187,5 @@ internal sealed class CompilerLoader(
         }
 
         return null;
-    }
-}
-
-internal sealed record InitialCode(string SuggestedFileName, string TextTemplate)
-{
-    public static readonly InitialCode Razor = new("TestComponent.razor", """
-        <TestComponent Param="1" />
-
-        @code {
-            [Parameter] public int Param { get; set; }
-        }
-
-        """);
-
-    public static readonly InitialCode CSharp = new("Program.cs", """
-        using System;
-        using System.Collections.Generic;
-        using System.Collections.Immutable;
-        using System.Diagnostics;
-        using System.Diagnostics.CodeAnalysis;
-        using System.Linq;
-        using System.Threading;
-        using System.Threading.Tasks;
-
-        class Program
-        {
-            static void Main()
-            {
-                Console.WriteLine("Hello.");
-            }
-        }
-
-        """);
-
-    public static readonly InitialCode Cshtml = new("TestPage.cshtml", """
-        @page
-        @using System.ComponentModel.DataAnnotations
-        @model PageModel
-        @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-
-        <form method="post">
-            Name:
-            <input asp-for="Customer.Name" />
-            <input type="submit" />
-        </form>
-
-        @functions {
-            public class PageModel
-            {
-                public Customer Customer { get; set; } = new();
-            }
-
-            public class Customer
-            {
-                public int Id { get; set; }
-
-                [Required, StringLength(10)]
-                public string Name { get; set; } = "";
-            }
-        }
-
-        """);
-
-    public string SuggestedFileNameWithoutExtension => Path.GetFileNameWithoutExtension(SuggestedFileName);
-    public string SuggestedFileExtension => Path.GetExtension(SuggestedFileName);
-
-    public string GetFinalFileName(string suffix)
-    {
-        return string.IsNullOrEmpty(suffix)
-            ? SuggestedFileName
-            : SuggestedFileNameWithoutExtension + suffix + SuggestedFileExtension;
-    }
-
-    public InputCode ToInputCode(string? finalFileName = null)
-    {
-        finalFileName ??= SuggestedFileName;
-
-        return new()
-        {
-            FileName = finalFileName,
-            Text = finalFileName == SuggestedFileName
-                ? TextTemplate
-                : TextTemplate.Replace(
-                    SuggestedFileNameWithoutExtension,
-                    Path.GetFileNameWithoutExtension(finalFileName),
-                    StringComparison.Ordinal),
-        };
     }
 }

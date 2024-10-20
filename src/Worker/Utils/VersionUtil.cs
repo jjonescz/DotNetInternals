@@ -1,6 +1,6 @@
 namespace DotNetInternals;
 
-internal static class VersionUtil
+public static class VersionUtil
 {
     private static readonly Lazy<string?> _currentCommitHash = new(GetCurrentCommitHash);
 

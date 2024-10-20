@@ -16,7 +16,7 @@ public class CompressorTests
             """.ReplaceLineEndings("\r\n");
         var savedState = new SavedState() { Inputs = [new() { FileName = "", Text = source }] };
         var compressed = Compressor.Compress(savedState);
-        Assert.Equal((89, 112), (source.Length, compressed.Length));
+        Assert.Equal((89, 114), (source.Length, compressed.Length));
         var uncompressed = Compressor.Uncompress(compressed);
         Assert.Equal(savedState.Inputs.Single(), uncompressed.Inputs.Single());
     }

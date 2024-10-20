@@ -16,10 +16,7 @@ public static class Executor
             Util.CaptureConsoleOutput(
                 () =>
                 {
-                    var parameters = entryPoint.GetParameters().Length == 0
-                        ? null
-                        : new object[] { Array.Empty<string>() };
-                    exitCode = entryPoint.Invoke(null, parameters) is int e ? e : 0;
+                    exitCode = InvokeEntryPoint(entryPoint);
                 },
                 out string stdout, out string stderr);
             return $"Exit code: {exitCode}\nStdout:\n{stdout}\nStderr:\n{stderr}";
@@ -28,5 +25,13 @@ public static class Executor
         {
             return ex.ToString();
         }
+    }
+
+    public static int InvokeEntryPoint(MethodInfo entryPoint)
+    {
+        var parameters = entryPoint.GetParameters().Length == 0
+            ? null
+            : new object[] { Array.Empty<string>() };
+        return entryPoint.Invoke(null, parameters) is int e ? e : 0;
     }
 }

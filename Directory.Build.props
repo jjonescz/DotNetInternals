@@ -5,6 +5,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>DotNetInternals</RootNamespace>
     <AssemblyName>DotNetInternals.$([System.IO.Path]::GetFileName(`$(MSBuildProjectDirectory)`))</AssemblyName>
+
+    <!--
+      Cannot trim because we dynamically execute programs
+      which might depend on methods unreferenced at compile time.
+    -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <UsingBrowserRuntimeWorkload>false</UsingBrowserRuntimeWorkload>
   </PropertyGroup>
 
   <ItemGroup>

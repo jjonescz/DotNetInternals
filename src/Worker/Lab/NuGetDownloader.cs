@@ -4,11 +4,10 @@ using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using System.IO.Compression;
-using System.Text.Encodings.Web;
 
 namespace DotNetInternals.Lab;
 
-internal static class NuGetUtil
+public static class NuGetUtil
 {
     public static string GetPackageVersionListUrl(string packageId)
     {
@@ -147,7 +146,7 @@ internal sealed class NuGetDownloadablePackage
     }
 }
 
-internal sealed record NuGetPackageInfo
+public sealed record NuGetPackageInfo
 {
     public static NuGetPackageInfo Create(string version, string commitHash, string repoUrl)
     {
@@ -158,11 +157,40 @@ internal sealed record NuGetPackageInfo
         };
     }
 
+    public static NuGetPackageInfo GetBuiltInInfo(string assemblyName)
+    {
+        string version = "";
+        string hash = "";
+        string repositoryUrl = "";
+        foreach (var attribute in Assembly.Load(assemblyName).CustomAttributes)
+        {
+            switch (attribute.AttributeType.FullName)
+            {
+                case "System.Reflection.AssemblyInformationalVersionAttribute"
+                    when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
+                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
+                    version = parsedVersion;
+                    hash = parsedHash;
+                    break;
+
+                case "System.Reflection.AssemblyMetadataAttribute"
+                    when attribute.ConstructorArguments is [{ Value: "RepositoryUrl" }, { Value: string repoUrl }]:
+                    repositoryUrl = repoUrl;
+                    break;
+            }
+        }
+
+        return Create(
+            version: version,
+            commitHash: hash,
+            repoUrl: repositoryUrl);
+    }
+
     public required string Version { get; init; }
     public required CommitLink Commit { get; init; }
 }
 
-internal sealed record CommitLink
+public sealed record CommitLink
 {
     public required string RepoUrl { get; init; }
     public required string Hash { get; init; }

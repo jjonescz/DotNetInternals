@@ -14,8 +14,13 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
 - Offline support (PWA).
 - VSCode Monaco Editor.
 - Multiple input sources (especially useful for interlinked Razor components).
+- C# Language Services (completions, live diagnostics) - experimental.
 
 ## Development
+
+The recommended startup app for development is `src/Server`.
+
+To hit breakpoints, it is recommended to turn off the worker (in app settings).
 
 - `src/App`: the WebAssembly app.
   - `cd src/App; dotnet watch` - `src/Server` is better for development though.
@@ -29,6 +34,8 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
   (it has better tooling support for hot reload and debugging).
   - `cd src/Server; dotnet watch`
 - `src/Shared`: code used by `Compiler` that does not depend on Roslyn/Razor.
+- `src/Worker`: an app loaded in a web worker (a separate process in the browser),
+  so it does all the CPU-intensive work to avoid lagging the user interface.
 - `test/UnitTests`
   - `dotnet test`
 

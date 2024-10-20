@@ -1,9 +1,9 @@
 @implements IDisposable
-@inject DependencyRegistry DependencyRegistry
+@inject ILogger<Settings> Logger
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
-@inject Lazy<NuGetDownloader> NuGetDownloader
-@inject SdkDownloader SdkDownloader
+@inject WorkerController Worker
+@inject LanguageServices LanguageServices
 
 <button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
     Settings
@@ -52,6 +52,27 @@
                         </label>
                     </div>
 
+                    @* Use a worker check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="enableWorker"
+                            @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
+                        <label class="form-check-label" for="enableWorker"
+                               title="Moves compilation to a separate worker thread">
+                            Use a worker (requires restart)
+                        </label>
+                    </div>
+
+                    @* Language services check box *@
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="enableLanguageServices"
+                               @bind="EnableLanguageServices" @bind:after="OnSetEnableLanguageServicesAsync" />
+                        <label class="form-check-label" for="enableLanguageServices"
+                               title="Completions, live diagnostics">
+                            <span class="badge bg-secondary text-capitalize">experimental</span>
+                            Language services (requires restart)
+                        </label>
+                    </div>
+
                     <h6 class="mt-3 h5">Compilers</h6>
 
                     @* SDK version select *@
@@ -66,7 +87,7 @@
                             @if (loadingSdkInfo)
                             {
                                 <span class="input-group-text">
-                                    <div class="spinner-border spinner-border-sm" role="status" title="Loading info..."></div>
+                                    <span class="spinner-border spinner-border-sm" role="status" title="Loading info..."></span>
                                 </span>
                             }
                         </div>
@@ -104,13 +125,13 @@
                             @if (loadingRoslynInfo)
                             {
                                 <span class="input-group-text">
-                                    <div class="spinner-border spinner-border-sm" role="status" title="Loading info..."></div>
+                                    <span class="spinner-border spinner-border-sm" role="status" title="Loading info..."></span>
                                 </span>
                             }
                         </div>
                         <div class="form-text">
                             See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RoslynPackageId)"
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RoslynPackageId)"
                                target="_blank">available Roslyn versions</a>.
                             Use
                             @if (roslynVersion != "latest")
@@ -157,13 +178,13 @@
                             @if (loadingRazorInfo)
                             {
                                 <span class="input-group-text">
-                                    <div class="spinner-border spinner-border-sm" role="status" title="Loading info..."></div>
+                                    <span class="spinner-border spinner-border-sm" role="status" title="Loading info..."></span>
                                 </span>
                             }
                         </div>
                         <div class="form-text">
                             See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerProxy.RazorPackageId)"
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RazorPackageId)"
                                target="_blank">available Razor versions</a>.
                             Use
                             @if (razorVersion != "latest")
@@ -243,13 +264,28 @@
         set => Logging.LogLevel = value ? LogLevel.Debug : LogLevel.Information;
     }
 
+    private bool EnableLanguageServices { get; set; }
+    private bool EnableWorker { get; set; }
+
     private async Task OnSetDebugLogsAsync()
     {
         await LocalStorage.SetItemAsync(nameof(DebugLogs), DebugLogs);
     }
 
+    private async Task OnSetEnableLanguageServicesAsync()
+    {
+        await LocalStorage.SetItemAsync(nameof(EnableLanguageServices), EnableLanguageServices);
+    }
+
+    private async Task OnSetEnableWorkerAsync()
+    {
+        await LocalStorage.SetItemAsync(nameof(EnableWorker), EnableWorker);
+    }
+
     public async Task InitializeAsync()
     {
+        UpdateInfo.UpdateBecameAvailable += StateHasChanged;
+
         // Load settings from local storage.
         if (await LocalStorage.ContainKeyAsync(nameof(WordWrap)))
         {
@@ -265,8 +301,24 @@
         {
             DebugLogs = await LocalStorage.GetItemAsync<bool>(nameof(DebugLogs));
         }
+        if (await LocalStorage.ContainKeyAsync(nameof(EnableLanguageServices)))
+        {
+            EnableLanguageServices = await LocalStorage.GetItemAsync<bool>(nameof(EnableLanguageServices));
+        }
+        EnableWorker = await LocalStorage.ContainKeyAsync(nameof(EnableWorker))
+            ? await LocalStorage.GetItemAsync<bool>(nameof(EnableWorker))
+            : true;
 
-        UpdateInfo.UpdateBecameAvailable += StateHasChanged;
+        if (EnableLanguageServices)
+        {
+            await LanguageServices.RegisterAsync();
+        }
+        else
+        {
+            LanguageServices.Disabled = true;
+        }
+
+        Worker.Disabled = !EnableWorker;
     }
 
     void IDisposable.Dispose()
@@ -357,7 +409,7 @@
             }
             else
             {
-                info = !modalOpen ? null : await SdkDownloader.GetInfoAsync(versionToLoad);
+                info = !modalOpen ? null : await Worker.GetSdkInfoAsync(versionToLoad);
                 error = null;
 
                 if (saveState)
@@ -370,6 +422,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to load SDK info.");
             error = ex.Message;
             info = null;
         }
@@ -389,24 +442,6 @@
         await LoadSdkInfoAsync();
     }
 
-    private NuGetDownloadablePackage? LoadPackage(string? version, string key, string packageId, string packageFolder)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-        {
-            DependencyRegistry.RemoveAssemblies(key);
-            return null;
-        }
-
-        var package = NuGetDownloader.Value.GetPackage(
-            packageId,
-            version,
-            packageFolder);
-
-        DependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
-
-        return package;
-    }
-
     private async Task LoadRoslynInfoAsync(bool saveState = true)
     {
         var versionToLoad = roslynVersion;
@@ -423,20 +458,24 @@
         string? error;
         try
         {
-            var package = LoadPackage(
-                version: versionToLoad,
-                key: "roslyn",
-                packageId: CompilerProxy.RoslynPackageId,
-                packageFolder: CompilerProxy.RoslynPackageFolder);
+            const string key = "roslyn";
 
-            info = !modalOpen ? null : package is null
-                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RoslynAssemblyName)
-                : await package.GetInfoAsync();
+            Worker.UsePackage(
+                version: versionToLoad,
+                key: key,
+                packageId: CompilerConstants.RoslynPackageId,
+                packageFolder: CompilerConstants.RoslynPackageFolder);
+
+            info = !modalOpen
+                ? null
+                : await Worker.GetPackageInfoAsync(key)
+                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RoslynAssemblyName);
 
             error = null;
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to load roslyn info.");
             error = ex.Message;
             info = null;
         }
@@ -472,20 +511,24 @@
         string? error;
         try
         {
-            var package = LoadPackage(
-                version: versionToLoad,
-                key: "razor",
-                packageId: CompilerProxy.RazorPackageId,
-                packageFolder: CompilerProxy.RazorPackageFolder);
+            const string key = "razor";
 
-            info = !modalOpen ? null : package is null
-                ? CompilerProxy.GetBuiltInInfo(CompilerProxy.RazorAssemblyName)
-                : await package.GetInfoAsync();
+            Worker.UsePackage(
+                version: versionToLoad,
+                key: key,
+                packageId: CompilerConstants.RazorPackageId,
+                packageFolder: CompilerConstants.RazorPackageFolder);
+
+            info = !modalOpen
+                ? null
+                : await Worker.GetPackageInfoAsync(key)
+                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RazorAssemblyName);
 
             error = null;
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Failed to load razor info.");
             error = ex.Message;
             info = null;
         }

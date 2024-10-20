@@ -24,15 +24,23 @@ partial class Page
         // Load inputs.
         inputs.Clear();
         currentInputIndex = 0;
+        TextModel? firstModel = null;
         foreach (var (index, input) in savedState.Inputs.Index())
         {
             var model = await CreateModelAsync(input);
-            inputs.Add(new(input.FileName, model));
+            inputs.Add(new(input.FileName, model) { NewContent = input.Text });
 
             if (index == 0)
             {
-                await inputEditor.SetModel(model);
+                firstModel = model;
             }
+        }
+
+        OnWorkspaceChanged();
+
+        if (firstModel != null)
+        {
+            await inputEditor.SetModel(firstModel);
         }
 
         // Load settings.

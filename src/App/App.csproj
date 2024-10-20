@@ -1,13 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
 	<PropertyGroup>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
-		<!--
-			Cannot trim because we dynamically execute programs
-			which might depend on methods unreferenced at compile time.
-		-->
-		<PublishTrimmed>false</PublishTrimmed>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -15,13 +10,13 @@
 		<PackageReference Include="BlazorMonaco" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
-		<PackageReference Include="NuGet.Protocol" />
 		<PackageReference Include="protobuf-net" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Compiler\Compiler.csproj" />
 		<ProjectReference Include="..\Shared\Shared.csproj" />
+		<ProjectReference Include="..\Worker\Worker.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -45,6 +40,12 @@
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Inputs="@(NpmInput)" Outputs="@(NpmOutput)">
 		<Exec Command="npm install" WorkingDirectory="Npm" />
 		<Exec Command="npm run build" WorkingDirectory="Npm" />
+		<!--
+			Ensure the outputs are modified (even if Webpack did not touch them
+			because the input changes were irrelevant to build output)
+			so this target does not re-run unnecessarily.
+		-->
+		<Touch Files="@(NpmOutput)" AlwaysCreate="true" />
 	</Target>
 
 </Project>
