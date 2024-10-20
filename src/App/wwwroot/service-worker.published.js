@@ -24,7 +24,26 @@ async function onInstall(event) {
         .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
-    await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+    const cache = await caches.open(cacheName);
+    await cache.addAll(assetsRequests);
+    
+    // Clean responses.
+    // Removes `redirected` flag so the response is servable by the service worker.
+    // https://stackoverflow.com/a/45440505/9080566
+    // https://github.com/dotnet/aspnetcore/issues/33872
+    // Also avoids other inexplicable failures when serving responses from the service worker.
+    for (const request of assetsRequests) {
+        const response = await cache.match(request);
+        const clonedResponse = response.clone();
+        const responseData = await clonedResponse.arrayBuffer();
+        const cleanedResponse = new Response(responseData, {
+            headers: {
+                'content-type': clonedResponse.headers.get('content-type') ?? '',
+                'content-length': responseData.byteLength.toString(),
+            },
+        });
+        await cache.put(request, cleanedResponse);
+    }
 }
 
 async function onActivate(event) {
@@ -56,11 +75,6 @@ async function onFetch(event) {
         // We ignore search query (so our pre-cached `app.css` matches request `app.css?v=2`),
         // we have pre-cached the latest versions of all static assets.
         cachedResponse = await cache.match(request, { ignoreSearch: true });
-
-        if (cachedResponse?.redirected) {
-            cachedResponse = await cleanResponse(cachedResponse);
-            cache.put(request, cachedResponse.clone());
-        }
     }
 
     if (!cachedResponse) {
@@ -68,27 +82,4 @@ async function onFetch(event) {
     }
 
     return cachedResponse || fetch(event.request);
-}
-
-/**
- * Removes `redirected` flag from a response
- * so it's servable by the service worker.
- *
- * @see https://stackoverflow.com/a/45440505/9080566
- * @see https://github.com/dotnet/aspnetcore/issues/33872
- */
-async function cleanResponse(response) {
-    const clonedResponse = response.clone();
-  
-    // Not all browsers support the Response.body stream,
-    // so fall back to reading the entire body into memory as a blob.
-    const body = 'body' in clonedResponse
-        ? clonedResponse.body
-        : await clonedResponse.blob();
-
-    return new Response(body, {
-        headers: clonedResponse.headers,
-        status: clonedResponse.status,
-        statusText: clonedResponse.statusText,
-    });
 }
