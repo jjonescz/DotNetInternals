@@ -33,7 +33,7 @@ internal sealed class WorkerController
     private async Task<SlimWorker> CreateWorker()
     {
         var workerReady = new TaskCompletionSource();
-        var worker = await CustomSlimWorker.CreateAsync(
+        var worker = await SlimWorker.CreateAsync(
             jsRuntime,
             assembly: "DotNetInternals.Worker",
             args: [hostEnvironment.BaseAddress]);
