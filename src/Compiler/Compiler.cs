@@ -29,6 +29,8 @@ public class Compiler : ICompiler
 
     private static CompiledAssembly CompileNoCache(IEnumerable<InputCode> inputs)
     {
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
+
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
         var cSharp = new Dictionary<string, CSharpSyntaxTree>();
@@ -52,7 +54,7 @@ public class Compiler : ICompiler
                     }
                 case ".cs":
                     {
-                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, path: filePath);
+                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, parseOptions, path: filePath);
                         break;
                     }
             }
@@ -81,7 +83,7 @@ public class Compiler : ICompiler
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
-                    return CSharpSyntaxTree.ParseText(declarationCSharp);
+                    return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions);
                 }),
                 ..cSharp.Values,
             ],
@@ -124,10 +126,10 @@ public class Compiler : ICompiler
 
         var finalCompilation = CSharpCompilation.Create("TestAssembly",
             [
-                ..compiledRazorFiles.Values.Select(static (file) =>
+                ..compiledRazorFiles.Values.Select((file) =>
                 {
                     var cSharpText = file.GetOutput("C#")!.EagerText!;
-                    return CSharpSyntaxTree.ParseText(cSharpText);
+                    return CSharpSyntaxTree.ParseText(cSharpText, parseOptions);
                 }),
                 ..cSharp.Values,
             ],
