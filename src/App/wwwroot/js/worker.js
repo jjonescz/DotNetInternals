@@ -1,8 +1,5 @@
 ﻿// Used by CustomSlimWorker.
 
-import '../../js/decode.min.js?v=3';
-import '../../js/fetch-interceptor.js?v=3';
-
 const params = new Proxy(new URLSearchParams(self.location.search), {
     get: (searchParams, prop) => searchParams.get(prop),
 });

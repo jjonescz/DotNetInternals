@@ -1,7 +1,7 @@
 // Caution! Be sure you understand the caveats before publishing an application with
 // offline support. See https://aka.ms/blazor-offline-considerations
 
-self.importScripts('./service-worker-assets.js', './js/decode.min.js?v=2');
+self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
 self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
@@ -23,14 +23,7 @@ async function onInstall(event) {
     const assetsRequests = self.assetsManifest.assets
         .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
-        .map(asset => {
-            // `.wasm` files are requested as pre-compressed `.br` by `fetch-interceptor.js`.
-            if (asset.url.endsWith('.wasm')) {
-                return new Request(asset.url + '.br', { cache: 'no-cache' });
-            }
-
-            return new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' });
-        });
+        .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
 }
 
