@@ -15,6 +15,7 @@ services.AddLogging(builder =>
 });
 services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(args[0]) });
 services.AddScoped<CompilerLoaderServices>();
+services.AddScoped<AssemblyDownloader>();
 services.AddScoped<CompilerProxy>();
 services.AddScoped<DependencyRegistry>();
 services.AddScoped<PackageRegistry>();

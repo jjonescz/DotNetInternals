@@ -20,7 +20,7 @@ public static class CompilerConstants
 internal sealed class CompilerProxy(
     ILogger<CompilerProxy> logger,
     DependencyRegistry dependencyRegistry,
-    HttpClient client,
+    AssemblyDownloader assemblyDownloader,
     CompilerLoaderServices loaderServices)
 {
     private LoadedCompiler? loaded;
@@ -110,7 +110,7 @@ internal sealed class CompilerProxy(
             return new()
             {
                 Name = name,
-                Data = await client.GetStreamAsync($"_framework/{name}.wasm"),
+                Data = await assemblyDownloader.DownloadAsync(name),
             };
         }
     }
