@@ -131,7 +131,7 @@
                         </div>
                         <div class="form-text">
                             See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RoslynPackageId)"
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RoslynPackageId)"
                                target="_blank">available Roslyn versions</a>.
                             Use
                             @if (roslynVersion != "latest")
@@ -184,7 +184,7 @@
                         </div>
                         <div class="form-text">
                             See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RazorPackageId)"
+                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RazorPackageId)"
                                target="_blank">available Razor versions</a>.
                             Use
                             @if (razorVersion != "latest")
@@ -463,13 +463,13 @@
             Worker.UsePackage(
                 version: versionToLoad,
                 key: key,
-                packageId: CompilerConstants.RoslynPackageId,
-                packageFolder: CompilerConstants.RoslynPackageFolder);
+                packageId: CompilerDependencyConstants.RoslynPackageId,
+                packageFolder: CompilerDependencyConstants.RoslynPackageFolder);
 
             info = !modalOpen
                 ? null
                 : await Worker.GetPackageInfoAsync(key)
-                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RoslynAssemblyName);
+                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerDependencyConstants.RoslynAssemblyName);
 
             error = null;
         }
@@ -516,13 +516,13 @@
             Worker.UsePackage(
                 version: versionToLoad,
                 key: key,
-                packageId: CompilerConstants.RazorPackageId,
-                packageFolder: CompilerConstants.RazorPackageFolder);
+                packageId: CompilerDependencyConstants.RazorPackageId,
+                packageFolder: CompilerDependencyConstants.RazorPackageFolder);
 
             info = !modalOpen
                 ? null
                 : await Worker.GetPackageInfoAsync(key)
-                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RazorAssemblyName);
+                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerDependencyConstants.RazorAssemblyName);
 
             error = null;
         }

@@ -3,7 +3,7 @@ using System.Runtime.Loader;
 
 namespace DotNetInternals.Lab;
 
-public static class CompilerConstants
+public static class CompilerDependencyConstants
 {
     public static readonly string RoslynPackageId = "Microsoft.Net.Compilers.Toolset";
     public static readonly string RoslynPackageFolder = "tasks/netcore/bincore";
@@ -83,9 +83,9 @@ internal sealed class CompilerProxy(
                     // If they are not loaded from the registry, we will reload the built-in ones.
                     // Preload all built-in ones that our Compiler project depends on here
                     // (we cannot do that inside the AssemblyLoadContext because of async).
-                    CompilerConstants.CompilerAssemblyName,
-                    CompilerConstants.RoslynAssemblyName,
-                    CompilerConstants.RazorAssemblyName,
+                    CompilerDependencyConstants.CompilerAssemblyName,
+                    CompilerDependencyConstants.RoslynAssemblyName,
+                    CompilerDependencyConstants.RazorAssemblyName,
                     "Basic.Reference.Assemblies.AspNet90",
                     "Microsoft.CodeAnalysis",
                     "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
@@ -100,8 +100,8 @@ internal sealed class CompilerProxy(
         }
 
         using var _ = alc.EnterContextualReflection();
-        Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerConstants.CompilerAssemblyName));
-        Type compilerType = compilerAssembly.GetType(CompilerConstants.CompilerAssemblyName)!;
+        Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerDependencyConstants.CompilerAssemblyName));
+        Type compilerType = compilerAssembly.GetType(CompilerDependencyConstants.CompilerAssemblyName)!;
         var compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
         return new() { LoadContext = alc, Compiler = compiler };
 

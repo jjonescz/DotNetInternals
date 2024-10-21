@@ -1,0 +1,46 @@
+﻿namespace DotNetInternals.Lab;
+
+internal sealed class CompilerDependencyLoader(
+    DependencyRegistry dependencyRegistry,
+    PackageRegistry packageRegistry,
+    Lazy<NuGetDownloader> nuGetDownloader)
+{
+    public void Use(CompilerKind compilerKind, string? version)
+    {
+        (string key, string packageId, string packageFolder) = compilerKind switch
+        {
+            CompilerKind.Roslyn => ("roslyn", CompilerDependencyConstants.RoslynPackageId, CompilerDependencyConstants.RoslynPackageFolder),
+            CompilerKind.Razor => ("razor", CompilerDependencyConstants.RazorPackageId, CompilerDependencyConstants.RazorPackageFolder),
+            _ => throw new ArgumentException($"Unexpected value: {compilerKind}", paramName: nameof(compilerKind)),
+        };
+
+        // Null -> use the built-in compiler.
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            dependencyRegistry.RemoveAssemblies(key);
+            packageRegistry.Remove(key);
+            return;
+        }
+
+        // Single number -> an AzDo build number.
+        if (int.TryParse(version, out int number) && number > 0)
+        {
+
+        }
+
+        // Otherwise -> NuGet package version.
+        var package = nuGetDownloader.Value.GetPackage(
+            packageId: packageId,
+            version: version,
+            folder: packageFolder);
+
+        dependencyRegistry.SetAssemblies(key, package.GetAssembliesAsync);
+        packageRegistry.Set(key, package);
+    }
+}
+
+public enum CompilerKind
+{
+    Roslyn,
+    Razor,
+}

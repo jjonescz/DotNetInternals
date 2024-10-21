@@ -21,6 +21,7 @@ public static class WorkerServices
         services.AddScoped<PackageRegistry>();
         services.AddScoped<Lazy<NuGetDownloader>>();
         services.AddScoped<SdkDownloader>();
+        services.AddScoped<CompilerDependencyLoader>();
         services.AddScoped<LanguageServices>();
         return services.BuildServiceProvider();
     }
