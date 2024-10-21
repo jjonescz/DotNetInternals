@@ -119,7 +119,9 @@ public class Compiler : ICompiler
                     return new CompiledFile([
                         new() { Type = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
                         new() { Type = "IR", EagerText = ir, DesignTimeText = designIr },
-                        new() { Type = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics },
+                        ..(string.IsNullOrEmpty(razorDiagnostics) && string.IsNullOrEmpty(designRazorDiagnostics)
+                            ? ImmutableArray<CompiledFileOutput>.Empty
+                            : [new() { Type = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics }]),
                         new() { Type = "C#", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
