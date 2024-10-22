@@ -70,7 +70,7 @@ public abstract record WorkerInputMessage
         }
     }
 
-    public sealed record UsePackage(string? Version, string Key, string PackageId, string PackageFolder) : WorkerInputMessage<NoOutput>
+    public sealed record UseCompilerVersion(CompilerKind CompilerKind, string? Version) : WorkerInputMessage<NoOutput>
     {
         public override Task<NoOutput> HandleAsync(IServiceProvider services)
         {

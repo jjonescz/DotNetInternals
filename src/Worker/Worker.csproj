@@ -10,6 +10,7 @@
 		<PackageReference Include="KristofferStrube.Blazor.WebWorkers" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" />
 		<PackageReference Include="Microsoft.Extensions.Logging" />
+		<PackageReference Include="Microsoft.TeamFoundationServer.Client" />
 		<PackageReference Include="NuGet.Protocol" />
 	</ItemGroup>
 
