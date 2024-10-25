@@ -24,7 +24,7 @@ internal sealed class SimpleConsoleLoggerProvider : ILoggerProvider
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            Console.WriteLine(formatter(state, exception));
+            Console.WriteLine("Worker: {0}", formatter(state, exception));
         }
     }
 }

@@ -10,8 +10,10 @@ public static class Executor
         try
         {
             var assembly = alc.LoadFromStream(emitStream);
-            var entryPoint = assembly.EntryPoint ??
-                throw new ArgumentException("No entry point found in the assembly.");
+
+            var entryPoint = assembly.EntryPoint
+                ?? throw new ArgumentException("No entry point found in the assembly.");
+
             int exitCode = 0;
             Util.CaptureConsoleOutput(
                 () =>
@@ -19,6 +21,7 @@ public static class Executor
                     exitCode = InvokeEntryPoint(entryPoint);
                 },
                 out string stdout, out string stderr);
+
             return $"Exit code: {exitCode}\nStdout:\n{stdout}\nStderr:\n{stderr}";
         }
         catch (Exception ex)

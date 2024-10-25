@@ -36,6 +36,12 @@ partial class Page
             }
         }
 
+        if (savedState.Configuration is { } savedConfiguration)
+        {
+            var input = InitialCode.Configuration.ToInputCode() with { Text = savedConfiguration };
+            configuration = new(input.FileName, await CreateModelAsync(input));
+        }
+
         OnWorkspaceChanged();
 
         if (firstModel != null)
@@ -50,7 +56,11 @@ partial class Page
     internal async Task<SavedState> SaveStateToUrlAsync(Func<SavedState, SavedState>? updater = null)
     {
         // Always save the current editor texts.
-        savedState = savedState with { Inputs = await getInputsAsync() };
+        savedState = savedState with
+        {
+            Inputs = await getInputsAsync(),
+            Configuration = configuration is null ? null : await getInputAsync(configuration.Model),
+        };
 
         if (updater != null)
         {
@@ -70,10 +80,15 @@ partial class Page
             var builder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
             foreach (var (fileName, model) in inputs)
             {
-                var text = await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
+                var text = await getInputAsync(model);
                 builder.Add(new() { FileName = fileName, Text = text });
             }
             return builder.ToImmutable();
+        }
+
+        static async Task<string> getInputAsync(TextModel model)
+        {
+            return await model.GetValue(EndOfLinePreference.TextDefined, preserveBOM: true);
         }
     }
 }
@@ -86,6 +101,9 @@ internal sealed record SavedState
     [ProtoMember(1)]
     public ImmutableArray<InputCode> Inputs { get; init; }
 
+    [ProtoMember(5)]
+    public string? Configuration { get; init; }
+
     [ProtoMember(4)]
     public string? SdkVersion { get; init; }
 
@@ -94,4 +112,12 @@ internal sealed record SavedState
 
     [ProtoMember(3)]
     public string? RazorVersion { get; init; }
+
+    public CompilationInput ToCompilationInput()
+    {
+        return new(Inputs)
+        {
+            Configuration = Configuration,
+        };
+    }
 }

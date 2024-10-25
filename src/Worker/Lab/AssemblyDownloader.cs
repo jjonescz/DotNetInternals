@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 
 namespace DotNetInternals.Lab;
 
@@ -20,7 +21,7 @@ internal sealed class AssemblyDownloader
         return manifest!.Resources.Assembly.Keys.ToFrozenDictionary(n => manifest.Resources.Fingerprinting[n], n => n);
     }
 
-    public async Task<Stream> DownloadAsync(string assemblyFileNameWithoutExtension)
+    public async Task<ImmutableArray<byte>> DownloadAsync(string assemblyFileNameWithoutExtension)
     {
         var fingerprintedFileNames = await this.fingerprintedFileNames.Value;
 
@@ -30,7 +31,8 @@ internal sealed class AssemblyDownloader
             fileName = fingerprintedFileName;
         }
 
-        return await client.GetStreamAsync($"_framework/{fileName}");
+        var bytes = await client.GetByteArrayAsync($"_framework/{fileName}");
+        return ImmutableCollectionsMarshal.AsImmutableArray(bytes);
     }
 
     private sealed class BlazorBootJson
