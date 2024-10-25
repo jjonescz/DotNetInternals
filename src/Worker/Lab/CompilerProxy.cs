@@ -55,7 +55,14 @@ internal sealed class CompilerProxy(
             if (input.Configuration is not null && loaded.DllAssemblies is null)
             {
                 var assemblies = loaded.Assemblies ?? await LoadAssembliesAsync();
-                loaded.DllAssemblies = assemblies.ToImmutableDictionary(p => p.Key, p => WebcilToDll(p.Value.Data));
+                loaded.DllAssemblies = assemblies.ToImmutableDictionary(
+                    p => p.Key,
+                    p => p.Value.Format switch
+                    {
+                        AssemblyDataFormat.Dll => p.Value.Data,
+                        AssemblyDataFormat.Webcil => WebcilToDll(p.Value.Data),
+                        _ => throw new InvalidOperationException($"Unknown assembly format: {p.Value.Format}"),
+                    });
             }
 
             using var _ = loaded.LoadContext.EnterContextualReflection();
@@ -94,12 +101,12 @@ internal sealed class CompilerProxy(
                 // Preload all built-in ones that our Compiler project depends on here
                 // (we cannot do that inside the AssemblyLoadContext because of async).
                 CompilerConstants.CompilerAssemblyName,
-                    CompilerConstants.RoslynAssemblyName,
-                    CompilerConstants.RazorAssemblyName,
-                    "Basic.Reference.Assemblies.AspNet90",
-                    "Microsoft.CodeAnalysis",
-                    "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
-                    "Microsoft.CodeAnalysis.Razor.Test",
+                CompilerConstants.RoslynAssemblyName,
+                CompilerConstants.RazorAssemblyName,
+                "Basic.Reference.Assemblies.AspNet90",
+                "Microsoft.CodeAnalysis",
+                "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
+                "Microsoft.CodeAnalysis.Razor.Test",
             ]);
 
         logger.LogDebug("Available assemblies ({Count}): {Assemblies}",
@@ -115,6 +122,7 @@ internal sealed class CompilerProxy(
         {
             Name = name,
             Data = await assemblyDownloader.DownloadAsync(name),
+            Format = AssemblyDataFormat.Webcil,
         };
     }
 

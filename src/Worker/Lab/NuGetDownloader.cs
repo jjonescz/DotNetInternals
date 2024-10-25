@@ -141,6 +141,7 @@ internal sealed class NuGetDownloadablePackage
                 {
                     Name = entry.Name[..^extension.Length],
                     Data = ImmutableCollectionsMarshal.AsImmutableArray(buffer),
+                    Format = AssemblyDataFormat.Dll,
                 };
             })
             .ToImmutableArray();
