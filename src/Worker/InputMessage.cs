@@ -42,21 +42,21 @@ public abstract record WorkerInputMessage
         }
     }
 
-    public sealed record Compile(IEnumerable<InputCode> Inputs) : WorkerInputMessage<CompiledAssembly>
+    public sealed record Compile(CompilationInput Input) : WorkerInputMessage<CompiledAssembly>
     {
         public override async Task<CompiledAssembly> HandleAsync(IServiceProvider services)
         {
             var compiler = services.GetRequiredService<CompilerProxy>();
-            return await compiler.CompileAsync(Inputs);
+            return await compiler.CompileAsync(Input);
         }
     }
 
-    public sealed record GetOutput(IEnumerable<InputCode> Inputs, string? File, string OutputType) : WorkerInputMessage<string>
+    public sealed record GetOutput(CompilationInput Input, string? File, string OutputType) : WorkerInputMessage<string>
     {
         public override async Task<string> HandleAsync(IServiceProvider services)
         {
             var compiler = services.GetRequiredService<CompilerProxy>();
-            var result = await compiler.CompileAsync(Inputs);
+            var result = await compiler.CompileAsync(Input);
             if (File is null)
             {
                 return await result.GetRequiredGlobalOutput(OutputType).GetTextAsync(outputFactory: null);

@@ -4,6 +4,7 @@ using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 
 namespace DotNetInternals.Lab;
 
@@ -133,13 +134,13 @@ internal sealed class NuGetDownloadablePackage
             {
                 ZipArchiveEntry entry = reader.GetEntry(file);
                 using var entryStream = entry.Open();
-                var memoryStream = new MemoryStream(new byte[entry.Length]);
+                var buffer = new byte[entry.Length];
+                var memoryStream = new MemoryStream(buffer);
                 entryStream.CopyTo(memoryStream);
-                memoryStream.Position = 0;
                 return new LoadedAssembly()
                 {
                     Name = entry.Name[..^extension.Length],
-                    Data = memoryStream,
+                    Data = ImmutableCollectionsMarshal.AsImmutableArray(buffer),
                 };
             })
             .ToImmutableArray();

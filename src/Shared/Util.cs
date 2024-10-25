@@ -113,6 +113,22 @@ public static class Util
         return builder.ToImmutable();
     }
 
+    public static async Task<ImmutableDictionary<TKey, TValue>> ToImmutableDictionaryAsync<T, TKey, TValue>(
+        this IEnumerable<T> source,
+        Func<T, TKey> keySelector,
+        Func<T, Task<TValue>> valueSelector)
+        where TKey : notnull
+    {
+        var builder = ImmutableDictionary.CreateBuilder<TKey, TValue>();
+
+        foreach (var item in source)
+        {
+            builder.Add(keySelector(item), await valueSelector(item));
+        }
+
+        return builder.ToImmutable();
+    }
+
     public static Task<ImmutableDictionary<TKey, TValue>> ToImmutableDictionaryAsync<T, TKey, TValue>(
         this IAsyncEnumerable<T> source,
         Func<T, TKey> keySelector,

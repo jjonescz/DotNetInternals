@@ -47,5 +47,5 @@ internal sealed class DependencyRegistry
 internal sealed class LoadedAssembly
 {
     public required string Name { get; init; }
-    public required Stream Data { get; init; }
+    public required ImmutableArray<byte> Data { get; init; }
 }

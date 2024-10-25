@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MetadataReferenceService.BlazorWasm;
+using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace DotNetInternals.Lab;
@@ -23,10 +25,14 @@ internal sealed class CompilerProxy(
     AssemblyDownloader assemblyDownloader,
     CompilerLoaderServices loaderServices)
 {
+    private static readonly Func<Stream, bool, byte[]> convertFromWebcil = typeof(BlazorWasmMetadataReferenceService).Assembly
+        .GetType("MetadataReferenceService.BlazorWasm.WasmWebcil.WebcilConverterUtil")!
+        .GetMethod("ConvertFromWebcil", BindingFlags.Public | BindingFlags.Static)!
+        .CreateDelegate<Func<Stream, bool, byte[]>>();
     private LoadedCompiler? loaded;
     private int iteration;
 
-    public async Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    public async Task<CompiledAssembly> CompileAsync(CompilationInput input)
     {
         try
         {
@@ -46,8 +52,14 @@ internal sealed class CompilerProxy(
                 }
             }
 
+            if (input.Configuration is not null && loaded.DllAssemblies is null)
+            {
+                var assemblies = loaded.Assemblies ?? await LoadAssembliesAsync();
+                loaded.DllAssemblies = assemblies.ToImmutableDictionary(p => p.Key, p => WebcilToDll(p.Value.Data));
+            }
+
             using var _ = loaded.LoadContext.EnterContextualReflection();
-            var result = loaded.Compiler.Compile(inputs);
+            var result = loaded.Compiler.Compile(input, loaded.DllAssemblies);
 
             if (loaded.LoadContext is CompilerLoader { LastFailure: { } failure })
             {
@@ -65,8 +77,51 @@ internal sealed class CompilerProxy(
         }
     }
 
+    private static ImmutableArray<byte> WebcilToDll(ImmutableArray<byte> bytes)
+    {
+        var inputStream = new MemoryStream(ImmutableCollectionsMarshal.AsArray(bytes)!);
+        return ImmutableCollectionsMarshal.AsImmutableArray(convertFromWebcil(inputStream, /* wrappedInWebAssembly */ true));
+    }
+
+    private async Task<ImmutableDictionary<string, LoadedAssembly>> LoadAssembliesAsync()
+    {
+        var assemblies = await dependencyRegistry.GetAssembliesAsync()
+            .ToImmutableDictionaryAsync(a => a.Name, a => a, LoadAssemblyAsync,
+            [
+                // All assemblies depending on Roslyn/Razor need to be reloaded
+                // to avoid type mismatches between assemblies from different contexts.
+                // If they are not loaded from the registry, we will reload the built-in ones.
+                // Preload all built-in ones that our Compiler project depends on here
+                // (we cannot do that inside the AssemblyLoadContext because of async).
+                CompilerConstants.CompilerAssemblyName,
+                    CompilerConstants.RoslynAssemblyName,
+                    CompilerConstants.RazorAssemblyName,
+                    "Basic.Reference.Assemblies.AspNet90",
+                    "Microsoft.CodeAnalysis",
+                    "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
+                    "Microsoft.CodeAnalysis.Razor.Test",
+            ]);
+
+        logger.LogDebug("Available assemblies ({Count}): {Assemblies}",
+            assemblies.Count,
+            assemblies.Keys.JoinToString(", "));
+
+        return assemblies;
+    }
+
+    private async Task<LoadedAssembly> LoadAssemblyAsync(string name)
+    {
+        return new()
+        {
+            Name = name,
+            Data = await assemblyDownloader.DownloadAsync(name),
+        };
+    }
+
     private async Task<LoadedCompiler> LoadCompilerAsync()
     {
+        ImmutableDictionary<string, LoadedAssembly>? assemblies = null;
+
         AssemblyLoadContext alc;
         if (dependencyRegistry.IsEmpty)
         {
@@ -75,27 +130,7 @@ internal sealed class CompilerProxy(
         }
         else
         {
-            var assemblies = await dependencyRegistry.GetAssembliesAsync()
-                .ToImmutableDictionaryAsync(a => a.Name, a => a, loadAssemblyAsync,
-                [
-                    // All assemblies depending on Roslyn/Razor need to be reloaded
-                    // to avoid type mismatches between assemblies from different contexts.
-                    // If they are not loaded from the registry, we will reload the built-in ones.
-                    // Preload all built-in ones that our Compiler project depends on here
-                    // (we cannot do that inside the AssemblyLoadContext because of async).
-                    CompilerConstants.CompilerAssemblyName,
-                    CompilerConstants.RoslynAssemblyName,
-                    CompilerConstants.RazorAssemblyName,
-                    "Basic.Reference.Assemblies.AspNet90",
-                    "Microsoft.CodeAnalysis",
-                    "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
-                    "Microsoft.CodeAnalysis.Razor.Test",
-                ]);
-
-            logger.LogDebug("Available assemblies ({Count}): {Assemblies}",
-                assemblies.Count,
-                assemblies.Keys.JoinToString(", "));
-
+            assemblies ??= await LoadAssembliesAsync();
             alc = new CompilerLoader(loaderServices, assemblies, dependencyRegistry.Iteration);
         }
 
@@ -103,22 +138,15 @@ internal sealed class CompilerProxy(
         Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerConstants.CompilerAssemblyName));
         Type compilerType = compilerAssembly.GetType(CompilerConstants.CompilerAssemblyName)!;
         var compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
-        return new() { LoadContext = alc, Compiler = compiler };
-
-        async Task<LoadedAssembly> loadAssemblyAsync(string name)
-        {
-            return new()
-            {
-                Name = name,
-                Data = await assemblyDownloader.DownloadAsync(name),
-            };
-        }
+        return new() { LoadContext = alc, Compiler = compiler, Assemblies = assemblies };
     }
 
     private sealed class LoadedCompiler
     {
         public required AssemblyLoadContext LoadContext { get; init; }
         public required ICompiler Compiler { get; init; }
+        public ImmutableDictionary<string, LoadedAssembly>? Assemblies { get; init; }
+        public ImmutableDictionary<string, ImmutableArray<byte>>? DllAssemblies { get; set; }
     }
 }
 
@@ -174,7 +202,8 @@ internal sealed class CompilerLoader(
             {
                 services.Logger.LogDebug("▶️ {AssemblyName}", assemblyName);
 
-                loaded = LoadFromStream(loadedAssembly.Data);
+                var bytes = ImmutableCollectionsMarshal.AsArray(loadedAssembly.Data)!;
+                loaded = LoadFromStream(new MemoryStream(bytes));
                 loadedAssemblies.Add(name, loaded);
                 return loaded;
             }

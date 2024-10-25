@@ -4,7 +4,18 @@ namespace DotNetInternals;
 
 public interface ICompiler
 {
-    CompiledAssembly Compile(IEnumerable<InputCode> inputs);
+    CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies);
+}
+
+public sealed record CompilationInput
+{
+    public CompilationInput(Sequence<InputCode> inputs)
+    {
+        Inputs = inputs;
+    }
+
+    public Sequence<InputCode> Inputs { get; }
+    public string? Configuration { get; init; }
 }
 
 [ProtoContract]

@@ -24,7 +24,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
             deps,
             assemblyDownloader,
             new(NullLogger<CompilerLoader>.Instance));
-        var compiled = await compiler.CompileAsync([new() { FileName = "Input.cs", Text = "#error version" }]);
+        var compiled = await compiler.CompileAsync(new(new([new() { FileName = "Input.cs", Text = "#error version" }])));
 
         var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.EagerText!;
         output.WriteLine(diagnosticsText);
@@ -48,7 +48,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
             deps,
             assemblyDownloader,
             new(NullLogger<CompilerLoader>.Instance));
-        var compiled = await compiler.CompileAsync([new() { FileName = "TestComponent.razor", Text = "test" }]);
+        var compiled = await compiler.CompileAsync(new(new([new() { FileName = "TestComponent.razor", Text = "test" }])));
 
         var cSharpText = compiled.Files.Single().Value.GetOutput("C#")!.EagerText!;
         output.WriteLine(cSharpText);
