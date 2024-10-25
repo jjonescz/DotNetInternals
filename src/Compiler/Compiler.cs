@@ -31,7 +31,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
 
     private CompiledAssembly CompileNoCache(CompilationInput compilationInput, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
     {
-        // Keep consistent with `InitialInput.Configuration`.
+        // IMPORTANT: Keep consistent with `InitialInput.Configuration`.
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview)
             .WithFeatures([new("use-roslyn-tokenizer", "true")]);
 
@@ -273,8 +273,6 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     References = references,
                 });
 
-                var useRoslynTokenizer = parseOptions.Features.TryGetValue("use-roslyn-tokenizer", out var useRoslynTokenizerValue) &&
-                    string.Equals(useRoslynTokenizerValue, bool.TrueString, StringComparison.OrdinalIgnoreCase);
                 b.Features.Add(new ConfigureRazorParserOptions(parseOptions));
 
                 CompilerFeatures.Register(b);
