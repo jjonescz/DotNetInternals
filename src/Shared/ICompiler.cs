@@ -1,10 +1,11 @@
 using ProtoBuf;
+using System.Runtime.Loader;
 
 namespace DotNetInternals;
 
 public interface ICompiler
 {
-    CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies);
+    CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc);
 }
 
 public sealed record CompilationInput

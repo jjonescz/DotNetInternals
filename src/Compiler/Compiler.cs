@@ -5,14 +5,16 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
+using System.Runtime.Loader;
 
 namespace DotNetInternals;
 
-public class Compiler : ICompiler
+public class Compiler(ILogger<Compiler> logger) : ICompiler
 {
     private (CompilationInput Input, CompiledAssembly Output)? lastResult;
 
-    public CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies)
+    public CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
     {
         if (lastResult is { } cached)
         {
@@ -22,12 +24,12 @@ public class Compiler : ICompiler
             }
         }
 
-        var result = CompileNoCache(input, assemblies);
+        var result = CompileNoCache(input, assemblies, alc);
         lastResult = (input, result);
         return result;
     }
 
-    private static CompiledAssembly CompileNoCache(CompilationInput compilationInput, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies)
+    private CompiledAssembly CompileNoCache(CompilationInput compilationInput, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
     {
         // Keep consistent with `InitialInput.Configuration`.
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview)
@@ -61,16 +63,18 @@ public class Compiler : ICompiler
                     Environment.NewLine +
                     getEmitDiagnostics(configCompilation).JoinToString(Environment.NewLine));
 
-            Config.CurrentCSharpParseOptions = parseOptions;
+            var configAssembly = alc.LoadFromStream(emitStream);
 
-            Executor.Execute(emitStream, static (assembly) =>
-            {
-                var entryPoint = assembly.EntryPoint
-                    ?? throw new ArgumentException("No entry point found in the configuration assembly.");
-                Executor.InvokeEntryPoint(entryPoint);
-            });
+            var entryPoint = configAssembly.EntryPoint
+                ?? throw new ArgumentException("No entry point found in the configuration assembly.");
+
+            Config.Reset();
+
+            Executor.InvokeEntryPoint(entryPoint);
 
             parseOptions = Config.CurrentCSharpParseOptions;
+
+            logger.LogDebug("Using language version {LangVersion} (specified {SpecifiedLangVersion})", parseOptions.LanguageVersion, parseOptions.SpecifiedLanguageVersion);
         }
 
         var directory = "/TestProject/";

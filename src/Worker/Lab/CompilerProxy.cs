@@ -1,4 +1,5 @@
 ﻿using MetadataReferenceService.BlazorWasm;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
@@ -23,7 +24,8 @@ internal sealed class CompilerProxy(
     ILogger<CompilerProxy> logger,
     DependencyRegistry dependencyRegistry,
     AssemblyDownloader assemblyDownloader,
-    CompilerLoaderServices loaderServices)
+    CompilerLoaderServices loaderServices,
+    IServiceProvider serviceProvider)
 {
     private static readonly Func<Stream, bool, byte[]> convertFromWebcil = typeof(BlazorWasmMetadataReferenceService).Assembly
         .GetType("MetadataReferenceService.BlazorWasm.WasmWebcil.WebcilConverterUtil")!
@@ -66,7 +68,7 @@ internal sealed class CompilerProxy(
             }
 
             using var _ = loaded.LoadContext.EnterContextualReflection();
-            var result = loaded.Compiler.Compile(input, loaded.DllAssemblies);
+            var result = loaded.Compiler.Compile(input, loaded.DllAssemblies, loaded.LoadContext);
 
             if (loaded.LoadContext is CompilerLoader { LastFailure: { } failure })
             {
@@ -145,7 +147,7 @@ internal sealed class CompilerProxy(
         using var _ = alc.EnterContextualReflection();
         Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerConstants.CompilerAssemblyName));
         Type compilerType = compilerAssembly.GetType(CompilerConstants.CompilerAssemblyName)!;
-        var compiler = (ICompiler)Activator.CreateInstance(compilerType)!;
+        var compiler = (ICompiler)ActivatorUtilities.CreateInstance(serviceProvider, compilerType)!;
         return new() { LoadContext = alc, Compiler = compiler, Assemblies = assemblies };
     }
 
