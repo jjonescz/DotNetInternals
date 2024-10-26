@@ -164,13 +164,11 @@ internal sealed class WorkerController
     /// <summary>
     /// Instructs the <see cref="DependencyRegistry"/> to use this package.
     /// </summary>
-    public void UsePackage(string? version, string key, string packageId, string packageFolder)
+    public void UseCompilerVersion(CompilerKind compilerKind, string? version)
     {
-        PostMessage(new WorkerInputMessage.UsePackage(
-            Version: version,
-            Key: key,
-            PackageId: packageId,
-            PackageFolder: packageFolder)
+        PostMessage(new WorkerInputMessage.UseCompilerVersion(
+            CompilerKind: compilerKind,
+            Version: version)
         {
             Id = messageId++,
         });

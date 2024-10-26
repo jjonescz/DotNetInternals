@@ -8,7 +8,7 @@ namespace DotNetInternals;
 
 [JsonDerivedType(typeof(Compile), nameof(Compile))]
 [JsonDerivedType(typeof(GetOutput), nameof(GetOutput))]
-[JsonDerivedType(typeof(UsePackage), nameof(UsePackage))]
+[JsonDerivedType(typeof(UseCompilerVersion), nameof(UseCompilerVersion))]
 [JsonDerivedType(typeof(GetPackageInfo), nameof(GetPackageInfo))]
 [JsonDerivedType(typeof(GetSdkInfo), nameof(GetSdkInfo))]
 [JsonDerivedType(typeof(ProvideCompletionItems), nameof(ProvideCompletionItems))]
@@ -70,28 +70,12 @@ public abstract record WorkerInputMessage
         }
     }
 
-    public sealed record UsePackage(string? Version, string Key, string PackageId, string PackageFolder) : WorkerInputMessage<NoOutput>
+    public sealed record UseCompilerVersion(CompilerKind CompilerKind, string? Version) : WorkerInputMessage<NoOutput>
     {
         public override Task<NoOutput> HandleAsync(IServiceProvider services)
         {
-            var dependencyRegistry = services.GetRequiredService<DependencyRegistry>();
-            var packageRegistry = services.GetRequiredService<PackageRegistry>();
-            var nuGetDownloader = services.GetRequiredService<Lazy<NuGetDownloader>>();
-            if (string.IsNullOrWhiteSpace(Version))
-            {
-                dependencyRegistry.RemoveAssemblies(Key);
-                packageRegistry.Remove(Key);
-            }
-            else
-            {
-                var package = nuGetDownloader.Value.GetPackage(
-                packageId: PackageId,
-                version: Version,
-                folder: PackageFolder);
-
-                dependencyRegistry.SetAssemblies(Key, package.GetAssembliesAsync);
-                packageRegistry.Set(Key, package);
-            }
+            var compilerDependencyLoader = services.GetRequiredService<CompilerDependencyLoader>();
+            compilerDependencyLoader.Use(CompilerKind, Version);
 
             return NoOutput.AsyncInstance;
         }

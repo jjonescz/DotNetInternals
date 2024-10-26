@@ -12,7 +12,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
         var nuget = new NuGetDownloader();
         var version = "4.12.0-2.24409.2";
         var commit = "2158b591";
-        var package = nuget.GetPackage(CompilerConstants.RoslynPackageId, version, CompilerConstants.RoslynPackageFolder);
+        var package = nuget.GetPackage(CompilerDependencyConstants.RoslynPackageId, version, CompilerDependencyConstants.RoslynPackageFolder);
 
         var deps = new DependencyRegistry();
         deps.SetAssemblies("roslyn", package.GetAssembliesAsync);
@@ -36,7 +36,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
     {
         var nuget = new NuGetDownloader();
         var version = "9.0.0-preview.24413.5";
-        var package = nuget.GetPackage(CompilerConstants.RazorPackageId, version, CompilerConstants.RazorPackageFolder);
+        var package = nuget.GetPackage(CompilerDependencyConstants.RazorPackageId, version, CompilerDependencyConstants.RazorPackageFolder);
 
         var deps = new DependencyRegistry();
         deps.SetAssemblies("razor", package.GetAssembliesAsync);
