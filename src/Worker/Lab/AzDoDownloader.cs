@@ -21,10 +21,23 @@ internal sealed class AzDoDownloader
 
     private readonly HttpClient client = new();
 
-    public async Task<ImmutableArray<LoadedAssembly>> DownloadAsync(int pullRequestNumber)
+    public async Task<ImmutableArray<LoadedAssembly>> DownloadAsync(int pullRequestNumber, BuildConfiguration buildConfiguration)
+    {
+        var build = await GetLatestPrBuildAsync(
+            definitionId: 95, // roslyn-CI
+            pullRequestNumber: pullRequestNumber);
+
+        var artifact = await GetArtifactAsync(
+            buildId: build.Id,
+            artifactName: $"Transport_Artifacts_Windows_{buildConfiguration}");
+
+        throw new InvalidOperationException($"Found artifact {artifact.Name}.");
+    }
+
+    private async Task<Build> GetLatestPrBuildAsync(int definitionId, int pullRequestNumber)
     {
         var builds = await GetBuildsAsync(
-            definitionId: 95, // roslyn-CI
+            definitionId: definitionId,
             branchName: $"refs/pull/{pullRequestNumber}/merge",
             top: 1);
 
@@ -33,20 +46,37 @@ internal sealed class AzDoDownloader
             throw new InvalidOperationException($"No builds of PR {pullRequestNumber} found.");
         }
 
-        throw new InvalidOperationException($"Found build {build.BuildNumber}.");
+        return build;
     }
 
     private async Task<AzDoCollection<Build>?> GetBuildsAsync(int definitionId, string branchName, int top)
     {
         var uri = new UriBuilder(baseAddress);
         uri.AppendPathSegments("_apis", "build", "builds");
-        uri.AppendQuery("definitions", definitionId.ToString(CultureInfo.InvariantCulture));
+        uri.AppendQuery("definitions", definitionId.ToString());
         uri.AppendQuery("branchName", branchName);
         uri.AppendQuery("$top", top.ToString());
         uri.AppendQuery("api-version", "7.1");
 
         return await client.GetFromJsonAsync<AzDoCollection<Build>>(uri.ToString(), options);
     }
+
+    private async Task<BuildArtifact> GetArtifactAsync(int buildId, string artifactName)
+    {
+        var uri = new UriBuilder(baseAddress);
+        uri.AppendPathSegments("_apis", "build", "builds", buildId.ToString(), "artifacts");
+        uri.AppendQuery("artifactName", artifactName);
+        uri.AppendQuery("api-version", "7.1");
+
+        return await client.GetFromJsonAsync<BuildArtifact>(uri.ToString(), options)
+            ?? throw new InvalidOperationException($"No artifact '{artifactName}' found in build {buildId}.");
+    }
+}
+
+internal enum BuildConfiguration
+{
+    Debug,
+    Release,
 }
 
 internal sealed class AzDoCollection<T>

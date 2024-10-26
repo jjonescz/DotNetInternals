@@ -25,7 +25,7 @@ internal sealed class CompilerDependencyLoader(
         // Single number -> an AzDo build number.
         else if (int.TryParse(version, out int number) && number > 0)
         {
-            dependencyRegistry.SetAssemblies(key, () => azDoDownloader.DownloadAsync(pullRequestNumber: number));
+            dependencyRegistry.SetAssemblies(key, () => azDoDownloader.DownloadAsync(pullRequestNumber: number, BuildConfiguration.Release));
             packageRegistry.Remove(key);
         }
 
