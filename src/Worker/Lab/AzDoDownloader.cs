@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.Services.Common;
 using System.ComponentModel;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -35,9 +36,20 @@ internal sealed class AzDoDownloader
             buildId: build.Id,
             artifact: artifact);
 
-        var rehydrates = files.Items.Where(f => f.Path.EndsWith("/rehydrate.cmd", StringComparison.Ordinal));
+        return await GetAssembliesAsync(
+            buildId: build.Id,
+            artifactName: artifact.Name,
+            files: files,
+            names: ["Microsoft.CodeAnalysis", "Microsoft.CodeAnalysis.CSharp"]);
+    }
 
-        var fileName = "Microsoft.CodeAnalysis.dll";
+    private async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync(int buildId, string artifactName, ArtifactFiles files, HashSet<string> names)
+    {
+        var lookup = names.GetAlternateLookup<ReadOnlySpan<char>>();
+
+        var builder = ImmutableArray.CreateBuilder<LoadedAssembly>();
+
+        var rehydrates = files.Items.Where(f => f.Path.EndsWith("/rehydrate.cmd", StringComparison.Ordinal));
 
         foreach (var rehydrate in rehydrates)
         {
@@ -47,20 +59,45 @@ internal sealed class AzDoDownloader
             }
 
             var rehydrateContent = await GetFileAsStringAsync(
-                buildId: build.Id,
-                artifactName: artifact.Name,
+                buildId: buildId,
+                artifactName: artifactName,
                 fileId: rehydrate.Blob.Id);
 
             foreach (var match in AzDoPatterns.RehydrateCommand.Matches(rehydrateContent).Cast<Match>())
             {
-                if (match.Groups[1].ValueSpan.Equals(fileName, StringComparison.Ordinal))
+                var name = match.Groups[1].ValueSpan;
+                if (lookup.Remove(name))
                 {
-                    throw new InvalidOperationException($"Found file '{fileName}' in '{match.Groups[2].ValueSpan}'.");
+                    var path = $"/.duplicate/{match.Groups[2].ValueSpan}";
+
+                    if (files.Items.FirstOrDefault(f => f.Path.Equals(path, StringComparison.Ordinal)) is not { Blob.Id: { } fileId })
+                    {
+                        throw new InvalidOperationException($"No file '{path}' (for '{name}') found in artifact '{artifactName}' of build {buildId}.");
+                    }
+
+                    var nameString = name.ToString();
+
+                    var bytes = await GetFileAsBytesAsync(
+                        buildId: buildId,
+                        artifactName: artifactName,
+                        fileId: fileId);
+
+                    builder.Add(new LoadedAssembly
+                    {
+                        Name = nameString,
+                        Data = bytes,
+                        Format = AssemblyDataFormat.Dll,
+                    });
                 }
             }
         }
 
-        throw new InvalidOperationException($"No file '{fileName}' in artifact '{artifact.Name}' of build {build.Id}.");
+        if (names.Count > 0)
+        {
+            throw new InvalidOperationException($"No files found for {names.JoinToString(", ", quote: "'")} in artifact '{artifactName}' of build {buildId}.");
+        }
+
+        return builder.ToImmutable();
     }
 
     private async Task<Build> GetLatestBuildAsync(int definitionId, string branchName)
@@ -128,6 +165,14 @@ internal sealed class AzDoDownloader
             fileId: fileId));
     }
 
+    private async Task<ImmutableArray<byte>> GetFileAsBytesAsync(int buildId, string artifactName, string fileId)
+    {
+        return ImmutableCollectionsMarshal.AsImmutableArray(await client.GetByteArrayAsync(GetFileUri(
+            buildId: buildId,
+            artifactName: artifactName,
+            fileId: fileId)));
+    }
+
     private static string GetFileUri(int buildId, string artifactName, string fileId)
     {
         var uri = new UriBuilder(baseAddress);
@@ -148,7 +193,7 @@ internal enum BuildConfiguration
 
 internal static partial class AzDoPatterns
 {
-    [GeneratedRegex("""^mklink /h %~dp0\\(.*) %HELIX_CORRELATION_PAYLOAD%\\(.*) > nul\r?$""", RegexOptions.Multiline)]
+    [GeneratedRegex("""^mklink /h %~dp0\\(.*)\.dll %HELIX_CORRELATION_PAYLOAD%\\(.*) > nul\r?$""", RegexOptions.Multiline)]
     public static partial Regex RehydrateCommand { get; }
 }
 

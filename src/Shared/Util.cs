@@ -68,6 +68,11 @@ public static class Util
         return string.Join(separator, source);
     }
 
+    public static string JoinToString<T>(this IEnumerable<T> source, string separator, string quote)
+    {
+        return string.Join(separator, source.Select(x => $"{quote}{x}{quote}"));
+    }
+
     public static async Task<IEnumerable<TResult>> SelectAsync<T, TResult>(this IEnumerable<T> source, Func<T, Task<TResult>> selector)
     {
         var results = new List<TResult>(source.TryGetNonEnumeratedCount(out var count) ? count : 0);

@@ -52,6 +52,9 @@ internal enum AssemblyDataFormat
 
 internal sealed class LoadedAssembly
 {
+    /// <summary>
+    /// File name without the extension.
+    /// </summary>
     public required string Name { get; init; }
     public required ImmutableArray<byte> Data { get; init; }
     public required AssemblyDataFormat Format { get; init; }
