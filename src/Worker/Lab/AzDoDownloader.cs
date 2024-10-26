@@ -88,6 +88,11 @@ internal sealed class AzDoDownloader
                         Data = bytes,
                         Format = AssemblyDataFormat.Dll,
                     });
+
+                    if (names.Count == 0)
+                    {
+                        return builder.ToImmutable();
+                    }
                 }
             }
         }
