@@ -27,9 +27,12 @@ internal sealed class WorkerController
         this.jsRuntime = jsRuntime;
         this.hostEnvironment = hostEnvironment;
         worker = new(CreateWorker);
-        workerServices = new(() => WorkerServices.Create(hostEnvironment.BaseAddress));
+        workerServices = new(() => WorkerServices.Create(
+            baseUrl: hostEnvironment.BaseAddress,
+            debugLogs: DebugLogs));
     }
 
+    public bool DebugLogs { get; set; }
     public bool Disabled { get; set; }
 
     private Task<SlimWorker?> Worker => worker.Value;
@@ -45,7 +48,7 @@ internal sealed class WorkerController
         var worker = await SlimWorker.CreateAsync(
             jsRuntime,
             assembly: "DotNetInternals.Worker",
-            args: [hostEnvironment.BaseAddress]);
+            args: [hostEnvironment.BaseAddress, DebugLogs.ToString()]);
         var listener = await EventListener<MessageEvent>.CreateAsync(jsRuntime, async e =>
         {
             var data = await e.Data.GetValueAsync() as string ?? string.Empty;
@@ -147,17 +150,17 @@ internal sealed class WorkerController
         };
     }
 
-    public Task<CompiledAssembly> CompileAsync(IEnumerable<InputCode> inputs)
+    public Task<CompiledAssembly> CompileAsync(CompilationInput input)
     {
         return PostAndReceiveMessageAsync(
-            new WorkerInputMessage.Compile(inputs) { Id = messageId++ },
+            new WorkerInputMessage.Compile(input) { Id = messageId++ },
             fallback: CompiledAssembly.Fail);
     }
 
-    public Task<string> GetOutputAsync(IEnumerable<InputCode> inputs, string? file, string outputType)
+    public Task<string> GetOutputAsync(CompilationInput input, string? file, string outputType)
     {
         return PostAndReceiveMessageAsync(
-            new WorkerInputMessage.GetOutput(inputs, file, outputType) { Id = messageId++ },
+            new WorkerInputMessage.GetOutput(input, file, outputType) { Id = messageId++ },
             deserializeAs: default(string));
     }
 

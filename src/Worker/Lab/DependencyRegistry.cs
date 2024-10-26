@@ -44,8 +44,15 @@ internal sealed class DependencyRegistry
     }
 }
 
+internal enum AssemblyDataFormat
+{
+    Dll,
+    Webcil,
+}
+
 internal sealed class LoadedAssembly
 {
     public required string Name { get; init; }
-    public required Stream Data { get; init; }
+    public required ImmutableArray<byte> Data { get; init; }
+    public required AssemblyDataFormat Format { get; init; }
 }

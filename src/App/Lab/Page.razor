@@ -42,11 +42,11 @@
                 @* Renaming confirmation *@
                 <input type="text" class="form-control" placeholder="@CurrentInput.FileName" title="File name" @bind="renamingTo" />
                 <button type="button" class="btn btn-outline-primary" title="Confirm rename"
-                        @onclick="RenameInputAsync">
+                @onclick="RenameInputAsync">
                     @BootstrapIcons.CheckLg
                 </button>
                 <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
-                        @onclick="() => renamingTo = null">
+                @onclick="() => renamingTo = null">
                     @BootstrapIcons.XLg
                 </button>
             }
@@ -77,24 +77,35 @@
                             Remove other files
                         </option>
                     }
+                    <hr />
+                    <option value="@((int)SpecialInput.Configuration)">
+                        @if (configuration is null)
+                        {
+                            @:Add configuration
+                        }
+                        else
+                        {
+                            @:Configuration
+                        }
+                    </option>
                 </select>
 
+                @* Rename button *@
                 @if (CurrentInput != null)
                 {
-                    @* Rename button *@
                     <button type="button" class="btn btn-outline-secondary" title="Rename current file"
-                            @onclick="() => renamingTo = CurrentInput.FileName">
+                    @onclick="() => renamingTo = CurrentInput.FileName">
                         @BootstrapIcons.InputCursorText
                     </button>
+                }
 
-                    @* Delete button *@
-                    if (inputs.Count > 1)
-                    {
-                        <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                        @onclick="DeleteInputAsync">
-                            @BootstrapIcons.Trash3
-                        </button>
-                    }
+                @* Delete button *@
+                if (inputs.Count > 1 || CurrentSpecialInput != null)
+                {
+                    <button type="button" class="btn btn-outline-danger" title="Delete current file"
+                    @onclick="DeleteInputAsync">
+                        @BootstrapIcons.Trash3
+                    </button>
                 }
             }
         </div>
@@ -220,19 +231,20 @@
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
         <div class="flex-grow-1">
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
-                ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
-                OnDidChangeModel="LanguageServices.OnDidChangeModel"
-                OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
+            ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
+            OnDidChangeModel="LanguageServices.OnDidChangeModel"
+            OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
         </div>
     </div>
     <div class="col" style="@outputStyle">
         <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
-            ConstructionOptions="OutputConstructionOptions" />
+        ConstructionOptions="OutputConstructionOptions" />
     </div>
 </div>
 
 @code {
     private readonly List<Input> inputs = new();
+    private Input? configuration;
     private int currentInputIndex;
     private string? renamingTo;
     private StandaloneCodeEditor inputEditor = null!;
@@ -241,7 +253,7 @@
     private string? generationStrategy;
     private bool compilationInProgress;
     private bool outputLoading;
-    private (IEnumerable<InputCode> Input, CompiledAssembly Output)? compiled;
+    private (CompilationInput Input, CompiledAssembly Output)? compiled;
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
@@ -268,6 +280,7 @@
         AddCSharp = -2,
         AddCshtml = -3,
         RemoveOtherFiles = -4,
+        Configuration = -5,
     }
 
     private enum Layout
@@ -287,6 +300,15 @@
             }
 
             return inputs[currentInputIndex];
+        }
+    }
+
+    private SpecialInput? CurrentSpecialInput
+    {
+        get
+        {
+            var result = (SpecialInput)currentInputIndex;
+            return result is SpecialInput.Configuration ? result : null;
         }
     }
 
@@ -420,6 +442,15 @@
                 OnWorkspaceChanged();
                 break;
 
+            case (int)SpecialInput.Configuration:
+                currentInputIndex = (int)SpecialInput.Configuration;
+                configuration ??= new(
+                    InitialCode.Configuration.SuggestedFileName,
+                    await CreateModelAsync(InitialCode.Configuration.ToInputCode()));
+                OnWorkspaceChanged();
+                await inputEditor.SetModel(configuration.Model);
+                break;
+
             case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
                 currentInputIndex = selectedInputIndex;
                 await inputEditor.SetModel(inputs[selectedInputIndex].Model);
@@ -456,14 +487,22 @@
 
     private async Task DeleteInputAsync()
     {
-        Debug.Assert(CurrentInput != null && inputs.Count > 1);
-
         await SaveStateToUrlAsync();
 
-        inputs.RemoveAt(currentInputIndex);
+        switch (currentInputIndex)
+        {
+            case (int)SpecialInput.Configuration:
+                configuration = null;
+                break;
+            default:
+                Debug.Assert(CurrentInput != null && inputs.Count > 1);
+                inputs.RemoveAt(currentInputIndex);
+                break;
+        }
+
         currentInputIndex = 0;
         OnWorkspaceChanged();
-        await inputEditor.SetModel(CurrentInput.Model);
+        await inputEditor.SetModel(CurrentInput!.Model);
 
         await SaveStateToUrlAsync();
     }
@@ -507,8 +546,9 @@
         await RefreshAsync();
 
         // Compile.
-        var result = await Worker.CompileAsync(savedState.Inputs);
-        compiled = (savedState.Inputs, result);
+        var input = savedState.ToCompilationInput();
+        var result = await Worker.CompileAsync(input);
+        compiled = (input, result);
 
         await DisplaySquiggles();
 
@@ -588,7 +628,7 @@
 
         return "";
 
-        async Task<string> loadAsync(IEnumerable<InputCode> inputs, string? file, string outputType)
+        async Task<string> loadAsync(CompilationInput input, string? file, string outputType)
         {
             outputLoading = true;
             await RefreshAsync();
@@ -596,7 +636,7 @@
             // The text will be cached and loaded synchronously next.
             var result = await output.GetTextAsync(outputFactory: async () =>
             {
-                return await Worker.GetOutputAsync(inputs, file: file, outputType: outputType);
+                return await Worker.GetOutputAsync(input, file: file, outputType: outputType);
             });
 
             outputLoading = false;

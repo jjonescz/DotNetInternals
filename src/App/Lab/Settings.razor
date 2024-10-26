@@ -27,7 +27,7 @@
                     @* Word wrap check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="wordWrap" @bind="WordWrap"
-                            @bind:after="OnWordWrapChanged" />
+                        @bind:after="OnWordWrapChanged" />
                         <label class="form-check-label" for="wordWrap">
                             Word wrap
                         </label>
@@ -36,7 +36,7 @@
                     @* Use VIM check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="vim" @bind="UseVim"
-                            @bind:after="OnVimChanged" />
+                        @bind:after="OnVimChanged" />
                         <label class="form-check-label" for="vim">
                             Use VIM
                         </label>
@@ -45,9 +45,9 @@
                     @* Debug logs check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="debugLogs"
-                            @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
+                        @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
                         <label class="form-check-label" for="debugLogs"
-                               title="Whether to display debug-level logs in the browser development console">
+                        title="Whether to display debug-level logs in the browser development console">
                             Debug logs
                         </label>
                     </div>
@@ -55,9 +55,9 @@
                     @* Use a worker check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="enableWorker"
-                            @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
+                        @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
                         <label class="form-check-label" for="enableWorker"
-                               title="Moves compilation to a separate worker thread">
+                        title="Moves compilation to a separate worker thread">
                             Use a worker (requires restart)
                         </label>
                     </div>
@@ -65,9 +65,9 @@
                     @* Language services check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="enableLanguageServices"
-                               @bind="EnableLanguageServices" @bind:after="OnSetEnableLanguageServicesAsync" />
+                        @bind="EnableLanguageServices" @bind:after="OnSetEnableLanguageServicesAsync" />
                         <label class="form-check-label" for="enableLanguageServices"
-                               title="Completions, live diagnostics">
+                        title="Completions, live diagnostics">
                             <span class="badge bg-secondary text-capitalize">experimental</span>
                             Language services (requires restart)
                         </label>
@@ -82,8 +82,8 @@
                                 SDK
                             </label>
                             <input type="text" class="form-control" id="sdkVersion"
-                                   @bind="sdkVersion" @bind:after="() => LoadSdkInfoAsync()"
-                                   placeholder="version" />
+                            @bind="sdkVersion" @bind:after="() => LoadSdkInfoAsync()"
+                            placeholder="version" />
                             @if (loadingSdkInfo)
                             {
                                 <span class="input-group-text">
@@ -100,7 +100,7 @@
                             <div class="form-text">
                                 SDK @(sdkInfo.SdkVersion)
                                 (<a href="@sdkInfo.Commit.Url"
-                                    target="_blank">@sdkInfo.Commit.ShortHash</a>)
+                                target="_blank">@sdkInfo.Commit.ShortHash</a>)
                                 has roslyn @(sdkInfo.RoslynVersion)
                                 and razor @(sdkInfo.RazorVersion).
                             </div>
@@ -120,8 +120,8 @@
                                 Roslyn
                             </label>
                             <input type="text" class="form-control" id="roslynVersion"
-                                   @bind="roslynVersion" @bind:after="() => LoadRoslynInfoAsync()"
-                                   placeholder="version" />
+                            @bind="roslynVersion" @bind:after="() => LoadRoslynInfoAsync()"
+                            placeholder="version" />
                             @if (loadingRoslynInfo)
                             {
                                 <span class="input-group-text">
@@ -132,12 +132,12 @@
                         <div class="form-text">
                             See
                             <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RoslynPackageId)"
-                               target="_blank">available Roslyn versions</a>.
+                            target="_blank">available Roslyn versions</a>.
                             Use
                             @if (roslynVersion != "latest")
                             {
                                 <a href="javascript:void" @onclick:preventDefault
-                                    @onclick="@(() => UseRoslynVersionAsync("latest"))">latest</a>
+                                @onclick="@(() => UseRoslynVersionAsync("latest"))">latest</a>
                             }
                             @if (!string.IsNullOrWhiteSpace(roslynVersion))
                             {
@@ -146,7 +146,7 @@
                                     @(" or ")
                                 }
                                 <a href="javascript:void" @onclick:preventDefault
-                                    @onclick="@(() => UseRoslynVersionAsync(null))">built-in</a>
+                                @onclick="@(() => UseRoslynVersionAsync(null))">built-in</a>
                             }
                             @(".")
                         </div>
@@ -155,7 +155,7 @@
                             <div class="form-text">
                                 Using @(roslynInfo.Version)
                                 (<a href="@roslynInfo.Commit.Url"
-                                    target="_blank">@roslynInfo.Commit.ShortHash</a>).
+                                target="_blank">@roslynInfo.Commit.ShortHash</a>).
                             </div>
                         }
                         @if (roslynError != null)
@@ -173,8 +173,8 @@
                                 Razor
                             </label>
                             <input type="text" class="form-control" id="razorVersion"
-                                   @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
-                                   placeholder="version" />
+                            @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
+                            placeholder="version" />
                             @if (loadingRazorInfo)
                             {
                                 <span class="input-group-text">
@@ -185,12 +185,12 @@
                         <div class="form-text">
                             See
                             <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RazorPackageId)"
-                               target="_blank">available Razor versions</a>.
+                            target="_blank">available Razor versions</a>.
                             Use
                             @if (razorVersion != "latest")
                             {
                                 <a href="javascript:void" @onclick:preventDefault
-                                    @onclick="@(() => UseRazorVersionAsync("latest"))">latest</a>
+                                @onclick="@(() => UseRazorVersionAsync("latest"))">latest</a>
                             }
                             @if (!string.IsNullOrWhiteSpace(razorVersion))
                             {
@@ -199,7 +199,7 @@
                                     @(" or ")
                                 }
                                 <a href="javascript:void" @onclick:preventDefault
-                                    @onclick="@(() => UseRazorVersionAsync(null))">built-in</a>
+                                @onclick="@(() => UseRazorVersionAsync(null))">built-in</a>
                             }
                             @(".")
                         </div>
@@ -208,7 +208,7 @@
                             <div class="form-text">
                                 Using @(razorInfo.Version)
                                 (<a href="@razorInfo.Commit.Url"
-                                    target="_blank">@razorInfo.Commit.ShortHash</a>).
+                                target="_blank">@razorInfo.Commit.ShortHash</a>).
                             </div>
                         }
                         @if (razorError != null)
@@ -318,6 +318,7 @@
             LanguageServices.Disabled = true;
         }
 
+        Worker.DebugLogs = DebugLogs;
         Worker.Disabled = !EnableWorker;
     }
 

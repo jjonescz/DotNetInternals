@@ -6,11 +6,16 @@ namespace DotNetInternals;
 
 public static class WorkerServices
 {
-    public static IServiceProvider Create(string baseUrl)
+    public static IServiceProvider Create(string baseUrl, bool debugLogs)
     {
         var services = new ServiceCollection();
         services.AddLogging(builder =>
         {
+            if (debugLogs)
+            {
+                builder.AddFilter("DotNetInternals.*", LogLevel.Debug);
+            }
+
             builder.AddProvider(new SimpleConsoleLoggerProvider());
         });
         services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(baseUrl) });

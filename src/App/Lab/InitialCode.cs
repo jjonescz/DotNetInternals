@@ -60,6 +60,13 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
 
         """);
 
+    public static readonly InitialCode Configuration = new("Configuration.cs", """
+        Config.CSharpParseOptions(options => options
+            .WithLanguageVersion(LanguageVersion.Preview)
+            .WithFeatures([new("use-roslyn-tokenizer", "true")]));
+
+        """);
+
     public string SuggestedFileNameWithoutExtension => Path.GetFileNameWithoutExtension(SuggestedFileName);
     public string SuggestedFileExtension => Path.GetExtension(SuggestedFileName);
 

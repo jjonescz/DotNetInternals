@@ -5,7 +5,9 @@ using System.Text.Json;
 
 Console.WriteLine("Worker started.");
 
-var serviceProvider = WorkerServices.Create(baseUrl: args[0]);
+var serviceProvider = WorkerServices.Create(
+    baseUrl: args[0],
+    debugLogs: args[1] == bool.TrueString);
 
 Imports.RegisterOnMessage(async e =>
 {

@@ -5,36 +5,82 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
+using System.Runtime.Loader;
 
 namespace DotNetInternals;
 
-public class Compiler : ICompiler
+public class Compiler(ILogger<Compiler> logger) : ICompiler
 {
-    private (IEnumerable<InputCode> Input, CompiledAssembly Output)? lastResult;
+    private (CompilationInput Input, CompiledAssembly Output)? lastResult;
 
-    public CompiledAssembly Compile(IEnumerable<InputCode> inputs)
+    public CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
     {
         if (lastResult is { } cached)
         {
-            if (inputs.SequenceEqual(cached.Input))
+            if (input.Equals(cached.Input))
             {
                 return cached.Output;
             }
         }
 
-        var result = CompileNoCache(inputs);
-        lastResult = (inputs, result);
+        var result = CompileNoCache(input, assemblies, alc);
+        lastResult = (input, result);
         return result;
     }
 
-    private static CompiledAssembly CompileNoCache(IEnumerable<InputCode> inputs)
+    private CompiledAssembly CompileNoCache(CompilationInput compilationInput, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
     {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
+        // IMPORTANT: Keep consistent with `InitialInput.Configuration`.
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview)
+            .WithFeatures([new("use-roslyn-tokenizer", "true")]);
+
+        var references = Basic.Reference.Assemblies.AspNet90.References.All;
+
+        // If we have a configuration, compile and execute it.
+        if (compilationInput.Configuration is { } configuration)
+        {
+            var configCompilation = CSharpCompilation.Create(
+                assemblyName: "Configuration",
+                syntaxTrees:
+                [
+                    CSharpSyntaxTree.ParseText(configuration, parseOptions, "Configuration.cs"),
+                    CSharpSyntaxTree.ParseText("""
+                        global using DotNetInternals;
+                        global using Microsoft.CodeAnalysis.CSharp;
+                        global using System;
+                        """, parseOptions, "GlobalUsings.cs")
+                ],
+                references:
+                [
+                    ..references,
+                    ..assemblies!.Values.Select(b => MetadataReference.CreateFromImage(b)),
+                ],
+                options: createCompilationOptions(OutputKind.ConsoleApplication));
+
+            var emitStream = getEmitStream(configCompilation)
+                ?? throw new InvalidOperationException("Cannot execute configuration due to compilation errors:" +
+                    Environment.NewLine +
+                    getEmitDiagnostics(configCompilation).JoinToString(Environment.NewLine));
+
+            var configAssembly = alc.LoadFromStream(emitStream);
+
+            var entryPoint = configAssembly.EntryPoint
+                ?? throw new ArgumentException("No entry point found in the configuration assembly.");
+
+            Config.Reset();
+
+            Executor.InvokeEntryPoint(entryPoint);
+
+            parseOptions = Config.CurrentCSharpParseOptions;
+
+            logger.LogDebug("Using language version {LangVersion} (specified {SpecifiedLangVersion})", parseOptions.LanguageVersion, parseOptions.SpecifiedLanguageVersion);
+        }
 
         var directory = "/TestProject/";
         var fileSystem = new VirtualRazorProjectFileSystemProxy();
         var cSharp = new Dictionary<string, CSharpSyntaxTree>();
-        foreach (var input in inputs)
+        foreach (var input in compilationInput.Inputs.Value)
         {
             var filePath = directory + input.FileName;
             switch (input.FileExtension)
@@ -65,15 +111,9 @@ public class Compiler : ICompiler
             ? OutputKind.ConsoleApplication
             : OutputKind.DynamicallyLinkedLibrary;
 
-        var options = new CSharpCompilationOptions(
-            outputKind,
-            allowUnsafe: true,
-            nullableContextOptions: NullableContextOptions.Enable,
-            concurrentBuild: false);
+        var options = createCompilationOptions(outputKind);
 
         var config = RazorConfiguration.Default;
-
-        var references = Basic.Reference.Assemblies.AspNet90.References.All;
 
         // Phase 1: Declaration only (to be used as a reference from which tag helpers will be discovered).
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
@@ -211,6 +251,15 @@ public class Compiler : ICompiler
 
         return result;
 
+        static CSharpCompilationOptions createCompilationOptions(OutputKind outputKind)
+        {
+            return new CSharpCompilationOptions(
+                outputKind,
+                allowUnsafe: true,
+                nullableContextOptions: NullableContextOptions.Enable,
+                concurrentBuild: false);
+        }
+
         RazorProjectEngine createProjectEngine(IReadOnlyList<MetadataReference> references)
         {
             return RazorProjectEngine.Create(config, fileSystem.Inner, b =>
@@ -223,6 +272,8 @@ public class Compiler : ICompiler
                 {
                     References = references,
                 });
+
+                b.Features.Add(new ConfigureRazorParserOptions(parseOptions));
 
                 CompilerFeatures.Register(b);
                 RazorExtensions.Register(b);
@@ -301,4 +352,25 @@ internal sealed class TestAdditionalText(string path, SourceText text) : Additio
     public override string Path => path;
 
     public override SourceText GetText(CancellationToken cancellationToken = default) => text;
+}
+
+internal sealed class ConfigureRazorParserOptions(CSharpParseOptions cSharpParseOptions)
+    : RazorEngineFeatureBase, IConfigureRazorParserOptionsFeature
+{
+    public int Order { get; set; }
+
+    public void Configure(RazorParserOptionsBuilder options)
+    {
+        if (options.GetType().GetProperty("UseRoslynTokenizer") is { } useRoslynTokenizerProperty)
+        {
+            var useRoslynTokenizer = cSharpParseOptions.Features.TryGetValue("use-roslyn-tokenizer", out var useRoslynTokenizerValue) &&
+                string.Equals(useRoslynTokenizerValue, bool.TrueString, StringComparison.OrdinalIgnoreCase);
+            useRoslynTokenizerProperty.SetValue(options, useRoslynTokenizer);
+        }
+
+        if (options.GetType().GetProperty("CSharpParseOptions") is { } cSharpParseOptionsProperty)
+        {
+            cSharpParseOptionsProperty.SetValue(options, cSharpParseOptions);
+        }
+    }
 }
