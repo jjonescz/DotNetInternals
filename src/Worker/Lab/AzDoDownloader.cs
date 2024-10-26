@@ -23,9 +23,9 @@ internal sealed class AzDoDownloader
 
     public async Task<ImmutableArray<LoadedAssembly>> DownloadAsync(int pullRequestNumber, BuildConfiguration buildConfiguration)
     {
-        var build = await GetLatestPrBuildAsync(
+        var build = await GetLatestBuildAsync(
             definitionId: 95, // roslyn-CI
-            pullRequestNumber: pullRequestNumber);
+            branchName: $"refs/pull/{pullRequestNumber}/merge");
 
         var artifact = await GetArtifactAsync(
             buildId: build.Id,
@@ -63,16 +63,16 @@ internal sealed class AzDoDownloader
         throw new InvalidOperationException($"No file '{fileName}' in artifact '{artifact.Name}' of build {build.Id}.");
     }
 
-    private async Task<Build> GetLatestPrBuildAsync(int definitionId, int pullRequestNumber)
+    private async Task<Build> GetLatestBuildAsync(int definitionId, string branchName)
     {
         var builds = await GetBuildsAsync(
             definitionId: definitionId,
-            branchName: $"refs/pull/{pullRequestNumber}/merge",
+            branchName: branchName,
             top: 1);
 
         if (builds is not { Count: > 0, Value: [{ } build, ..] })
         {
-            throw new InvalidOperationException($"No builds of PR {pullRequestNumber} found.");
+            throw new InvalidOperationException($"No builds of branch '{branchName}' found.");
         }
 
         return build;
