@@ -1,7 +1,6 @@
 ﻿using NuGet.Versioning;
 using ProtoBuf;
 using System.Text.Json.Serialization;
-using static DotNetInternals.WorkerInputMessage;
 
 namespace DotNetInternals.Lab;
 
@@ -30,6 +29,11 @@ internal sealed class CompilerDependencyProvider(
     public async Task UseAsync(CompilerKind compilerKind, string? version, BuildConfiguration configuration)
     {
         var info = CompilerInfo.For(compilerKind);
+
+        if (info.ForceConfiguration is { } forcedConfiguration)
+        {
+            configuration = forcedConfiguration;
+        }
 
         bool any = false;
         List<string>? errors = null;
@@ -154,7 +158,8 @@ public sealed record CompilerInfo(
     int BuildDefinitionId,
     string ArtifactNameFormat,
     ImmutableArray<string> AssemblyNames,
-    string? NupkgArtifactPath = null)
+    string? NupkgArtifactPath = null,
+    BuildConfiguration? ForceConfiguration = null)
 {
     public static readonly CompilerInfo Roslyn = new(
         CompilerKind: CompilerKind.Roslyn,
@@ -172,8 +177,10 @@ public sealed record CompilerInfo(
         PackageFolder: "source-generators",
         BuildDefinitionId: 103, // razor-tooling-ci
         ArtifactNameFormat: "Packages_Windows_NT_{0}",
-        AssemblyNames: ["Microsoft.CodeAnalysis.Razor.Compiler", ..Roslyn.AssemblyNames],
-        NupkgArtifactPath: "Shipping");
+        AssemblyNames: ["Microsoft.CodeAnalysis.Razor.Compiler", .. Roslyn.AssemblyNames],
+        NupkgArtifactPath: "Shipping",
+        // razor artifacts don't contain Debug binaries
+        ForceConfiguration: BuildConfiguration.Release);
 
     public static CompilerInfo For(CompilerKind kind)
     {
