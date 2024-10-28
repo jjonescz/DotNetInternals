@@ -38,7 +38,7 @@ public abstract record WorkerInputMessage
         }
         catch (Exception ex)
         {
-            return new WorkerOutputMessage.Failure(ex.ToString()) { Id = Id };
+            return new WorkerOutputMessage.Failure(ex) { Id = Id };
         }
     }
 

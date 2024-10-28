@@ -19,7 +19,7 @@ Imports.RegisterOnMessage(async e =>
     }
     catch (Exception ex)
     {
-        PostMessage(new WorkerOutputMessage.Failure(ex.ToString()) { Id = -1 });
+        PostMessage(new WorkerOutputMessage.Failure(ex) { Id = -1 });
     }
 });
 
