@@ -1,5 +1,7 @@
 ﻿using NuGet.Versioning;
 using ProtoBuf;
+using System.Text.Json.Serialization;
+using static DotNetInternals.WorkerInputMessage;
 
 namespace DotNetInternals.Lab;
 
@@ -184,6 +186,12 @@ public sealed record CompilerInfo(
     public string BranchListUrl => $"{RepositoryUrl}/branches";
 }
 
+[JsonDerivedType(typeof(BuiltIn), nameof(BuiltIn))]
+[JsonDerivedType(typeof(NuGet), nameof(NuGet))]
+[JsonDerivedType(typeof(NuGetLatest), nameof(NuGetLatest))]
+[JsonDerivedType(typeof(Build), nameof(Build))]
+[JsonDerivedType(typeof(PullRequest), nameof(PullRequest))]
+[JsonDerivedType(typeof(Branch), nameof(Branch))]
 public abstract record CompilerVersionSpecifier
 {
     /// <remarks>
@@ -238,10 +246,16 @@ internal sealed class CompilerDependency
 
 public sealed record CompilerDependencyInfo
 {
-    private CompilerDependencyInfo((string Version, string CommitHash, string RepoUrl) arg)
+    [JsonConstructor]
+    public CompilerDependencyInfo(string version, CommitLink commit)
     {
-        Version = arg.Version;
-        Commit = new() { Hash = arg.CommitHash, RepoUrl = arg.RepoUrl };
+        Version = version;
+        Commit = commit;
+    }
+
+    private CompilerDependencyInfo((string Version, string CommitHash, string RepoUrl) arg)
+        : this(arg.Version, new() { Hash = arg.CommitHash, RepoUrl = arg.RepoUrl })
+    {
     }
 
     public CompilerDependencyInfo(string version, string commitHash, string repoUrl)
