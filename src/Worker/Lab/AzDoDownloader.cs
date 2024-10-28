@@ -25,7 +25,7 @@ internal sealed class AzDoDownloader(
 
     public static string GetBuildListUrl(int definitionId)
     {
-        return $"{baseAddress}?definitionId={definitionId}";
+        return $"{baseAddress}/_build?definitionId={definitionId}";
     }
 
     public Task<CompilerDependency?> TryResolveCompilerAsync(
