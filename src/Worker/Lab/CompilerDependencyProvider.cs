@@ -152,7 +152,9 @@ public sealed record CompilerInfo(
     string PackageId,
     string PackageFolder,
     int BuildDefinitionId,
-    ImmutableArray<string> AssemblyNames)
+    string ArtifactNameFormat,
+    ImmutableArray<string> AssemblyNames,
+    string? NupkgArtifactPath = null)
 {
     public static readonly CompilerInfo Roslyn = new(
         CompilerKind: CompilerKind.Roslyn,
@@ -160,6 +162,7 @@ public sealed record CompilerInfo(
         PackageId: "Microsoft.Net.Compilers.Toolset",
         PackageFolder: "tasks/netcore/bincore",
         BuildDefinitionId: 95, // roslyn-CI
+        ArtifactNameFormat: "Transport_Artifacts_Windows_{0}",
         AssemblyNames: ["Microsoft.CodeAnalysis.CSharp", "Microsoft.CodeAnalysis"]);
 
     public static readonly CompilerInfo Razor = new(
@@ -168,7 +171,9 @@ public sealed record CompilerInfo(
         PackageId: "Microsoft.Net.Compilers.Razor.Toolset",
         PackageFolder: "source-generators",
         BuildDefinitionId: 103, // razor-tooling-ci
-        AssemblyNames: ["Microsoft.CodeAnalysis.Razor.Compiler", ..Roslyn.AssemblyNames]);
+        ArtifactNameFormat: "Packages_Windows_NT_{0}",
+        AssemblyNames: ["Microsoft.CodeAnalysis.Razor.Compiler", ..Roslyn.AssemblyNames],
+        NupkgArtifactPath: "Shipping");
 
     public static CompilerInfo For(CompilerKind kind)
     {

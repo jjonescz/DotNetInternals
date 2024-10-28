@@ -14,6 +14,38 @@ public static class NuGetUtil
     {
         return $"https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-tools/NuGet/{packageId}/versions";
     }
+
+    internal static ImmutableArray<LoadedAssembly> GetAssembliesFromNupkg(Stream nupkgStream, string folder)
+    {
+        const string extension = ".dll";
+        using var reader = new PackageArchiveReader(nupkgStream, leaveStreamOpen: true);
+        return reader.GetFiles()
+            .Where(file =>
+            {
+                // Get only DLL files directly in the specified folder
+                // and starting with `Microsoft.`.
+                return file.EndsWith(extension, StringComparison.OrdinalIgnoreCase) &&
+                    file.StartsWith(folder, StringComparison.OrdinalIgnoreCase) &&
+                    file.LastIndexOf('/') is int lastSlashIndex &&
+                    lastSlashIndex == folder.Length &&
+                    file.AsSpan(lastSlashIndex + 1).StartsWith("Microsoft.", StringComparison.Ordinal);
+            })
+            .Select(file =>
+            {
+                ZipArchiveEntry entry = reader.GetEntry(file);
+                using var entryStream = entry.Open();
+                var buffer = new byte[entry.Length];
+                var memoryStream = new MemoryStream(buffer);
+                entryStream.CopyTo(memoryStream);
+                return new LoadedAssembly()
+                {
+                    Name = entry.Name[..^extension.Length],
+                    Data = ImmutableCollectionsMarshal.AsImmutableArray(buffer),
+                    Format = AssemblyDataFormat.Dll,
+                };
+            })
+            .ToImmutableArray();
+    }
 }
 
 internal sealed class NuGetDownloaderPlugin(
@@ -146,34 +178,7 @@ internal sealed class NuGetDownloadablePackage(
 
     public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
     {
-        const string extension = ".dll";
-        using var reader = await GetReaderAsync();
-        return reader.GetFiles()
-            .Where(file =>
-            {
-                // Get only DLL files directly in the specified folder
-                // and starting with `Microsoft.`.
-                return file.EndsWith(extension, StringComparison.OrdinalIgnoreCase) &&
-                    file.StartsWith(folder, StringComparison.OrdinalIgnoreCase) &&
-                    file.LastIndexOf('/') is int lastSlashIndex &&
-                    lastSlashIndex == folder.Length &&
-                    file.AsSpan(lastSlashIndex + 1).StartsWith("Microsoft.", StringComparison.Ordinal);
-            })
-            .Select(file =>
-            {
-                ZipArchiveEntry entry = reader.GetEntry(file);
-                using var entryStream = entry.Open();
-                var buffer = new byte[entry.Length];
-                var memoryStream = new MemoryStream(buffer);
-                entryStream.CopyTo(memoryStream);
-                return new LoadedAssembly()
-                {
-                    Name = entry.Name[..^extension.Length],
-                    Data = ImmutableCollectionsMarshal.AsImmutableArray(buffer),
-                    Format = AssemblyDataFormat.Dll,
-                };
-            })
-            .ToImmutableArray();
+        return NuGetUtil.GetAssembliesFromNupkg(await GetStreamAsync(), folder: folder);
     }
 }
 

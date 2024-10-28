@@ -88,21 +88,56 @@ internal sealed class AzDoDownloader(
         {
             var artifact = await GetArtifactAsync(
                 buildId: buildId,
-                artifactName: $"Transport_Artifacts_Windows_{configuration}");
+                artifactName: string.Format(info.ArtifactNameFormat, configuration));
 
             var files = await GetArtifactFilesAsync(
                 buildId: buildId,
                 artifact: artifact);
 
-            return await GetAssembliesAsync(
+            if (info.NupkgArtifactPath is { } nupkgArtifactPath)
+            {
+                return await GetAssembliesViaNupkgAsync(
+                    files,
+                    buildId: buildId,
+                    artifactName: artifact.Name,
+                    nupkgArtifactPath: nupkgArtifactPath,
+                    packageId: info.PackageId,
+                    packageFolder: info.PackageFolder);
+            }
+
+            return await GetAssembliesViaRehydrateAsync(
                 buildId: buildId,
                 artifactName: artifact.Name,
                 files: files,
-                names: ["Microsoft.CodeAnalysis", "Microsoft.CodeAnalysis.CSharp"]);
+                names: info.AssemblyNames.ToHashSet());
         }
     }
 
-    private async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync(int buildId, string artifactName, ArtifactFiles files, HashSet<string> names)
+    private async Task<ImmutableArray<LoadedAssembly>> GetAssembliesViaNupkgAsync(
+        ArtifactFiles files,
+        int buildId,
+        string artifactName,
+        string nupkgArtifactPath,
+        string packageId,
+        string packageFolder)
+    {
+        var prefix = $"/{nupkgArtifactPath}/{packageId}.";
+        var suffix = ".nupkg";
+        var nupkg = files.Items
+            .FirstOrDefault(f =>
+                f.Path.StartsWith(prefix, StringComparison.Ordinal) &&
+                f.Path.EndsWith(suffix, StringComparison.Ordinal))?.Blob
+            ?? throw new InvalidOperationException($"No artifact '{prefix}*{suffix}' found in build {buildId}.");
+
+        var stream = await GetFileAsStreamAsync(
+            buildId: buildId,
+            artifactName: artifactName,
+            fileId: nupkg.Id);
+
+        return NuGetUtil.GetAssembliesFromNupkg(stream, folder: packageFolder);
+    }
+
+    private async Task<ImmutableArray<LoadedAssembly>> GetAssembliesViaRehydrateAsync(int buildId, string artifactName, ArtifactFiles files, HashSet<string> names)
     {
         var lookup = names.GetAlternateLookup<ReadOnlySpan<char>>();
 
@@ -244,6 +279,14 @@ internal sealed class AzDoDownloader(
             buildId: buildId,
             artifactName: artifactName,
             fileId: fileId)));
+    }
+
+    private async Task<Stream> GetFileAsStreamAsync(int buildId, string artifactName, string fileId)
+    {
+        return await client.GetStreamAsync(GetFileUri(
+            buildId: buildId,
+            artifactName: artifactName,
+            fileId: fileId));
     }
 
     private static string GetFileUri(int buildId, string artifactName, string fileId)
