@@ -180,11 +180,11 @@ public abstract record CompilerVersionSpecifier
             yield break;
         }
 
-        // Single number -> an AzDo build number or PR number.
+        // Single number -> a PR number or an AzDo build number.
         if (int.TryParse(specifier, out int number) && number > 0)
         {
-            yield return new Build(number);
             yield return new PullRequest(number);
+            yield return new Build(number);
             yield break;
         }
 
