@@ -18,15 +18,23 @@ public static class NuGetUtil
 
 internal sealed class NuGetDownloaderPlugin(
     Lazy<NuGetDownloader> nuGetDownloader)
-    : ICompilerDependencyProviderPlugin
+    : ICompilerDependencyResolver
 {
-    public Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
+    public Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration)
     {
-        return nuGetDownloader.Value.FindCompilerAsync(info, specifier, configuration);
+        if (specifier is CompilerVersionSpecifier.NuGetLatest or CompilerVersionSpecifier.NuGet)
+        {
+            return nuGetDownloader.Value.TryResolveCompilerAsync(info, specifier, configuration);
+        }
+
+        return Task.FromResult<CompilerDependency?>(null);
     }
 }
 
-internal sealed class NuGetDownloader : ICompilerDependencyProviderPlugin
+internal sealed class NuGetDownloader : ICompilerDependencyResolver
 {
     private readonly SourceRepository repository;
     private readonly SourceCacheContext cacheContext;
@@ -50,7 +58,10 @@ internal sealed class NuGetDownloader : ICompilerDependencyProviderPlugin
         findPackageById = new(() => repository.GetResourceAsync<FindPackageByIdResource>());
     }
 
-    public async Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
+    public async Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration)
     {
         NuGetVersion version;
         if (specifier is CompilerVersionSpecifier.NuGetLatest)

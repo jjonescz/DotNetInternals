@@ -5,10 +5,14 @@ namespace DotNetInternals.Lab;
 /// <summary>
 /// Provides compiler dependencies into the <see cref="DependencyRegistry"/>.
 /// </summary>
+/// <remarks>
+/// Uses <see cref="ICompilerDependencyResolver"/> plugins.
+/// Each plugin can handle one or more <see cref="CompilerVersionSpecifier"/>s.
+/// </remarks>
 internal sealed class CompilerDependencyProvider(
     DependencyRegistry dependencyRegistry,
     BuiltInCompilerProvider builtInProvider,
-    IEnumerable<ICompilerDependencyProviderPlugin> plugins)
+    IEnumerable<ICompilerDependencyResolver> resolvers)
 {
     private readonly Dictionary<CompilerKind, CompilerDependency> loaded = new();
 
@@ -46,11 +50,11 @@ internal sealed class CompilerDependencyProvider(
             foreach (var specifier in CompilerVersionSpecifier.Parse(version))
             {
                 any = true;
-                foreach (var plugin in plugins)
+                foreach (var plugin in resolvers)
                 {
                     try
                     {
-                        if (await plugin.FindCompilerAsync(info, specifier, configuration) is { } dependency)
+                        if (await plugin.TryResolveCompilerAsync(info, specifier, configuration) is { } dependency)
                         {
                             return dependency;
                         }
@@ -68,12 +72,19 @@ internal sealed class CompilerDependencyProvider(
     }
 }
 
-internal interface ICompilerDependencyProviderPlugin
+internal interface ICompilerDependencyResolver
 {
-    Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration);
+    /// <returns>
+    /// <see langword="null"/> if the <paramref name="specifier"/> is not supported by this resolver.
+    /// An exception is thrown if the <paramref name="specifier"/> is supported but the resolution fails.
+    /// </returns>
+    Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration);
 }
 
-internal sealed class BuiltInCompilerProvider : ICompilerDependencyProviderPlugin
+internal sealed class BuiltInCompilerProvider : ICompilerDependencyResolver
 {
     private readonly ImmutableDictionary<CompilerKind, CompilerDependency> builtIn = LoadBuiltIn();
 
@@ -105,7 +116,10 @@ internal sealed class BuiltInCompilerProvider : ICompilerDependencyProviderPlugi
             : throw new InvalidOperationException($"Built-in compiler {compilerKind} was not found.");
     }
 
-    public Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
+    public Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration)
     {
         if (specifier is CompilerVersionSpecifier.BuiltIn)
         {
@@ -165,6 +179,11 @@ internal sealed record CompilerInfo(
 
 public abstract record CompilerVersionSpecifier
 {
+    /// <remarks>
+    /// Order matters here. Only the first specifier
+    /// which is successfully resolved by a <see cref="ICompilerDependencyResolver"/>
+    /// will be used by the <see cref="CompilerDependencyProvider"/> and <see cref="DependencyRegistry"/>.
+    /// </remarks>
     public static IEnumerable<CompilerVersionSpecifier> Parse(string? specifier)
     {
         // Null -> use the built-in compiler.

@@ -10,7 +10,7 @@ namespace DotNetInternals.Lab;
 
 internal sealed class AzDoDownloader(
     HttpClient client)
-    : ICompilerDependencyProviderPlugin
+    : ICompilerDependencyResolver
 {
     private static readonly string baseAddress = "https://dev.azure.com/dnceng-public/public";
     private static readonly JsonSerializerOptions options = new(JsonSerializerDefaults.Web)
@@ -23,7 +23,10 @@ internal sealed class AzDoDownloader(
     };
     private static readonly Task<CompilerDependency?> nullResult = Task.FromResult<CompilerDependency?>(null);
 
-    public Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
+    public Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration)
     {
         return specifier switch
         {

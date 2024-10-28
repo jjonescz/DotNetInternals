@@ -32,9 +32,9 @@ public static class WorkerServices
         services.AddScoped<SdkDownloader>();
         services.AddScoped<CompilerDependencyProvider>();
         services.AddScoped<BuiltInCompilerProvider>();
-        services.AddScoped<ICompilerDependencyProviderPlugin, NuGetDownloaderPlugin>();
-        services.AddScoped<ICompilerDependencyProviderPlugin, AzDoDownloader>();
-        services.AddScoped<ICompilerDependencyProviderPlugin, BuiltInCompilerProvider>(sp => sp.GetRequiredService<BuiltInCompilerProvider>());
+        services.AddScoped<ICompilerDependencyResolver, NuGetDownloaderPlugin>();
+        services.AddScoped<ICompilerDependencyResolver, AzDoDownloader>();
+        services.AddScoped<ICompilerDependencyResolver, BuiltInCompilerProvider>(sp => sp.GetRequiredService<BuiltInCompilerProvider>());
         services.AddScoped<LanguageServices>();
         return services.BuildServiceProvider();
     }
