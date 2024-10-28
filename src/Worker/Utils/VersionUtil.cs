@@ -42,7 +42,7 @@ public static class VersionUtil
             commitHash = informationalVersion[(plusIndex + 1)..];
             return true;
         }
-        
+
         version = informationalVersion;
         commitHash = null;
         return false;
