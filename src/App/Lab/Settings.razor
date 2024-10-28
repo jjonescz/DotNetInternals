@@ -513,6 +513,7 @@
     private async Task UseRoslynVersionAsync(string? version)
     {
         roslynVersion = version;
+        roslynConfiguration = BuildConfiguration.Release;
         await LoadRoslynInfoAsync();
     }
 
@@ -546,6 +547,7 @@
     private async Task UseRazorVersionAsync(string? version)
     {
         razorVersion = version;
+        razorConfiguration = BuildConfiguration.Release;
         await LoadRazorInfoAsync();
     }
 
