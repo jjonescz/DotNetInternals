@@ -110,8 +110,14 @@ internal sealed record SavedState
     [ProtoMember(2)]
     public string? RoslynVersion { get; init; }
 
+    [ProtoMember(6)]
+    public BuildConfiguration RoslynConfiguration { get; init; }
+
     [ProtoMember(3)]
     public string? RazorVersion { get; init; }
+
+    [ProtoMember(7)]
+    public BuildConfiguration RazorConfiguration { get; init; }
 
     public CompilationInput ToCompilationInput()
     {

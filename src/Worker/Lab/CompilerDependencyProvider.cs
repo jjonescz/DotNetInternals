@@ -1,4 +1,5 @@
 ﻿using NuGet.Versioning;
+using ProtoBuf;
 
 namespace DotNetInternals.Lab;
 
@@ -130,10 +131,11 @@ internal sealed class BuiltInCompilerProvider : ICompilerDependencyResolver
     }
 }
 
+[ProtoContract]
 public enum BuildConfiguration
 {
-    Debug,
     Release,
+    Debug,
 }
 
 public enum CompilerKind
