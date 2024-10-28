@@ -23,6 +23,11 @@ internal sealed class AzDoDownloader(
     };
     private static readonly Task<CompilerDependency?> nullResult = Task.FromResult<CompilerDependency?>(null);
 
+    public static string GetBuildListUrl(int definitionId)
+    {
+        return $"{baseAddress}?definitionId={definitionId}";
+    }
+
     public Task<CompilerDependency?> TryResolveCompilerAsync(
         CompilerInfo info,
         CompilerVersionSpecifier specifier,

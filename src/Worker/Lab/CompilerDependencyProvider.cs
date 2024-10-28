@@ -142,7 +142,7 @@ public enum CompilerKind
     Razor,
 }
 
-internal sealed record CompilerInfo(
+public sealed record CompilerInfo(
     CompilerKind CompilerKind,
     string RepositoryUrl,
     string PackageId,
@@ -175,6 +175,11 @@ internal sealed record CompilerInfo(
             _ => throw Util.Unexpected(kind),
         };
     }
+
+    public string NuGetVersionListUrl => NuGetUtil.GetPackageVersionListUrl(PackageId);
+    public string PrListUrl => $"{RepositoryUrl}/pulls";
+    public string BuildListUrl => AzDoDownloader.GetBuildListUrl(BuildDefinitionId);
+    public string BranchListUrl => $"{RepositoryUrl}/branches";
 }
 
 public abstract record CompilerVersionSpecifier
