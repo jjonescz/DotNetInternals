@@ -8,7 +8,9 @@ using System.Text.Json.Serialization;
 
 namespace DotNetInternals.Lab;
 
-internal sealed class AzDoDownloader
+internal sealed class AzDoDownloader(
+    HttpClient client)
+    : ICompilerDependencyProviderPlugin
 {
     private static readonly string baseAddress = "https://dev.azure.com/dnceng-public/public";
     private static readonly JsonSerializerOptions options = new(JsonSerializerDefaults.Web)
@@ -19,28 +21,77 @@ internal sealed class AzDoDownloader
             new TypeConverterJsonConverterFactory(),
         },
     };
+    private static readonly Task<CompilerDependency?> nullResult = Task.FromResult<CompilerDependency?>(null);
 
-    private readonly HttpClient client = new();
-
-    public async Task<ImmutableArray<LoadedAssembly>> DownloadAsync(int pullRequestNumber, BuildConfiguration buildConfiguration)
+    public Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
     {
-        var build = await GetLatestBuildAsync(
-            definitionId: 95, // roslyn-CI
-            branchName: $"refs/pull/{pullRequestNumber}/merge");
+        return specifier switch
+        {
+            CompilerVersionSpecifier.PullRequest { PullRequestNumber: { } pullRequestNumber } => fromPrNumberAsync(pullRequestNumber: pullRequestNumber),
+            CompilerVersionSpecifier.Branch { BranchName: { } branchName } => fromBranchNameAsync(branchName: branchName),
+            CompilerVersionSpecifier.Build { BuildId: { } buildId } => fromBuildIdAsync(buildId: buildId),
+            _ => nullResult,
+        };
 
-        var artifact = await GetArtifactAsync(
-            buildId: build.Id,
-            artifactName: $"Transport_Artifacts_Windows_{buildConfiguration}");
+        Task<CompilerDependency?> fromPrNumberAsync(int pullRequestNumber)
+        {
+            return fromRawBranchNameAsync(branchName: $"refs/pull/{pullRequestNumber}/merge");
+        }
 
-        var files = await GetArtifactFilesAsync(
-            buildId: build.Id,
-            artifact: artifact);
+        Task<CompilerDependency?> fromBranchNameAsync(string branchName)
+        {
+            return fromRawBranchNameAsync(branchName: $"refs/heads/{branchName}");
+        }
 
-        return await GetAssembliesAsync(
-            buildId: build.Id,
-            artifactName: artifact.Name,
-            files: files,
-            names: ["Microsoft.CodeAnalysis", "Microsoft.CodeAnalysis.CSharp"]);
+        async Task<CompilerDependency?> fromRawBranchNameAsync(string branchName)
+        {
+            var build = await GetLatestBuildAsync(
+                definitionId: info.BuildDefinitionId,
+                branchName: branchName);
+
+            return fromBuild(build);
+        }
+
+        async Task<CompilerDependency?> fromBuildIdAsync(int buildId)
+        {
+            var build = await GetBuildAsync(buildId: buildId);
+
+            return fromBuild(build);
+        }
+
+        CompilerDependency fromBuild(Build build)
+        {
+            return new()
+            {
+                Info = () => Task.FromResult(new CompilerDependencyInfo(
+                    version: build.BuildNumber,
+                    commitHash: build.SourceVersion,
+                    repoUrl: info.RepositoryUrl)
+                {
+                    VersionSpecifier = specifier,
+                    Configuration = configuration,
+                    CanChangeBuildConfiguration = true,
+                }),
+                Assemblies = () => getAssembliesAsync(buildId: build.Id),
+            };
+        }
+
+        async Task<ImmutableArray<LoadedAssembly>> getAssembliesAsync(int buildId)
+        {
+            var artifact = await GetArtifactAsync(
+                buildId: buildId,
+                artifactName: $"Transport_Artifacts_Windows_{configuration}");
+
+            var files = await GetArtifactFilesAsync(
+                buildId: buildId,
+                artifact: artifact);
+
+            return await GetAssembliesAsync(
+                buildId: buildId,
+                artifactName: artifact.Name,
+                files: files,
+                names: ["Microsoft.CodeAnalysis", "Microsoft.CodeAnalysis.CSharp"]);
+        }
     }
 
     private async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync(int buildId, string artifactName, ArtifactFiles files, HashSet<string> names)
@@ -120,6 +171,15 @@ internal sealed class AzDoDownloader
         return build;
     }
 
+    private async Task<Build> GetBuildAsync(int buildId)
+    {
+        var uri = new UriBuilder(baseAddress);
+        uri.AppendPathSegments("_apis", "build", "builds", buildId.ToString());
+        uri.AppendQuery("api-version", "7.1");
+        return await client.GetFromJsonAsync<Build>(uri.ToString(), options)
+            ?? throw new InvalidOperationException($"Build {buildId} was not found.");
+    }
+
     private async Task<AzDoCollection<Build>?> GetBuildsAsync(int definitionId, string branchName, int top)
     {
         var uri = new UriBuilder(baseAddress);
@@ -188,12 +248,6 @@ internal sealed class AzDoDownloader
         uri.AppendQuery("api-version", "7.1");
         return uri.ToString();
     }
-}
-
-internal enum BuildConfiguration
-{
-    Debug,
-    Release,
 }
 
 internal static partial class AzDoPatterns

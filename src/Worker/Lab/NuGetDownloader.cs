@@ -16,7 +16,17 @@ public static class NuGetUtil
     }
 }
 
-internal sealed class NuGetDownloader
+internal sealed class NuGetDownloaderPlugin(
+    Lazy<NuGetDownloader> nuGetDownloader)
+    : ICompilerDependencyProviderPlugin
+{
+    public Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
+    {
+        return nuGetDownloader.Value.FindCompilerAsync(info, specifier, configuration);
+    }
+}
+
+internal sealed class NuGetDownloader : ICompilerDependencyProviderPlugin
 {
     private readonly SourceRepository repository;
     private readonly SourceCacheContext cacheContext;
@@ -40,32 +50,34 @@ internal sealed class NuGetDownloader
         findPackageById = new(() => repository.GetResourceAsync<FindPackageByIdResource>());
     }
 
-    public NuGetDownloadablePackage GetPackage(string packageId, string version, string folder)
+    public async Task<CompilerDependency?> FindCompilerAsync(CompilerInfo info, CompilerVersionSpecifier specifier, BuildConfiguration configuration)
     {
-        return new NuGetDownloadablePackage(folder: folder, downloadAsync);
-
-        async Task<MemoryStream> downloadAsync()
+        NuGetVersion version;
+        if (specifier is CompilerVersionSpecifier.NuGetLatest)
         {
-            NuGetVersion parsedVersion;
-            if (version == "latest")
-            {
-                var versions = await (await findPackageById).GetAllVersionsAsync(
-                    packageId,
-                    cacheContext,
-                    NullLogger.Instance,
-                    CancellationToken.None);
-                parsedVersion = versions.FirstOrDefault() ??
-                    throw new InvalidOperationException($"Package '{packageId}' not found.");
-            }
-            else
-            {
-                parsedVersion = NuGetVersion.Parse(version);
-            }
+            var versions = await (await findPackageById).GetAllVersionsAsync(
+                info.PackageId,
+                cacheContext,
+                NullLogger.Instance,
+                CancellationToken.None);
+            version = versions.FirstOrDefault() ??
+                throw new InvalidOperationException($"Package '{info.PackageId}' not found.");
+        }
+        else if (specifier is CompilerVersionSpecifier.NuGet nuGetSpecifier)
+        {
+            version = nuGetSpecifier.Version;
+        }
+        else
+        {
+            return null;
+        }
 
+        var package = new NuGetDownloadablePackage(specifier, info.PackageFolder, async () =>
+        {
             var stream = new MemoryStream();
             var success = await (await findPackageById).CopyNupkgToStreamAsync(
-                packageId,
-                parsedVersion,
+                info.PackageId,
+                version,
                 stream,
                 cacheContext,
                 NullLogger.Instance,
@@ -74,24 +86,26 @@ internal sealed class NuGetDownloader
             if (!success)
             {
                 throw new InvalidOperationException(
-                    $"Failed to download '{packageId}' version '{version}'.");
+                    $"Failed to download '{info.PackageId}' version '{version}'.");
             }
 
             return stream;
-        }
+        });
+
+        return new()
+        {
+            Info = package.GetInfoAsync,
+            Assemblies = package.GetAssembliesAsync,
+        };
     }
 }
 
-internal sealed class NuGetDownloadablePackage
+internal sealed class NuGetDownloadablePackage(
+    CompilerVersionSpecifier specifier,
+    string folder,
+    Func<Task<MemoryStream>> streamFactory)
 {
-    private readonly string folder;
-    private readonly AsyncLazy<MemoryStream> _stream;
-
-    public NuGetDownloadablePackage(string folder, Func<Task<MemoryStream>> streamFactory)
-    {
-        this.folder = folder;
-        _stream = new(streamFactory);
-    }
+    private readonly AsyncLazy<MemoryStream> _stream = new(streamFactory);
 
     private async Task<Stream> GetStreamAsync()
     {
@@ -105,14 +119,18 @@ internal sealed class NuGetDownloadablePackage
         return new(await GetStreamAsync(), leaveStreamOpen: true);
     }
 
-    public async Task<NuGetPackageInfo> GetInfoAsync()
+    public async Task<CompilerDependencyInfo> GetInfoAsync()
     {
         using var reader = await GetReaderAsync();
         var metadata = reader.NuspecReader.GetRepositoryMetadata();
-        return NuGetPackageInfo.Create(
+        return new(
             version: reader.GetIdentity().Version.ToString(),
             commitHash: metadata.Commit,
-            repoUrl: metadata.Url);
+            repoUrl: metadata.Url)
+        {
+            VersionSpecifier = specifier,
+            Configuration = BuildConfiguration.Release,
+        };
     }
 
     public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
@@ -146,58 +164,6 @@ internal sealed class NuGetDownloadablePackage
             })
             .ToImmutableArray();
     }
-}
-
-public sealed record NuGetPackageInfo
-{
-    public static NuGetPackageInfo Create(string version, string commitHash, string repoUrl)
-    {
-        return new()
-        {
-            Version = version,
-            Commit = new() { Hash = commitHash, RepoUrl = repoUrl },
-        };
-    }
-
-    public static NuGetPackageInfo GetBuiltInInfo(string assemblyName)
-    {
-        string version = "";
-        string hash = "";
-        string repositoryUrl = "";
-        foreach (var attribute in Assembly.Load(assemblyName).CustomAttributes)
-        {
-            switch (attribute.AttributeType.FullName)
-            {
-                case "System.Reflection.AssemblyInformationalVersionAttribute"
-                    when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
-                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
-                    version = parsedVersion;
-                    hash = parsedHash;
-                    break;
-
-                case "System.Reflection.AssemblyMetadataAttribute"
-                    when attribute.ConstructorArguments is [{ Value: "RepositoryUrl" }, { Value: string repoUrl }]:
-                    repositoryUrl = repoUrl;
-                    break;
-            }
-        }
-
-        return Create(
-            version: version,
-            commitHash: hash,
-            repoUrl: repositoryUrl);
-    }
-
-    public required string Version { get; init; }
-    public required CommitLink Commit { get; init; }
-}
-
-public sealed record CommitLink
-{
-    public required string RepoUrl { get; init; }
-    public required string Hash { get; init; }
-    public string ShortHash => VersionUtil.GetShortCommitHash(Hash);
-    public string Url => string.IsNullOrEmpty(Hash) ? "" : VersionUtil.GetCommitUrl(RepoUrl, Hash);
 }
 
 internal sealed class CustomHttpHandlerResourceV3Provider : ResourceProvider

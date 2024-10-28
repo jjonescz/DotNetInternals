@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DotNetInternals;
 
 public static class Util
@@ -172,6 +174,11 @@ public static class Util
     public static IEnumerable<T> TryConcat<T>(this ImmutableArray<T>? a, ImmutableArray<T>? b)
     {
         return [.. (a ?? []), .. (b ?? [])];
+    }
+
+    public static InvalidOperationException Unexpected<T>(T value, [CallerArgumentExpression(nameof(value))] string name = "")
+    {
+        return new($"Unexpected {name}='{value}' of type '{value?.GetType().FullName ?? "null"}'.");
     }
 
     public static T Unreachable<T>()

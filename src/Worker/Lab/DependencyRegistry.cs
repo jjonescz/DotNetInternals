@@ -11,36 +11,38 @@ namespace DotNetInternals.Lab;
 /// </remarks>
 internal sealed class DependencyRegistry
 {
-    private readonly Dictionary<string, Func<Task<ImmutableArray<LoadedAssembly>>>> assemblies = new();
+    private readonly Dictionary<object, Func<Task<ImmutableArray<LoadedAssembly>>>> dependencies = new();
 
     /// <summary>
     /// Can be used to detect changes.
     /// </summary>
     public int Iteration { get; private set; }
 
-    public bool IsEmpty => assemblies.Count == 0;
+    public bool IsEmpty => dependencies.Count == 0;
 
     public async IAsyncEnumerable<LoadedAssembly> GetAssembliesAsync()
     {
-        foreach (var assemblyGroup in assemblies.Values)
+        foreach (var group in dependencies.Values)
         {
-            foreach (var assembly in await assemblyGroup())
+            foreach (var assembly in await group())
             {
                 yield return assembly;
             }
         }
     }
 
-    public void SetAssemblies(string key, Func<Task<ImmutableArray<LoadedAssembly>>> assemblies)
+    public void Set(object key, Func<Task<ImmutableArray<LoadedAssembly>>> group)
     {
-        this.assemblies[key] = assemblies;
+        dependencies[key] = group;
         Iteration++;
     }
 
-    public void RemoveAssemblies(string key)
+    public void Remove(object key)
     {
-        this.assemblies.Remove(key);
-        Iteration++;
+        if (dependencies.Remove(key))
+        {
+            Iteration++;
+        }
     }
 }
 

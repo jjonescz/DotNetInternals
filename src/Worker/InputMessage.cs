@@ -9,7 +9,7 @@ namespace DotNetInternals;
 [JsonDerivedType(typeof(Compile), nameof(Compile))]
 [JsonDerivedType(typeof(GetOutput), nameof(GetOutput))]
 [JsonDerivedType(typeof(UseCompilerVersion), nameof(UseCompilerVersion))]
-[JsonDerivedType(typeof(GetPackageInfo), nameof(GetPackageInfo))]
+[JsonDerivedType(typeof(GetCompilerDependencyInfo), nameof(GetCompilerDependencyInfo))]
 [JsonDerivedType(typeof(GetSdkInfo), nameof(GetSdkInfo))]
 [JsonDerivedType(typeof(ProvideCompletionItems), nameof(ProvideCompletionItems))]
 [JsonDerivedType(typeof(OnDidChangeWorkspace), nameof(OnDidChangeWorkspace))]
@@ -70,30 +70,23 @@ public abstract record WorkerInputMessage
         }
     }
 
-    public sealed record UseCompilerVersion(CompilerKind CompilerKind, string? Version) : WorkerInputMessage<NoOutput>
+    public sealed record UseCompilerVersion(CompilerKind CompilerKind, string? Version, BuildConfiguration Configuration) : WorkerInputMessage<NoOutput>
     {
-        public override Task<NoOutput> HandleAsync(IServiceProvider services)
+        public override async Task<NoOutput> HandleAsync(IServiceProvider services)
         {
-            var compilerDependencyLoader = services.GetRequiredService<CompilerDependencyLoader>();
-            compilerDependencyLoader.Use(CompilerKind, Version);
+            var compilerDependencyProvider = services.GetRequiredService<CompilerDependencyProvider>();
+            await compilerDependencyProvider.UseAsync(CompilerKind, Version, Configuration);
 
-            return NoOutput.AsyncInstance;
+            return NoOutput.Instance;
         }
     }
 
-    public sealed record GetPackageInfo(string Key) : WorkerInputMessage<NuGetPackageInfo?>
+    public sealed record GetCompilerDependencyInfo(CompilerKind CompilerKind) : WorkerInputMessage<CompilerDependencyInfo>
     {
-        public override async Task<NuGetPackageInfo?> HandleAsync(IServiceProvider services)
+        public override async Task<CompilerDependencyInfo> HandleAsync(IServiceProvider services)
         {
-            var packageRegistry = services.GetRequiredService<PackageRegistry>();
-            if (packageRegistry.TryGetValue(Key, out var package))
-            {
-                return await package.GetInfoAsync();
-            }
-            else
-            {
-                return null;
-            }
+            var compilerDependencyProvider = services.GetRequiredService<CompilerDependencyProvider>();
+            return await compilerDependencyProvider.GetLoadedInfoAsync(CompilerKind);
         }
     }
 

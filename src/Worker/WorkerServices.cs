@@ -23,11 +23,13 @@ public static class WorkerServices
         services.AddScoped<AssemblyDownloader>();
         services.AddScoped<CompilerProxy>();
         services.AddScoped<DependencyRegistry>();
-        services.AddScoped<PackageRegistry>();
         services.AddScoped<Lazy<NuGetDownloader>>();
         services.AddScoped<SdkDownloader>();
-        services.AddScoped<CompilerDependencyLoader>();
-        services.AddScoped<AzDoDownloader>();
+        services.AddScoped<CompilerDependencyProvider>();
+        services.AddScoped<BuiltInCompilerProvider>();
+        services.AddScoped<ICompilerDependencyProviderPlugin, NuGetDownloaderPlugin>();
+        services.AddScoped<ICompilerDependencyProviderPlugin, AzDoDownloader>();
+        services.AddScoped<ICompilerDependencyProviderPlugin, BuiltInCompilerProvider>(sp => sp.GetRequiredService<BuiltInCompilerProvider>());
         services.AddScoped<LanguageServices>();
         return services.BuildServiceProvider();
     }

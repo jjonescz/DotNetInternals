@@ -130,9 +130,9 @@
                             }
                         </div>
                         <div class="form-text">
-                            See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RoslynPackageId)"
-                            target="_blank">available Roslyn versions</a>.
+                            @* See *@
+                            @* <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RoslynPackageId)" *@
+                            @* target="_blank">available Roslyn versions</a>. *@
                             Use
                             @if (roslynVersion != "latest")
                             {
@@ -183,9 +183,9 @@
                             }
                         </div>
                         <div class="form-text">
-                            See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RazorPackageId)"
-                            target="_blank">available Razor versions</a>.
+                            @* See *@
+                            @* <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerDependencyConstants.RazorPackageId)" *@
+                            @* target="_blank">available Razor versions</a>. *@
                             Use
                             @if (razorVersion != "latest")
                             {
@@ -248,7 +248,7 @@
     private string? sdkVersion, roslynVersion, razorVersion;
     private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
     private SdkInfo? sdkInfo;
-    private NuGetPackageInfo? roslynInfo, razorInfo;
+    private CompilerDependencyInfo? roslynInfo, razorInfo;
     private string? sdkError, roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
@@ -443,6 +443,31 @@
         await LoadSdkInfoAsync();
     }
 
+    private async Task<(CompilerDependencyInfo? Info, string? Error)> LoadCompilerInfoAsync(
+        CompilerKind compilerKind,
+        string? versionToLoad)
+    {
+        try
+        {
+            await Worker.UseCompilerVersionAsync(
+                compilerKind,
+                version: versionToLoad,
+                configuration: BuildConfiguration.Release);
+
+            var info = !modalOpen
+                ? null
+                : await Worker.GetCompilerDependencyInfoAsync(compilerKind);
+
+            return (info, null);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Failed to load {compilerKind} info.");
+
+            return (null, ex.Message);
+        }
+    }
+
     private async Task LoadRoslynInfoAsync(bool saveState = true)
     {
         var versionToLoad = roslynVersion;
@@ -455,29 +480,7 @@
         loadingRoslynInfo = true;
         await RefreshAsync();
 
-        NuGetPackageInfo? info;
-        string? error;
-        try
-        {
-            const string key = "roslyn";
-
-            Worker.UseCompilerVersion(
-                CompilerKind.Roslyn,
-                version: versionToLoad);
-
-            info = !modalOpen
-                ? null
-                : await Worker.GetPackageInfoAsync(key)
-                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerDependencyConstants.RoslynAssemblyName);
-
-            error = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to load roslyn info.");
-            error = ex.Message;
-            info = null;
-        }
+        var (info, error) = await LoadCompilerInfoAsync(CompilerKind.Roslyn, versionToLoad);
 
         if (roslynVersion == versionToLoad)
         {
@@ -506,29 +509,7 @@
         loadingRazorInfo = true;
         await RefreshAsync();
 
-        NuGetPackageInfo? info;
-        string? error;
-        try
-        {
-            const string key = "razor";
-
-            Worker.UseCompilerVersion(
-                CompilerKind.Razor,
-                version: versionToLoad);
-
-            info = !modalOpen
-                ? null
-                : await Worker.GetPackageInfoAsync(key)
-                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerDependencyConstants.RazorAssemblyName);
-
-            error = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to load razor info.");
-            error = ex.Message;
-            info = null;
-        }
+        var (info, error) = await LoadCompilerInfoAsync(CompilerKind.Razor, versionToLoad);
 
         if (razorVersion == versionToLoad)
         {
