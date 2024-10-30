@@ -157,7 +157,7 @@ internal sealed class AzDoDownloader(
                 artifactName: artifactName,
                 fileId: rehydrate.Blob.Id);
 
-            foreach (var match in AzDoPatterns.RehydrateCommand.Matches(rehydrateContent).Cast<Match>())
+            foreach (var match in AzDoUtil.RehydrateCommand.Matches(rehydrateContent).Cast<Match>())
             {
                 var name = match.Groups[1].ValueSpan;
                 if (lookup.Remove(name))
@@ -220,7 +220,7 @@ internal sealed class AzDoDownloader(
         uri.AppendPathSegments("_apis", "build", "builds", buildId.ToString());
         uri.AppendQuery("api-version", "7.1");
         return await client.GetFromJsonAsync<Build>(uri.ToString(), options)
-            ?? throw new InvalidOperationException($"Build {buildId} was not found.");
+            .ThrowOn404($"Build {buildId} was not found.");
     }
 
     private async Task<AzDoCollection<Build>?> GetBuildsAsync(int definitionId, string branchName, int top)
@@ -243,7 +243,7 @@ internal sealed class AzDoDownloader(
         uri.AppendQuery("api-version", "7.1");
 
         return await client.GetFromJsonAsync<BuildArtifact>(uri.ToString(), options)
-            ?? throw new InvalidOperationException($"No artifact '{artifactName}' found in build {buildId}.");
+            .ThrowOn404($"No artifact '{artifactName}' found in build {buildId}.");
     }
 
     private async Task<ArtifactFiles> GetArtifactFilesAsync(int buildId, BuildArtifact artifact)
@@ -262,7 +262,7 @@ internal sealed class AzDoDownloader(
             fileId: fileId);
 
         return await client.GetFromJsonAsync<ArtifactFiles>(uri, options)
-            ?? throw new InvalidOperationException($"No files found in artifact '{artifactName}' of build {buildId}.");
+            .ThrowOn404($"No files found in artifact '{artifactName}' of build {buildId}.");
     }
 
     private async Task<string> GetFileAsStringAsync(int buildId, string artifactName, string fileId)
@@ -301,10 +301,22 @@ internal sealed class AzDoDownloader(
     }
 }
 
-internal static partial class AzDoPatterns
+internal static partial class AzDoUtil
 {
     [GeneratedRegex("""^mklink /h %~dp0\\(.*)\.dll %HELIX_CORRELATION_PAYLOAD%\\(.*) > nul\r?$""", RegexOptions.Multiline)]
     public static partial Regex RehydrateCommand { get; }
+
+    public static async Task<T> ThrowOn404<T>(this Task<T?> task, string message)
+    {
+        try
+        {
+            return await task ?? throw new InvalidOperationException(message);
+        }
+        catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new InvalidOperationException(message, e);
+        }
+    }
 }
 
 internal sealed class AzDoCollection<T>
