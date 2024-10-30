@@ -1,5 +1,6 @@
 ﻿using NuGet.Versioning;
 using ProtoBuf;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetInternals.Lab;
@@ -243,11 +244,24 @@ public abstract record CompilerVersionSpecifier
     }
 
     public sealed record BuiltIn : CompilerVersionSpecifier;
-    public sealed record NuGet(NuGetVersion Version) : CompilerVersionSpecifier;
+    public sealed record NuGet([property: JsonConverter(typeof(NuGetVersionJsonConverter))] NuGetVersion Version) : CompilerVersionSpecifier;
     public sealed record NuGetLatest : CompilerVersionSpecifier;
     public sealed record Build(int BuildId) : CompilerVersionSpecifier;
     public sealed record PullRequest(int PullRequestNumber) : CompilerVersionSpecifier;
     public sealed record Branch(string BranchName) : CompilerVersionSpecifier;
+}
+
+internal sealed class NuGetVersionJsonConverter : JsonConverter<NuGetVersion>
+{
+    public override NuGetVersion? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return reader.GetString() is { } s ? NuGetVersion.Parse(s) : null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, NuGetVersion value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString());
+    }
 }
 
 internal sealed class CompilerDependency
