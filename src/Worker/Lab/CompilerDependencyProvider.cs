@@ -31,11 +31,6 @@ internal sealed class CompilerDependencyProvider(
     {
         var info = CompilerInfo.For(compilerKind);
 
-        if (info.ForceConfiguration is { } forcedConfiguration)
-        {
-            configuration = forcedConfiguration;
-        }
-
         bool any = false;
         List<string>? errors = null;
         CompilerDependency? found = await findAsync();
@@ -159,8 +154,7 @@ public sealed record CompilerInfo(
     int BuildDefinitionId,
     string ArtifactNameFormat,
     ImmutableArray<string> AssemblyNames,
-    string? NupkgArtifactPath = null,
-    BuildConfiguration? ForceConfiguration = null)
+    string? NupkgArtifactPath = null)
 {
     public static readonly CompilerInfo Roslyn = new(
         CompilerKind: CompilerKind.Roslyn,
@@ -179,9 +173,7 @@ public sealed record CompilerInfo(
         BuildDefinitionId: 103, // razor-tooling-ci
         ArtifactNameFormat: "Packages_Windows_NT_{0}",
         AssemblyNames: ["Microsoft.CodeAnalysis.Razor.Compiler", .. Roslyn.AssemblyNames],
-        NupkgArtifactPath: "Shipping",
-        // razor artifacts don't contain Debug binaries
-        ForceConfiguration: BuildConfiguration.Release);
+        NupkgArtifactPath: "Shipping");
 
     public static CompilerInfo For(CompilerKind kind)
     {
