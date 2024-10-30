@@ -1,4 +1,4 @@
-@implements IDisposable
+﻿@implements IDisposable
 @inject ILogger<Settings> Logger
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
@@ -165,7 +165,7 @@
                             <input type="text" class="form-control" id="razorVersion" style="flex-grow: 3"
                             @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
                             placeholder="@VersionPlaceholder" />
-                            <select class="form-select" title="@ConfigurationTip"
+                            <select class="form-select" title="⚠️ Razor CI builds do not usually produce Debug binaries, so you might get errors if you choose the Debug configuration."
                             @bind="razorConfiguration" @bind:after="() => LoadRazorInfoAsync()">
                                 <option value="Release">Release</option>
                                 <option value="Debug">Debug</option>
