@@ -14,111 +14,11 @@ public static class NuGetUtil
     {
         return $"https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-tools/NuGet/{packageId}/versions";
     }
-}
 
-internal sealed class NuGetDownloader
-{
-    private readonly SourceRepository repository;
-    private readonly SourceCacheContext cacheContext;
-    private readonly AsyncLazy<FindPackageByIdResource> findPackageById;
-
-    public NuGetDownloader()
-    {
-        ImmutableArray<Lazy<INuGetResourceProvider>> providers =
-        [
-            new(() => new RegistrationResourceV3Provider()),
-            new(() => new DependencyInfoResourceV3Provider()),
-            new(() => new CustomHttpHandlerResourceV3Provider()),
-            new(() => new HttpSourceResourceProvider()),
-            new(() => new ServiceIndexResourceV3Provider()),
-            new(() => new RemoteV3FindPackageByIdResourceProvider()),
-        ];
-        repository = Repository.CreateSource(
-            providers,
-            "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json");
-        cacheContext = new SourceCacheContext();
-        findPackageById = new(() => repository.GetResourceAsync<FindPackageByIdResource>());
-    }
-
-    public NuGetDownloadablePackage GetPackage(string packageId, string version, string folder)
-    {
-        return new NuGetDownloadablePackage(folder: folder, downloadAsync);
-
-        async Task<MemoryStream> downloadAsync()
-        {
-            NuGetVersion parsedVersion;
-            if (version == "latest")
-            {
-                var versions = await (await findPackageById).GetAllVersionsAsync(
-                    packageId,
-                    cacheContext,
-                    NullLogger.Instance,
-                    CancellationToken.None);
-                parsedVersion = versions.FirstOrDefault() ??
-                    throw new InvalidOperationException($"Package '{packageId}' not found.");
-            }
-            else
-            {
-                parsedVersion = NuGetVersion.Parse(version);
-            }
-
-            var stream = new MemoryStream();
-            var success = await (await findPackageById).CopyNupkgToStreamAsync(
-                packageId,
-                parsedVersion,
-                stream,
-                cacheContext,
-                NullLogger.Instance,
-                CancellationToken.None);
-
-            if (!success)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to download '{packageId}' version '{version}'.");
-            }
-
-            return stream;
-        }
-    }
-}
-
-internal sealed class NuGetDownloadablePackage
-{
-    private readonly string folder;
-    private readonly AsyncLazy<MemoryStream> _stream;
-
-    public NuGetDownloadablePackage(string folder, Func<Task<MemoryStream>> streamFactory)
-    {
-        this.folder = folder;
-        _stream = new(streamFactory);
-    }
-
-    private async Task<Stream> GetStreamAsync()
-    {
-        var result = await _stream;
-        result.Position = 0;
-        return result;
-    }
-
-    private async Task<PackageArchiveReader> GetReaderAsync()
-    {
-        return new(await GetStreamAsync(), leaveStreamOpen: true);
-    }
-
-    public async Task<NuGetPackageInfo> GetInfoAsync()
-    {
-        using var reader = await GetReaderAsync();
-        var metadata = reader.NuspecReader.GetRepositoryMetadata();
-        return NuGetPackageInfo.Create(
-            version: reader.GetIdentity().Version.ToString(),
-            commitHash: metadata.Commit,
-            repoUrl: metadata.Url);
-    }
-
-    public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
+    internal static ImmutableArray<LoadedAssembly> GetAssembliesFromNupkg(Stream nupkgStream, string folder)
     {
         const string extension = ".dll";
-        using var reader = await GetReaderAsync();
+        using var reader = new PackageArchiveReader(nupkgStream, leaveStreamOpen: true);
         return reader.GetFiles()
             .Where(file =>
             {
@@ -148,56 +48,138 @@ internal sealed class NuGetDownloadablePackage
     }
 }
 
-public sealed record NuGetPackageInfo
+internal sealed class NuGetDownloaderPlugin(
+    Lazy<NuGetDownloader> nuGetDownloader)
+    : ICompilerDependencyResolver
 {
-    public static NuGetPackageInfo Create(string version, string commitHash, string repoUrl)
+    public Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration)
     {
+        if (specifier is CompilerVersionSpecifier.NuGetLatest or CompilerVersionSpecifier.NuGet)
+        {
+            return nuGetDownloader.Value.TryResolveCompilerAsync(info, specifier, configuration);
+        }
+
+        return Task.FromResult<CompilerDependency?>(null);
+    }
+}
+
+internal sealed class NuGetDownloader : ICompilerDependencyResolver
+{
+    private readonly SourceRepository repository;
+    private readonly SourceCacheContext cacheContext;
+    private readonly AsyncLazy<FindPackageByIdResource> findPackageById;
+
+    public NuGetDownloader()
+    {
+        ImmutableArray<Lazy<INuGetResourceProvider>> providers =
+        [
+            new(() => new RegistrationResourceV3Provider()),
+            new(() => new DependencyInfoResourceV3Provider()),
+            new(() => new CustomHttpHandlerResourceV3Provider()),
+            new(() => new HttpSourceResourceProvider()),
+            new(() => new ServiceIndexResourceV3Provider()),
+            new(() => new RemoteV3FindPackageByIdResourceProvider()),
+        ];
+        repository = Repository.CreateSource(
+            providers,
+            "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json");
+        cacheContext = new SourceCacheContext();
+        findPackageById = new(() => repository.GetResourceAsync<FindPackageByIdResource>());
+    }
+
+    public async Task<CompilerDependency?> TryResolveCompilerAsync(
+        CompilerInfo info,
+        CompilerVersionSpecifier specifier,
+        BuildConfiguration configuration)
+    {
+        NuGetVersion version;
+        if (specifier is CompilerVersionSpecifier.NuGetLatest)
+        {
+            var versions = await (await findPackageById).GetAllVersionsAsync(
+                info.PackageId,
+                cacheContext,
+                NullLogger.Instance,
+                CancellationToken.None);
+            version = versions.FirstOrDefault() ??
+                throw new InvalidOperationException($"Package '{info.PackageId}' not found.");
+        }
+        else if (specifier is CompilerVersionSpecifier.NuGet nuGetSpecifier)
+        {
+            version = nuGetSpecifier.Version;
+        }
+        else
+        {
+            return null;
+        }
+
+        var package = new NuGetDownloadablePackage(specifier, info.PackageFolder, async () =>
+        {
+            var stream = new MemoryStream();
+            var success = await (await findPackageById).CopyNupkgToStreamAsync(
+                info.PackageId,
+                version,
+                stream,
+                cacheContext,
+                NullLogger.Instance,
+                CancellationToken.None);
+
+            if (!success)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to download '{info.PackageId}' version '{version}'.");
+            }
+
+            return stream;
+        });
+
         return new()
         {
-            Version = version,
-            Commit = new() { Hash = commitHash, RepoUrl = repoUrl },
+            Info = package.GetInfoAsync,
+            Assemblies = package.GetAssembliesAsync,
+        };
+    }
+}
+
+internal sealed class NuGetDownloadablePackage(
+    CompilerVersionSpecifier specifier,
+    string folder,
+    Func<Task<MemoryStream>> streamFactory)
+{
+    private readonly AsyncLazy<MemoryStream> _stream = new(streamFactory);
+
+    private async Task<Stream> GetStreamAsync()
+    {
+        var result = await _stream;
+        result.Position = 0;
+        return result;
+    }
+
+    private async Task<PackageArchiveReader> GetReaderAsync()
+    {
+        return new(await GetStreamAsync(), leaveStreamOpen: true);
+    }
+
+    public async Task<CompilerDependencyInfo> GetInfoAsync()
+    {
+        using var reader = await GetReaderAsync();
+        var metadata = reader.NuspecReader.GetRepositoryMetadata();
+        return new(
+            version: reader.GetIdentity().Version.ToString(),
+            commitHash: metadata.Commit,
+            repoUrl: metadata.Url)
+        {
+            VersionSpecifier = specifier,
+            Configuration = BuildConfiguration.Release,
         };
     }
 
-    public static NuGetPackageInfo GetBuiltInInfo(string assemblyName)
+    public async Task<ImmutableArray<LoadedAssembly>> GetAssembliesAsync()
     {
-        string version = "";
-        string hash = "";
-        string repositoryUrl = "";
-        foreach (var attribute in Assembly.Load(assemblyName).CustomAttributes)
-        {
-            switch (attribute.AttributeType.FullName)
-            {
-                case "System.Reflection.AssemblyInformationalVersionAttribute"
-                    when attribute.ConstructorArguments is [{ Value: string informationalVersion }] &&
-                        VersionUtil.TryParseInformationalVersion(informationalVersion, out var parsedVersion, out var parsedHash):
-                    version = parsedVersion;
-                    hash = parsedHash;
-                    break;
-
-                case "System.Reflection.AssemblyMetadataAttribute"
-                    when attribute.ConstructorArguments is [{ Value: "RepositoryUrl" }, { Value: string repoUrl }]:
-                    repositoryUrl = repoUrl;
-                    break;
-            }
-        }
-
-        return Create(
-            version: version,
-            commitHash: hash,
-            repoUrl: repositoryUrl);
+        return NuGetUtil.GetAssembliesFromNupkg(await GetStreamAsync(), folder: folder);
     }
-
-    public required string Version { get; init; }
-    public required CommitLink Commit { get; init; }
-}
-
-public sealed record CommitLink
-{
-    public required string RepoUrl { get; init; }
-    public required string Hash { get; init; }
-    public string ShortHash => VersionUtil.GetShortCommitHash(Hash);
-    public string Url => string.IsNullOrEmpty(Hash) ? "" : VersionUtil.GetCommitUrl(RepoUrl, Hash);
 }
 
 internal sealed class CustomHttpHandlerResourceV3Provider : ResourceProvider

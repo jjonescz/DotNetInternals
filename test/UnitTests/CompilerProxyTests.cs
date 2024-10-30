@@ -1,6 +1,5 @@
 using DotNetInternals.Lab;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
 
 namespace DotNetInternals;
@@ -10,25 +9,16 @@ public class CompilerProxyTests(ITestOutputHelper output)
     [Fact]
     public async Task SpecifiedNuGetRoslynVersion()
     {
-        var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler());
 
-        var nuget = new NuGetDownloader();
         var version = "4.12.0-2.24409.2";
         var commit = "2158b591";
-        var package = nuget.GetPackage(CompilerConstants.RoslynPackageId, version, CompilerConstants.RoslynPackageFolder);
 
-        var deps = new DependencyRegistry();
-        deps.SetAssemblies("roslyn", package.GetAssembliesAsync);
+        await services.GetRequiredService<CompilerDependencyProvider>()
+            .UseAsync(CompilerKind.Roslyn, version, BuildConfiguration.Release);
 
-        using var client = new HttpClient(new MockHttpMessageHandler()) { BaseAddress = new Uri("http://localhost") };
-        var assemblyDownloader = new AssemblyDownloader(client);
-        var compiler = new CompilerProxy(
-            NullLogger<CompilerProxy>.Instance,
-            deps,
-            assemblyDownloader,
-            new(NullLogger<CompilerLoader>.Instance),
-            services);
-        var compiled = await compiler.CompileAsync(new(new([new() { FileName = "Input.cs", Text = "#error version" }])));
+        var compiled = await services.GetRequiredService<CompilerProxy>()
+            .CompileAsync(new(new([new() { FileName = "Input.cs", Text = "#error version" }])));
 
         var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.EagerText!;
         output.WriteLine(diagnosticsText);
@@ -38,24 +28,15 @@ public class CompilerProxyTests(ITestOutputHelper output)
     [Fact]
     public async Task SpecifiedNuGetRazorVersion()
     {
-        var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler());
 
-        var nuget = new NuGetDownloader();
         var version = "9.0.0-preview.24413.5";
-        var package = nuget.GetPackage(CompilerConstants.RazorPackageId, version, CompilerConstants.RazorPackageFolder);
 
-        var deps = new DependencyRegistry();
-        deps.SetAssemblies("razor", package.GetAssembliesAsync);
+        await services.GetRequiredService<CompilerDependencyProvider>()
+            .UseAsync(CompilerKind.Razor, version, BuildConfiguration.Release);
 
-        using var client = new HttpClient(new MockHttpMessageHandler()) { BaseAddress = new Uri("http://localhost") };
-        var assemblyDownloader = new AssemblyDownloader(client);
-        var compiler = new CompilerProxy(
-            NullLogger<CompilerProxy>.Instance,
-            deps,
-            assemblyDownloader,
-            new(NullLogger<CompilerLoader>.Instance),
-            services);
-        var compiled = await compiler.CompileAsync(new(new([new() { FileName = "TestComponent.razor", Text = "test" }])));
+        var compiled = await services.GetRequiredService<CompilerProxy>()
+            .CompileAsync(new(new([new() { FileName = "TestComponent.razor", Text = "test" }])));
 
         var cSharpText = compiled.Files.Single().Value.GetOutput("C#")!.EagerText!;
         output.WriteLine(cSharpText);

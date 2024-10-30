@@ -1,4 +1,4 @@
-@implements IDisposable
+﻿@implements IDisposable
 @inject ILogger<Settings> Logger
 @inject IJSRuntime JSRuntime
 @inject ILocalStorageService LocalStorage
@@ -119,9 +119,14 @@
                             <label for="roslynVersion" class="input-group-text">
                                 Roslyn
                             </label>
-                            <input type="text" class="form-control" id="roslynVersion"
+                            <input type="text" class="form-control" id="roslynVersion" style="flex-grow: 3"
                             @bind="roslynVersion" @bind:after="() => LoadRoslynInfoAsync()"
-                            placeholder="version" />
+                            placeholder="@VersionPlaceholder" />
+                            <select class="form-select" title="@ConfigurationTip"
+                            @bind="roslynConfiguration" @bind:after="() => LoadRoslynInfoAsync()">
+                                <option value="Release">Release</option>
+                                <option value="Debug">Debug</option>
+                            </select>
                             @if (loadingRoslynInfo)
                             {
                                 <span class="input-group-text">
@@ -130,9 +135,7 @@
                             }
                         </div>
                         <div class="form-text">
-                            See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RoslynPackageId)"
-                            target="_blank">available Roslyn versions</a>.
+                            @SeeLinks(CompilerInfo.Roslyn)
                             Use
                             @if (roslynVersion != "latest")
                             {
@@ -150,20 +153,7 @@
                             }
                             @(".")
                         </div>
-                        @if (roslynInfo != null)
-                        {
-                            <div class="form-text">
-                                Using @(roslynInfo.Version)
-                                (<a href="@roslynInfo.Commit.Url"
-                                target="_blank">@roslynInfo.Commit.ShortHash</a>).
-                            </div>
-                        }
-                        @if (roslynError != null)
-                        {
-                            <div class="form-text text-danger">
-                                @roslynError
-                            </div>
-                        }
+                        @Info((roslynInfo, roslynError))
                     </div>
 
                     @* Razor version select *@
@@ -172,9 +162,14 @@
                             <label for="razorVersion" class="input-group-text">
                                 Razor
                             </label>
-                            <input type="text" class="form-control" id="razorVersion"
+                            <input type="text" class="form-control" id="razorVersion" style="flex-grow: 3"
                             @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
-                            placeholder="version" />
+                            placeholder="@VersionPlaceholder" />
+                            <select class="form-select" title="⚠️ Razor CI builds do not usually produce Debug binaries, so you might get errors if you choose the Debug configuration."
+                            @bind="razorConfiguration" @bind:after="() => LoadRazorInfoAsync()">
+                                <option value="Release">Release</option>
+                                <option value="Debug">Debug</option>
+                            </select>
                             @if (loadingRazorInfo)
                             {
                                 <span class="input-group-text">
@@ -183,9 +178,7 @@
                             }
                         </div>
                         <div class="form-text">
-                            See
-                            <a href="@NuGetUtil.GetPackageVersionListUrl(CompilerConstants.RazorPackageId)"
-                            target="_blank">available Razor versions</a>.
+                            @SeeLinks(CompilerInfo.Razor)
                             Use
                             @if (razorVersion != "latest")
                             {
@@ -203,20 +196,7 @@
                             }
                             @(".")
                         </div>
-                        @if (razorInfo != null)
-                        {
-                            <div class="form-text">
-                                Using @(razorInfo.Version)
-                                (<a href="@razorInfo.Commit.Url"
-                                target="_blank">@razorInfo.Commit.ShortHash</a>).
-                            </div>
-                        }
-                        @if (razorError != null)
-                        {
-                            <div class="form-text text-danger">
-                                @razorError
-                            </div>
-                        }
+                        @Info((razorInfo, razorError))
                     </div>
 
                     @* About section *@
@@ -243,12 +223,45 @@
 }
 
 @code {
+    private static readonly string VersionPlaceholder = "version / PR / branch / build";
+
+    private static readonly string ConfigurationTip = "Release configuration is always used for the built-in compilers and versions from NuGet.";
+
+    private static readonly RenderFragment<CompilerInfo> SeeLinks = (info) =>@<span>
+        Lists:
+        <a href="@info.NuGetVersionListUrl" target="_blank">version</a>,
+        <a href="@info.PrListUrl" target="_blank">PR</a>,
+        <a href="@info.BranchListUrl" target="_blank">branch</a>,
+        <a href="@info.BuildListUrl" target="_blank" title="Enter build ID (from the URL) not the build number">build</a>.
+    </span>
+    ;
+
+    private static readonly RenderFragment<(CompilerDependencyInfo? Info, string? Error)> Info = (arg) =>@<div>
+        @if (arg.Info != null)
+        {
+            <div class="form-text">
+                Using @(arg.Info.Version)
+                (<a href="@arg.Info.Commit.Url"
+                target="_blank">@arg.Info.Commit.ShortHash</a>),
+                <span title="@(arg.Info.CanChangeBuildConfiguration ? "" : ConfigurationTip)">@arg.Info.Configuration</span>.
+            </div>
+        }
+        @if (arg.Error != null)
+        {
+            <div class="form-text text-danger">
+                @arg.Error
+            </div>
+        }
+    </div>
+    ;
+
     private bool modalOpen, hideUpdateAvailableBadge;
     private IJSObjectReference? vimDisposable;
     private string? sdkVersion, roslynVersion, razorVersion;
+    private BuildConfiguration roslynConfiguration, razorConfiguration;
     private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
     private SdkInfo? sdkInfo;
-    private NuGetPackageInfo? roslynInfo, razorInfo;
+    private CompilerDependencyInfo? roslynInfo, razorInfo;
     private string? sdkError, roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
@@ -372,15 +385,19 @@
             sdkTask = LoadSdkInfoAsync(saveState: false);
         }
 
-        if (roslynVersion != state.RoslynVersion)
+        if (roslynVersion != state.RoslynVersion &&
+            roslynConfiguration != state.RoslynConfiguration)
         {
             roslynVersion = state.RoslynVersion;
+            roslynConfiguration = state.RoslynConfiguration;
             roslynTask = LoadRoslynInfoAsync(saveState: false);
         }
 
-        if (razorVersion != state.RazorVersion)
+        if (razorVersion != state.RazorVersion &&
+            razorConfiguration != state.RazorConfiguration)
         {
             razorVersion = state.RazorVersion;
+            razorConfiguration = state.RazorConfiguration;
             razorTask = LoadRazorInfoAsync(saveState: false);
         }
 
@@ -443,43 +460,49 @@
         await LoadSdkInfoAsync();
     }
 
+    private async Task<(CompilerDependencyInfo? Info, string? Error)> LoadCompilerInfoAsync(
+        CompilerKind compilerKind,
+        string? versionToLoad,
+        BuildConfiguration configuration)
+    {
+        try
+        {
+            await Worker.UseCompilerVersionAsync(
+                compilerKind,
+                version: versionToLoad,
+                configuration: configuration);
+
+            var info = !modalOpen
+                ? null
+                : await Worker.GetCompilerDependencyInfoAsync(compilerKind);
+
+            return (info, null);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Failed to load {compilerKind} info.");
+
+            return (null, ex.Message);
+        }
+    }
+
     private async Task LoadRoslynInfoAsync(bool saveState = true)
     {
         var versionToLoad = roslynVersion;
 
         if (saveState)
         {
-            await Page.SaveStateToUrlAsync(state => state with { RoslynVersion = versionToLoad });
+            await Page.SaveStateToUrlAsync(state => state with
+            {
+                RoslynVersion = versionToLoad,
+                RoslynConfiguration = roslynConfiguration,
+            });
         }
 
         loadingRoslynInfo = true;
         await RefreshAsync();
 
-        NuGetPackageInfo? info;
-        string? error;
-        try
-        {
-            const string key = "roslyn";
-
-            Worker.UsePackage(
-                version: versionToLoad,
-                key: key,
-                packageId: CompilerConstants.RoslynPackageId,
-                packageFolder: CompilerConstants.RoslynPackageFolder);
-
-            info = !modalOpen
-                ? null
-                : await Worker.GetPackageInfoAsync(key)
-                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RoslynAssemblyName);
-
-            error = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to load roslyn info.");
-            error = ex.Message;
-            info = null;
-        }
+        var (info, error) = await LoadCompilerInfoAsync(CompilerKind.Roslyn, versionToLoad, roslynConfiguration);
 
         if (roslynVersion == versionToLoad)
         {
@@ -493,6 +516,7 @@
     private async Task UseRoslynVersionAsync(string? version)
     {
         roslynVersion = version;
+        roslynConfiguration = BuildConfiguration.Release;
         await LoadRoslynInfoAsync();
     }
 
@@ -502,37 +526,17 @@
 
         if (saveState)
         {
-            await Page.SaveStateToUrlAsync(state => state with { RazorVersion = versionToLoad });
+            await Page.SaveStateToUrlAsync(state => state with
+            {
+                RazorVersion = versionToLoad,
+                RazorConfiguration = razorConfiguration,
+            });
         }
 
         loadingRazorInfo = true;
         await RefreshAsync();
 
-        NuGetPackageInfo? info;
-        string? error;
-        try
-        {
-            const string key = "razor";
-
-            Worker.UsePackage(
-                version: versionToLoad,
-                key: key,
-                packageId: CompilerConstants.RazorPackageId,
-                packageFolder: CompilerConstants.RazorPackageFolder);
-
-            info = !modalOpen
-                ? null
-                : await Worker.GetPackageInfoAsync(key)
-                ?? NuGetPackageInfo.GetBuiltInInfo(CompilerConstants.RazorAssemblyName);
-
-            error = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to load razor info.");
-            error = ex.Message;
-            info = null;
-        }
+        var (info, error) = await LoadCompilerInfoAsync(CompilerKind.Razor, versionToLoad, razorConfiguration);
 
         if (razorVersion == versionToLoad)
         {
@@ -546,6 +550,7 @@
     private async Task UseRazorVersionAsync(string? version)
     {
         razorVersion = version;
+        razorConfiguration = BuildConfiguration.Release;
         await LoadRazorInfoAsync();
     }
 

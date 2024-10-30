@@ -6,7 +6,12 @@ namespace DotNetInternals;
 
 public static class WorkerServices
 {
-    public static IServiceProvider Create(string baseUrl, bool debugLogs)
+    public static IServiceProvider CreateTest(HttpMessageHandler? httpMessageHandler = null)
+    {
+        return Create(baseUrl: "http://localhost", debugLogs: true, httpMessageHandler);
+    }
+
+    public static IServiceProvider Create(string baseUrl, bool debugLogs, HttpMessageHandler? httpMessageHandler = null)
     {
         var services = new ServiceCollection();
         services.AddLogging(builder =>
@@ -18,14 +23,18 @@ public static class WorkerServices
 
             builder.AddProvider(new SimpleConsoleLoggerProvider());
         });
-        services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(baseUrl) });
+        services.AddScoped(sp => new HttpClient(httpMessageHandler ?? new HttpClientHandler()) { BaseAddress = new Uri(baseUrl) });
         services.AddScoped<CompilerLoaderServices>();
         services.AddScoped<AssemblyDownloader>();
         services.AddScoped<CompilerProxy>();
         services.AddScoped<DependencyRegistry>();
-        services.AddScoped<PackageRegistry>();
         services.AddScoped<Lazy<NuGetDownloader>>();
         services.AddScoped<SdkDownloader>();
+        services.AddScoped<CompilerDependencyProvider>();
+        services.AddScoped<BuiltInCompilerProvider>();
+        services.AddScoped<ICompilerDependencyResolver, NuGetDownloaderPlugin>();
+        services.AddScoped<ICompilerDependencyResolver, AzDoDownloader>();
+        services.AddScoped<ICompilerDependencyResolver, BuiltInCompilerProvider>(sp => sp.GetRequiredService<BuiltInCompilerProvider>());
         services.AddScoped<LanguageServices>();
         return services.BuildServiceProvider();
     }

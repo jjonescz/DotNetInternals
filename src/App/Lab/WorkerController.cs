@@ -112,6 +112,12 @@ internal sealed class WorkerController
     private async void PostMessage<T>(T message)
         where T : WorkerInputMessage<NoOutput>
     {
+        await PostMessageAsync(message);
+    }
+
+    private async Task PostMessageAsync<T>(T message)
+        where T : WorkerInputMessage<NoOutput>
+    {
         var incoming = await PostMessageUnsafeAsync(message);
         switch (incoming)
         {
@@ -167,23 +173,22 @@ internal sealed class WorkerController
     /// <summary>
     /// Instructs the <see cref="DependencyRegistry"/> to use this package.
     /// </summary>
-    public void UsePackage(string? version, string key, string packageId, string packageFolder)
+    public async Task UseCompilerVersionAsync(CompilerKind compilerKind, string? version, BuildConfiguration configuration)
     {
-        PostMessage(new WorkerInputMessage.UsePackage(
+        await PostMessageAsync(new WorkerInputMessage.UseCompilerVersion(
+            CompilerKind: compilerKind,
             Version: version,
-            Key: key,
-            PackageId: packageId,
-            PackageFolder: packageFolder)
+            Configuration: configuration)
         {
             Id = messageId++,
         });
     }
 
-    public Task<NuGetPackageInfo?> GetPackageInfoAsync(string key)
+    public Task<CompilerDependencyInfo> GetCompilerDependencyInfoAsync(CompilerKind compilerKind)
     {
         return PostAndReceiveMessageAsync(
-            new WorkerInputMessage.GetPackageInfo(key) { Id = messageId++ },
-            deserializeAs: default(NuGetPackageInfo));
+            new WorkerInputMessage.GetCompilerDependencyInfo(compilerKind) { Id = messageId++ },
+            deserializeAs: default(CompilerDependencyInfo));
     }
 
     public Task<SdkInfo> GetSdkInfoAsync(string versionToLoad)

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DotNetInternals;
 
 public static class Util
@@ -63,9 +65,19 @@ public static class Util
         }
     }
 
+    /// <summary>
+    /// Use in a <see langword="using"/> block to ensure it doesn't contain any <see cref="await"/>s.
+    /// </summary>
+    public static R EnsureSync() => default;
+
     public static string JoinToString<T>(this IEnumerable<T> source, string separator)
     {
         return string.Join(separator, source);
+    }
+
+    public static string JoinToString<T>(this IEnumerable<T> source, string separator, string quote)
+    {
+        return string.Join(separator, source.Select(x => $"{quote}{x}{quote}"));
     }
 
     public static async Task<IEnumerable<TResult>> SelectAsync<T, TResult>(this IEnumerable<T> source, Func<T, Task<TResult>> selector)
@@ -169,6 +181,11 @@ public static class Util
         return [.. (a ?? []), .. (b ?? [])];
     }
 
+    public static InvalidOperationException Unexpected<T>(T value, [CallerArgumentExpression(nameof(value))] string name = "")
+    {
+        return new($"Unexpected {name}='{value}' of type '{value?.GetType().FullName ?? "null"}'.");
+    }
+
     public static T Unreachable<T>()
     {
         throw new InvalidOperationException($"Unreachable '{typeof(T)}'.");
@@ -178,4 +195,9 @@ public static class Util
     {
         return s.EndsWith(suffix, StringComparison.Ordinal) ? s[..^suffix.Length] : s;
     }
+}
+
+public readonly ref struct R
+{
+    public void Dispose() { }
 }

@@ -6,17 +6,6 @@ using System.Runtime.Loader;
 
 namespace DotNetInternals.Lab;
 
-public static class CompilerConstants
-{
-    public static readonly string RoslynPackageId = "Microsoft.Net.Compilers.Toolset";
-    public static readonly string RoslynPackageFolder = "tasks/netcore/bincore";
-    public static readonly string RazorPackageId = "Microsoft.Net.Compilers.Razor.Toolset";
-    public static readonly string RazorPackageFolder = "source-generators";
-    public static readonly string CompilerAssemblyName = "DotNetInternals.Compiler";
-    public static readonly string RoslynAssemblyName = "Microsoft.CodeAnalysis.CSharp";
-    public static readonly string RazorAssemblyName = "Microsoft.CodeAnalysis.Razor.Compiler";
-}
-
 /// <summary>
 /// Can load our compiler project with any given Roslyn/Razor compiler version as dependency.
 /// </summary>
@@ -27,6 +16,8 @@ internal sealed class CompilerProxy(
     CompilerLoaderServices loaderServices,
     IServiceProvider serviceProvider)
 {
+    public static readonly string CompilerAssemblyName = "DotNetInternals.Compiler";
+
     private static readonly Func<Stream, bool, byte[]> convertFromWebcil = typeof(BlazorWasmMetadataReferenceService).Assembly
         .GetType("MetadataReferenceService.BlazorWasm.WasmWebcil.WebcilConverterUtil")!
         .GetMethod("ConvertFromWebcil", BindingFlags.Public | BindingFlags.Static)!
@@ -102,11 +93,10 @@ internal sealed class CompilerProxy(
                 // If they are not loaded from the registry, we will reload the built-in ones.
                 // Preload all built-in ones that our Compiler project depends on here
                 // (we cannot do that inside the AssemblyLoadContext because of async).
-                CompilerConstants.CompilerAssemblyName,
-                CompilerConstants.RoslynAssemblyName,
-                CompilerConstants.RazorAssemblyName,
+                CompilerAssemblyName,
+                ..CompilerInfo.Roslyn.AssemblyNames,
+                ..CompilerInfo.Razor.AssemblyNames,
                 "Basic.Reference.Assemblies.AspNet90",
-                "Microsoft.CodeAnalysis",
                 "Microsoft.CodeAnalysis.CSharp.Test.Utilities",
                 "Microsoft.CodeAnalysis.Razor.Test",
             ]);
@@ -145,8 +135,8 @@ internal sealed class CompilerProxy(
         }
 
         using var _ = alc.EnterContextualReflection();
-        Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerConstants.CompilerAssemblyName));
-        Type compilerType = compilerAssembly.GetType(CompilerConstants.CompilerAssemblyName)!;
+        Assembly compilerAssembly = alc.LoadFromAssemblyName(new(CompilerAssemblyName));
+        Type compilerType = compilerAssembly.GetType(CompilerAssemblyName)!;
         var compiler = (ICompiler)ActivatorUtilities.CreateInstance(serviceProvider, compilerType)!;
         return new() { LoadContext = alc, Compiler = compiler, Assemblies = assemblies };
     }

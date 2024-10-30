@@ -16,5 +16,9 @@ public abstract record WorkerOutputMessage
 
     public sealed record Success(object? Result) : WorkerOutputMessage;
 
-    public sealed record Failure(string Message) : WorkerOutputMessage;
+    [method: JsonConstructor]
+    public sealed record Failure(string Message, string FullString) : WorkerOutputMessage
+    {
+        public Failure(Exception ex) : this(Message: ex.Message, FullString: ex.ToString()) { }
+    }
 }
