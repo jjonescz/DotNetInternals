@@ -10,11 +10,12 @@ C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
 - Razor/CSHTML to generated C# code / IR / Syntax Tree / Errors.
 - C# to IL / Syntax / decompiled-C# / Errors / Execution console output.
-- Any Roslyn/Razor compiler version (NuGet daily builds).
+- Any Roslyn/Razor compiler version (NuGet official builds or CI builds given PR number / branch / build number).
 - Offline support (PWA).
 - VSCode Monaco Editor.
 - Multiple input sources (especially useful for interlinked Razor components).
 - C# Language Services (completions, live diagnostics) - experimental.
+- Configuring any C# parse options (e.g., LangVersion, Features).
 
 ## Development
 
