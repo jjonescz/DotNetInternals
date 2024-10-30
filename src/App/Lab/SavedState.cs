@@ -56,15 +56,21 @@ partial class Page
     internal async Task<SavedState> SaveStateToUrlAsync(Func<SavedState, SavedState>? updater = null)
     {
         // Always save the current editor texts.
-        savedState = savedState with
-        {
-            Inputs = await getInputsAsync(),
-            Configuration = configuration is null ? null : await getInputAsync(configuration.Model),
-        };
+        var inputsToSave = await getInputsAsync();
+        var configurationToSave = configuration is null ? null : await getInputAsync(configuration.Model);
 
-        if (updater != null)
+        using (Util.EnsureSync())
         {
-            savedState = updater(savedState);
+            savedState = savedState with
+            {
+                Inputs = inputsToSave,
+                Configuration = configurationToSave,
+            };
+
+            if (updater != null)
+            {
+                savedState = updater(savedState);
+            }
         }
 
         var newSlug = Compressor.Compress(savedState);

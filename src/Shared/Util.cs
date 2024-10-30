@@ -65,6 +65,11 @@ public static class Util
         }
     }
 
+    /// <summary>
+    /// Use in a <see langword="using"/> block to ensure it doesn't contain any <see cref="await"/>s.
+    /// </summary>
+    public static R EnsureSync() => default;
+
     public static string JoinToString<T>(this IEnumerable<T> source, string separator)
     {
         return string.Join(separator, source);
@@ -190,4 +195,9 @@ public static class Util
     {
         return s.EndsWith(suffix, StringComparison.Ordinal) ? s[..^suffix.Length] : s;
     }
+}
+
+public readonly ref struct R
+{
+    public void Dispose() { }
 }
