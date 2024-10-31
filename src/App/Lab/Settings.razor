@@ -42,26 +42,6 @@
                         </label>
                     </div>
 
-                    @* Debug logs check box *@
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="debugLogs"
-                        @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
-                        <label class="form-check-label" for="debugLogs"
-                        title="Whether to display debug-level logs in the browser development console">
-                            Debug logs
-                        </label>
-                    </div>
-
-                    @* Use a worker check box *@
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="enableWorker"
-                        @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
-                        <label class="form-check-label" for="enableWorker"
-                        title="Moves compilation to a separate worker thread">
-                            Use a worker (requires restart)
-                        </label>
-                    </div>
-
                     @* Language services check box *@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="enableLanguageServices"
@@ -72,6 +52,30 @@
                             Language services (requires restart)
                         </label>
                     </div>
+
+                    <details class="mt-2">
+                        <summary>Advanced</summary>
+
+                        @* Debug logs check box *@
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="debugLogs"
+                            @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
+                            <label class="form-check-label" for="debugLogs"
+                            title="Whether to display debug-level logs in the browser development console">
+                                Debug logs
+                            </label>
+                        </div>
+
+                        @* Use a worker check box *@
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enableWorker"
+                            @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
+                            <label class="form-check-label" for="enableWorker"
+                            title="Moves compilation (and language services if enabled) to a separate worker thread (it is recommended to keep this enabled)">
+                                Compile in a background worker thread (requires restart)
+                            </label>
+                        </div>
+                    </details>
 
                     <h6 class="mt-3 h5">Compilers</h6>
 
