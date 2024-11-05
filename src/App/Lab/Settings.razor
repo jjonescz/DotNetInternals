@@ -390,7 +390,7 @@
             sdkTask = LoadSdkInfoAsync(saveState: false);
         }
 
-        if (roslynVersion != state.RoslynVersion &&
+        if (roslynVersion != state.RoslynVersion ||
             roslynConfiguration != state.RoslynConfiguration)
         {
             roslynVersion = state.RoslynVersion;
@@ -398,7 +398,7 @@
             roslynTask = LoadRoslynInfoAsync(saveState: false);
         }
 
-        if (razorVersion != state.RazorVersion &&
+        if (razorVersion != state.RazorVersion ||
             razorConfiguration != state.RazorConfiguration)
         {
             razorVersion = state.RazorVersion;
