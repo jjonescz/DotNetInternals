@@ -16,11 +16,11 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.0-rc.2.24474.3" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.0-rc.2.24474.3" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.0-rc.2.24474.3" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0-1.24372.18" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.12.0-1.24372.18" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0-2.24555.1" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.13.0-2.24555.1" />
     <PackageVersion Include="Microsoft.DotNet.Arcade.Sdk" Version="9.0.0-beta.24372.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0-rc.2.24473.5" />
-    <PackageVersion Include="Microsoft.Net.Compilers.Razor.Toolset" Version="9.0.0-preview.24373.1" />
+    <PackageVersion Include="Microsoft.Net.Compilers.Razor.Toolset" Version="9.0.0-preview.24555.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
     <PackageVersion Include="Microsoft.TeamFoundationServer.Client" Version="19.225.1" />
     <PackageVersion Include="NuGet.Protocol" Version="6.10.1" />
