@@ -472,6 +472,9 @@
     {
         currentInputIndex = index;
         await inputEditor.SetModel(inputs[index].Model);
+
+        // Display output corresponding to the selected input.
+        await UpdateOutputDisplayAsync();
     }
 
     private async Task RenameInputAsync()
