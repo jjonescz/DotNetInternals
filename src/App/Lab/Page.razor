@@ -601,12 +601,7 @@
         await outputEditor.SetModel(await BlazorMonaco.Editor.Global.CreateModel(JSRuntime, value: output, language: selectedOutputType == "C#" ? "csharp" : null));
     }
 
-    private CompiledFileOutput? GetOutput(string type)
-    {
-        return GetOutputWithPath(type)?.Output;
-    }
-
-    private (CompiledFileOutput Output, string? File)? GetOutputWithPath(string type)
+    private (CompiledFileOutput Output, string? File)? GetOutput(string type)
     {
         if (CurrentCompiledFile is { } currentCompiledFile)
         {
@@ -626,7 +621,7 @@
 
     private async Task<string> LoadOutput(string type)
     {
-        if (GetOutputWithPath(type) is not (var output, var file))
+        if (GetOutput(type) is not (var output, var file))
         {
             return "";
         }
