@@ -102,7 +102,7 @@ partial class Page
 [ProtoContract]
 internal sealed record SavedState
 {
-    public static SavedState Initial { get; } = new() { Inputs = [InitialCode.Razor.ToInputCode()] };
+    public static SavedState Initial { get; } = new() { Inputs = [InitialCode.Razor.ToInputCode(), InitialCode.RazorImports.ToInputCode()] };
 
     [ProtoMember(1)]
     public ImmutableArray<InputCode> Inputs { get; init; }
