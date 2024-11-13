@@ -380,15 +380,19 @@
     {
         get
         {
-            return inputs is [{ } input]
-                ? input.FileName switch
-                {
-                    var s when matches(s, InitialCode.CSharp) => InputPreset.CSharp,
-                    var s when matches(s, InitialCode.Razor) => InputPreset.Razor,
-                    var s when matches(s, InitialCode.Cshtml) => InputPreset.Cshtml,
-                    _ => InputPreset.Custom,
-                }
-                : InputPreset.Custom;
+            return inputs switch
+            {
+            [{ } input] => input.FileName switch
+            {
+                var s when matches(s, InitialCode.CSharp) => InputPreset.CSharp,
+                var s when matches(s, InitialCode.Cshtml) => InputPreset.Cshtml,
+                _ => InputPreset.Custom,
+            },
+            [{ } input1, { } input2]
+                when matches(input1.FileName, InitialCode.Razor) &&
+                    matches(input2.FileName, InitialCode.RazorImports) => InputPreset.Razor,
+                _ => InputPreset.Custom,
+            };
 
             static bool matches(string fileName, InitialCode initialCode)
             {
@@ -413,6 +417,11 @@
             inputs.Clear();
             currentInputIndex = 0;
             await AddInputAsync(initialCode);
+
+            if (preset == InputPreset.Razor)
+            {
+                await AddInputAsync(InitialCode.RazorImports, selectAsCurrent: false);
+            }
 
             await SaveStateToUrlAsync();
         }
@@ -452,12 +461,17 @@
                 break;
 
             case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
-                currentInputIndex = selectedInputIndex;
-                await inputEditor.SetModel(inputs[selectedInputIndex].Model);
+                await SelectInputAsync(selectedInputIndex);
                 break;
         }
 
         await SaveStateToUrlAsync();
+    }
+
+    private async Task SelectInputAsync(int index)
+    {
+        currentInputIndex = index;
+        await inputEditor.SetModel(inputs[index].Model);
     }
 
     private async Task RenameInputAsync()
@@ -507,15 +521,21 @@
         await SaveStateToUrlAsync();
     }
 
-    private async Task AddInputAsync(InitialCode initialCode)
+    private async Task AddInputAsync(InitialCode initialCode, bool selectAsCurrent = true)
     {
         var fileName = FindUniqueName(initialCode);
         var inputCode = initialCode.ToInputCode(fileName);
         var model = await CreateModelAsync(inputCode);
         inputs.Add(new(fileName, model) { NewContent = inputCode.Text });
-        currentInputIndex = inputs.Count - 1;
+        if (selectAsCurrent)
+        {
+            currentInputIndex = inputs.Count - 1;
+        }
         OnWorkspaceChanged();
-        await inputEditor.SetModel(model);
+        if (selectAsCurrent)
+        {
+            await inputEditor.SetModel(model);
+        }
     }
 
     private string FindUniqueName(InitialCode initialCode)

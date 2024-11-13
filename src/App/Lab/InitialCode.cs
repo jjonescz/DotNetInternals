@@ -11,6 +11,19 @@ internal sealed record InitialCode(string SuggestedFileName, string TextTemplate
 
         """);
 
+    // https://github.com/dotnet/aspnetcore/blob/036ec9ec2ffbfe927f9eb7622dfff122c634ccbb/src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/BlazorWeb-CSharp/Components/_Imports.razor
+    public static readonly InitialCode RazorImports = new("_Imports.razor", """
+        ﻿@using System.Net.Http
+        @using System.Net.Http.Json
+        @using Microsoft.AspNetCore.Components.Authorization
+        @using Microsoft.AspNetCore.Components.Forms
+        @using Microsoft.AspNetCore.Components.Routing
+        @using Microsoft.AspNetCore.Components.Web
+        @using static Microsoft.AspNetCore.Components.Web.RenderMode
+        @using Microsoft.AspNetCore.Components.Web.Virtualization
+        @using Microsoft.JSInterop
+        """);
+
     public static readonly InitialCode CSharp = new("Program.cs", """
         using System;
         using System.Collections.Generic;
