@@ -1,8 +1,15 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Test.Utilities;
+using Roslyn.Utilities;
 
 namespace DotNetInternals;
+
+file enum TriviaKind
+{
+    Leading,
+    Trailing,
+}
 
 public static class RoslynAccessors
 {
@@ -21,19 +28,31 @@ public static class RoslynAccessors
 
             if (nodeOrToken.AsNode(out var node))
             {
-                return new TreeDumperNode(text, null,
-                    [
-                        ..node.GetLeadingTrivia().Select(triviaToTree),
-                        ..node.ChildNodesAndTokens().Select(nodeOrTokenToTree),
-                        ..node.GetTrailingTrivia().Select(triviaToTree),
-                    ]);
+                return new TreeDumperNode(text, null, node.ChildNodesAndTokens().Select(nodeOrTokenToTree));
             }
 
             return new TreeDumperNode(text + " " + stringOrMissing(nodeOrToken), null,
                 [
-                    ..nodeOrToken.GetLeadingTrivia().Select(triviaToTree),
-                    ..nodeOrToken.GetTrailingTrivia().Select(triviaToTree),
+                    ..triviaNode(TriviaKind.Leading, nodeOrToken.GetLeadingTrivia()),
+                    ..triviaNode(TriviaKind.Trailing, nodeOrToken.GetTrailingTrivia()),
                 ]);
+        }
+
+        static IEnumerable<TreeDumperNode> triviaNode(TriviaKind kind, SyntaxTriviaList triviaList)
+        {
+            if (!triviaList.Any())
+            {
+                return [];
+            }
+
+            var text = kind switch
+            {
+                TriviaKind.Leading => "LeadingTrivia",
+                TriviaKind.Trailing => "TrailingTrivia",
+                _ => throw new ArgumentOutOfRangeException(paramName: nameof(kind), message: kind.ToString()),
+            };
+
+            return [new TreeDumperNode(text, null, triviaList.Select(triviaToTree))];
         }
 
         static TreeDumperNode triviaToTree(SyntaxTrivia trivia)
