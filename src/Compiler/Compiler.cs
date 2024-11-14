@@ -185,6 +185,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 pair.Key,
                 new([
                     new() { Type = "Syntax", EagerText = pair.Value.GetRoot().Dump() },
+                    new() { Type = "Syntax + Trivia", EagerText = pair.Value.GetRoot().DumpExtended() },
                     new()
                     {
                         Type = "IL",
