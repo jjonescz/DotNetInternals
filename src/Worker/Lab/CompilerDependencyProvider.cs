@@ -31,46 +31,57 @@ internal sealed class CompilerDependencyProvider(
     {
         var info = CompilerInfo.For(compilerKind);
 
-        bool any = false;
-        List<string>? errors = null;
-        CompilerDependency? found = await findAsync();
+        var task = findOrThrowAsync();
 
-        if (!any)
+        // First update the dependency registry so compilation does not start before the search completes.
+        dependencyRegistry.Set(info, async () => await (await task).Assemblies());
+
+        await task;
+
+        async Task<CompilerDependency> findOrThrowAsync()
         {
-            throw new InvalidOperationException($"Nothing could be parsed out of the specified version '{version}'.");
-        }
+            bool any = false;
+            List<string>? errors = null;
+            CompilerDependency? found = await findAsync();
 
-        if (found is null)
-        {
-            throw new InvalidOperationException($"Specified version was not found.\n{errors?.JoinToString("\n")}");
-        }
-
-        dependencyRegistry.Set(info, found.Assemblies);
-        loaded[compilerKind] = found;
-
-        async Task<CompilerDependency?> findAsync()
-        {
-            foreach (var specifier in CompilerVersionSpecifier.Parse(version))
+            if (!any)
             {
-                any = true;
-                foreach (var plugin in resolvers)
-                {
-                    try
-                    {
-                        if (await plugin.TryResolveCompilerAsync(info, specifier, configuration) is { } dependency)
-                        {
-                            return dependency;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        errors ??= new();
-                        errors.Add($"{plugin.GetType().Name}: {ex.Message}");
-                    }
-                }
+                throw new InvalidOperationException($"Nothing could be parsed out of the specified version '{version}'.");
             }
 
-            return null;
+            if (found is null)
+            {
+                throw new InvalidOperationException($"Specified version was not found.\n{errors?.JoinToString("\n")}");
+            }
+
+            loaded[compilerKind] = found;
+
+            return found;
+
+            async Task<CompilerDependency?> findAsync()
+            {
+                foreach (var specifier in CompilerVersionSpecifier.Parse(version))
+                {
+                    any = true;
+                    foreach (var plugin in resolvers)
+                    {
+                        try
+                        {
+                            if (await plugin.TryResolveCompilerAsync(info, specifier, configuration) is { } dependency)
+                            {
+                                return dependency;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors ??= new();
+                            errors.Add($"{plugin.GetType().Name}: {ex.Message}");
+                        }
+                    }
+                }
+
+                return null;
+            }
         }
     }
 }

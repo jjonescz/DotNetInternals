@@ -4,6 +4,7 @@
 @inject NavigationManager NavigationManager
 @inject WorkerController Worker
 @inject LanguageServices LanguageServices
+@inject ILogger<Page> Logger
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
@@ -243,6 +244,7 @@
 </div>
 
 @code {
+    private readonly TaskCompletionSource editorInitialized = new();
     private readonly List<Input> inputs = new();
     private Input? configuration;
     private int currentInputIndex;
@@ -564,9 +566,11 @@
 
         compilationInProgress = true;
 
-        var savedState = await SaveStateToUrlAsync();
-
         await RefreshAsync();
+
+        await editorInitialized.Task;
+
+        var savedState = await SaveStateToUrlAsync();
 
         // Compile.
         var input = savedState.ToCompilationInput();
@@ -680,6 +684,11 @@
         await settings.InitializeAsync();
 
         await LoadStateFromUrlAsync();
+
+        if (!editorInitialized.TrySetResult())
+        {
+            Logger.LogErrorAndAssert("Failed to set editor initialized result.");
+        }
     }
 
     private async Task<TextModel> CreateModelAsync(InputCode inputCode)
