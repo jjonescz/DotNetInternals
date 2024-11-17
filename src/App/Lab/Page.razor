@@ -37,10 +37,10 @@
         else
         {
             @* Input tabs *@
-            <FluentSelect TOption="string" AriaLabel="File manager" ValueChanged="OnInputSelectedAsync">
+            <FluentSelect TOption="string" AriaLabel="File manager" @bind-Value="SelectedInputIndex" @bind-Value:after="OnInputSelectedAsync">
                 @foreach (var (index, input) in inputs.Index())
                 {
-                    <FluentOption Value="@index.ToString()" Selected="currentInputIndex == index">@input.FileName</FluentOption>
+                    <FluentOption Value="@index.ToString()">@input.FileName</FluentOption>
                 }
                 <hr />
                 <FluentOption Value="@(((int)SpecialInput.AddCSharp).ToString())">Add .cs</FluentOption>
@@ -53,7 +53,7 @@
                     <FluentOption Value="@(((int)SpecialInput.RemoveOtherFiles).ToString())">Remove other files</FluentOption>
                 }
                 <hr />
-                <FluentOption Value="@(((int)SpecialInput.Configuration).ToString())" Selected="currentInputIndex == (int)SpecialInput.Configuration">
+                <FluentOption Value="@(((int)SpecialInput.Configuration).ToString())">
                     @if (configuration is null)
                     {
                         @:Add configuration
@@ -207,6 +207,8 @@
     private readonly List<Input> inputs = new();
     private Input? configuration;
     private InputPreset? selectedPresetRaw;
+    private string? previousSelectedInputIndexRaw;
+    private string? selectedInputIndexRaw;
     private int currentInputIndex;
     private string? renamingTo;
     private StandaloneCodeEditor inputEditor = null!;
@@ -263,6 +265,12 @@
 
             return inputs[currentInputIndex];
         }
+    }
+
+    private string SelectedInputIndex
+    {
+        get => selectedInputIndexRaw ?? currentInputIndex.ToString();
+        set => selectedInputIndexRaw = value;
     }
 
     private SpecialInput? CurrentSpecialInput
@@ -422,9 +430,16 @@
         selectedPresetRaw = null;
     }
 
-    private async Task OnInputSelectedAsync(string selectedInputIndexStr)
+    private async Task OnInputSelectedAsync()
     {
-        int selectedInputIndex = int.Parse(selectedInputIndexStr);
+        if (selectedInputIndexRaw == previousSelectedInputIndexRaw)
+        {
+            return;
+        }
+
+        previousSelectedInputIndexRaw = selectedInputIndexRaw;
+
+        int selectedInputIndex = int.Parse(selectedInputIndexRaw!);
 
         await SaveStateToUrlAsync();
 
@@ -463,6 +478,14 @@
         }
 
         await SaveStateToUrlAsync();
+
+        // Without this, the event handler might be called twice.
+        _ = Task.Delay(0).ContinueWith(_ =>
+        {
+            selectedInputIndexRaw = null;
+            previousSelectedInputIndexRaw = null;
+            StateHasChanged();
+        });
     }
 
     private async Task SelectInputAsync(int index)
