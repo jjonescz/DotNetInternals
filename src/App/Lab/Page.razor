@@ -7,124 +7,80 @@
 @inject ILogger<Page> Logger
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
+<FluentDesignTheme StorageName="theme" CustomColor="#B399C8" />
 
-<div class="row align-items-center justify-content-center my-1 w-100">
-    @* Input presets (quick-start templates) *@
-    <div class="col-auto ms-2 me-auto">
-        <select class="form-select" title="Presets" @bind:get="SelectedPreset" @bind:set="OnInputPresetChangedAsync">
-            <option value="@InputPreset.CSharp">
-                C#
-            </option>
-            <option value="@InputPreset.Razor">
-                Razor
-            </option>
-            <option value="@InputPreset.Cshtml">
-                CSHTML
-            </option>
-            @if (SelectedPreset == InputPreset.Custom)
-            {
-                <option value="@InputPreset.Custom">
-                    Custom
-                </option>
-            }
-        </select>
-    </div>
+<FluentHeader>
+    <FluentToolbar Style="--fill-color: transparent; width: 100%">
+        @* Input presets (quick-start templates) *@
+        <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
+        @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
+        OptionText="PresetToDisplayString" Width="7em" />
 
-    @* App name / link *@
-    <div class="col-auto">
-        <a href="/" class="text-decoration-none">lab.razor.fyi</a>
-    </div>
-
-    @* Input tabs (file names) *@
-    <div class="col-auto">
-        <div class="input-group">
-            @if (CurrentInput != null && renamingTo != null)
-            {
-                @* Renaming confirmation *@
-                <input type="text" class="form-control" placeholder="@CurrentInput.FileName" title="File name" @bind="renamingTo" />
-                <button type="button" class="btn btn-outline-primary" title="Confirm rename"
-                @onclick="RenameInputAsync">
-                    @BootstrapIcons.CheckLg
-                </button>
-                <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
-                @onclick="() => renamingTo = null">
-                    @BootstrapIcons.XLg
-                </button>
-            }
-            else
-            {
-                @* Input tabs *@
-                <select class="form-select" title="Files" @bind:get="currentInputIndex" @bind:set="OnInputSelectedAsync">
-                    @foreach (var (index, input) in inputs.Index())
-                    {
-                        <option value="@index">
-                            @input.FileName
-                        </option>
-                    }
-                    <hr />
-                    <option value="@((int)SpecialInput.AddCSharp)">
-                        Add .cs
-                    </option>
-                    <option value="@((int)SpecialInput.AddRazor)">
-                        Add .razor
-                    </option>
-                    <option value="@((int)SpecialInput.AddCshtml)">
-                        Add .cshtml
-                    </option>
-                    @if (inputs.Count > 1)
-                    {
-                        <hr />
-                        <option value="@((int)SpecialInput.RemoveOtherFiles)">
-                            Remove other files
-                        </option>
-                    }
-                    <hr />
-                    <option value="@((int)SpecialInput.Configuration)">
-                        @if (configuration is null)
-                        {
-                            @:Add configuration
-                        }
-                        else
-                        {
-                            @:Configuration
-                        }
-                    </option>
-                </select>
-
-                @* Rename button *@
-                @if (CurrentInput != null)
-                {
-                    <button type="button" class="btn btn-outline-secondary" title="Rename current file"
-                    @onclick="() => renamingTo = CurrentInput.FileName">
-                        @BootstrapIcons.InputCursorText
-                    </button>
-                }
-
-                @* Delete button *@
-                if (inputs.Count > 1 || CurrentSpecialInput != null)
-                {
-                    <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                    @onclick="DeleteInputAsync">
-                        @BootstrapIcons.Trash3
-                    </button>
-                }
-            }
-        </div>
-    </div>
-
-    @* Compile button *@
-    <div class="col-auto">
-        <button type="button" class="btn btn-primary" @onclick="CompileAsync">
+        @* App name / link *@
+        <FluentAnchor Href="/" Appearance="Appearance.Hypertext">lab.razor.fyi</FluentAnchor>
+        <FluentButton Appearance="Appearance.Accent" @onclick="CompileAsync">
             Compile
             @if (compilationInProgress)
             {
-                <div class="spinner-border spinner-border-sm ms-2" role="status">
-                    <span class="visually-hidden">Compiling...</span>
-                </div>
+                <FluentProgressRing></FluentProgressRing>
             }
-        </button>
-    </div>
+        </FluentButton>
 
+        @* Input tabs (file names) *@
+        @if (CurrentInput != null && renamingTo != null)
+        {
+            @* Renaming confirmation *@
+            <FluentTextField @bind-Value="renamingTo" TextFieldType="TextFieldType.Text" Title="File name" Placeholder="@CurrentInput.FileName"></FluentTextField>
+            <FluentButton Title="Confirm rename" @onclick="RenameInputAsync">@BootstrapIcons.CheckLg</FluentButton>
+            <FluentButton Title="Cancel rename" @onclick="() => renamingTo = null">@BootstrapIcons.XLg</FluentButton>
+        }
+        else
+        {
+            @* Input tabs *@
+            <FluentSelect TOption="string" AriaLabel="File manager" ValueChanged="OnInputSelectedAsync">
+                @foreach (var (index, input) in inputs.Index())
+                {
+                    <FluentOption Value="@index.ToString()" Selected="currentInputIndex == index">@input.FileName</FluentOption>
+                }
+                <hr />
+                <FluentOption Value="@(((int)SpecialInput.AddCSharp).ToString())">Add .cs</FluentOption>
+                <FluentOption Value="@(((int)SpecialInput.AddRazor).ToString())">Add .razor</FluentOption>
+                <FluentOption Value="@(((int)SpecialInput.AddCshtml).ToString())">Add .cshtml</FluentOption>
+
+                @if (inputs.Count > 1)
+                {
+                    <hr />
+                    <FluentOption Value="@(((int)SpecialInput.RemoveOtherFiles).ToString())">Remove other files</FluentOption>
+                }
+                <hr />
+                <FluentOption Value="@(((int)SpecialInput.Configuration).ToString())" Selected="currentInputIndex == (int)SpecialInput.Configuration">
+                    @if (configuration is null)
+                    {
+                        @:Add configuration
+                    }
+                    else
+                    {
+                        @:Configuration
+                    }
+                </FluentOption>
+            </FluentSelect>
+
+            @* Rename button *@
+            @if (CurrentInput != null)
+            {
+                <FluentButton Title="Rename current file" @onclick="() => renamingTo = CurrentInput.FileName">@BootstrapIcons.InputCursorText</FluentButton>
+            }
+
+            @* Delete button *@
+            if (inputs.Count > 1 || CurrentSpecialInput != null)
+            {
+                <FluentButton Title="Delete current file" @onclick="DeleteInputAsync">@BootstrapIcons.Trash3</FluentButton>
+            }
+        }
+    </FluentToolbar>
+</FluentHeader>
+
+<div class="row align-items-center justify-content-center my-1 w-100">
     @* Output tabs *@
     @if (compiled is (_, var compiledOutput))
     {
@@ -250,6 +206,7 @@
     private readonly TaskCompletionSource editorInitialized = new();
     private readonly List<Input> inputs = new();
     private Input? configuration;
+    private InputPreset? selectedPresetRaw;
     private int currentInputIndex;
     private string? renamingTo;
     private StandaloneCodeEditor inputEditor = null!;
@@ -385,7 +342,7 @@
     {
         get
         {
-            return inputs switch
+            return selectedPresetRaw ?? inputs switch
             {
             [{ } input] => input.FileName switch
             {
@@ -404,10 +361,41 @@
                 return fileName.EndsWith(initialCode.SuggestedFileExtension, StringComparison.OrdinalIgnoreCase);
             }
         }
+        set
+        {
+            selectedPresetRaw = value;
+        }
     }
 
-    private async Task OnInputPresetChangedAsync(InputPreset preset)
+    private IEnumerable<InputPreset> AvailablePresets
     {
+        get
+        {
+            yield return InputPreset.CSharp;
+            yield return InputPreset.Razor;
+            yield return InputPreset.Cshtml;
+            if (SelectedPreset == InputPreset.Custom)
+            {
+                yield return InputPreset.Custom;
+            }
+        }
+    }
+
+    private static string PresetToDisplayString(InputPreset preset)
+    {
+        return preset switch
+        {
+            InputPreset.CSharp => "C#",
+            InputPreset.Razor => "Razor",
+            InputPreset.Cshtml => "CSHTML",
+            _ => "Custom",
+        };
+    }
+
+    private async Task OnInputPresetChangedAsync()
+    {
+        var preset = selectedPresetRaw;
+
         var initialCode = preset switch
         {
             InputPreset.CSharp => InitialCode.CSharp,
@@ -430,10 +418,14 @@
 
             await SaveStateToUrlAsync();
         }
+
+        selectedPresetRaw = null;
     }
 
-    private async Task OnInputSelectedAsync(int selectedInputIndex)
+    private async Task OnInputSelectedAsync(string selectedInputIndexStr)
     {
+        int selectedInputIndex = int.Parse(selectedInputIndexStr);
+
         await SaveStateToUrlAsync();
 
         switch (selectedInputIndex)
