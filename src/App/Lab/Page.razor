@@ -224,24 +224,27 @@
 @* Input / output text areas *@
 @{
     var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
-    var inputStyle = layout == Layout.OutputOnly ? "display: none !important" : "";
-    var outputStyle = layout == Layout.InputOnly ? "display: none !important" : "";
+    var inputStyle = layout == Layout.OutputOnly ? "display: none !important" : "height: 100%";
+    var outputStyle = layout == Layout.InputOnly ? "display: none !important" : "height: 100%";
 }
-<div class="row g-0 flex-grow-1">
-    <div class="col d-flex flex-column" style="@inputStyle">
-        <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-        <div class="flex-grow-1">
+
+<FluentSplitter Orientation="Orientation.Horizontal" Panel1Size="50%" Panel2Size="50%" Style="height: 100%">
+    <Panel1>
+        <div class="demopanel" style="@inputStyle">
+            <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
             <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
             ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
             OnDidChangeModel="LanguageServices.OnDidChangeModel"
             OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
         </div>
-    </div>
-    <div class="col" style="@outputStyle">
-        <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
-        ConstructionOptions="OutputConstructionOptions" />
-    </div>
-</div>
+    </Panel1>
+    <Panel2>
+        <div class="demopanel" style="@outputStyle">
+            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
+            ConstructionOptions="OutputConstructionOptions" />
+        </div>
+    </Panel2>
+</FluentSplitter>
 
 @code {
     private readonly TaskCompletionSource editorInitialized = new();
