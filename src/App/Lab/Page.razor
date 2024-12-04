@@ -1,5 +1,5 @@
 @page "/"
-@implements IDisposable
+@implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject WorkerController Worker
@@ -114,7 +114,7 @@
 
     @* Compile button *@
     <div class="col-auto">
-        <button type="button" class="btn btn-primary" @onclick="CompileAsync">
+        <button type="button" class="btn btn-primary" @onclick="CompileAsync" title="Compile (Ctrl+S)">
             Compile
             @if (compilationInProgress)
             {
@@ -246,6 +246,8 @@
 @code {
     private readonly TaskCompletionSource editorInitialized = new();
     private readonly List<Input> inputs = new();
+    private DotNetObjectReference<Page>? dotNetObjectReference;
+    private IJSObjectReference? module;
     private Input? configuration;
     private int currentInputIndex;
     private string? renamingTo;
@@ -319,9 +321,20 @@
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
-    void IDisposable.Dispose()
+    async ValueTask IAsyncDisposable.DisposeAsync()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
+
+        if (module is not null)
+        {
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+
+        dotNetObjectReference?.Dispose();
     }
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -332,6 +345,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Lab/Page.razor.js");
+            dotNetObjectReference = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("registerEventListeners", dotNetObjectReference);
+        }
+
         // Select an output type if none is selected.
         if (noOutputTypeSelected())
         {
@@ -373,7 +393,7 @@
             AutomaticLayout = true,
             ReadOnly = true,
             WordWrap = wordWrap ? "on" : "off",
-            Value = "Empty output (click Compile to refresh)",
+            Value = "Empty output (click Compile or press Ctrl+S to refresh)",
             BracketPairColorization = new BracketPairColorizationOptions { Enabled = false },
         };
     }
@@ -554,6 +574,13 @@
                 return fileName;
             }
         }
+    }
+
+    [JSInvokable]
+    public async Task CompileAndRenderAsync()
+    {
+        await CompileAsync();
+        StateHasChanged();
     }
 
     private async Task CompileAsync()
