@@ -1,14 +1,21 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace DotNetInternals.Lab;
 
+internal sealed record CompilerProxyOptions
+{
+    public bool AssembliesAreAlwaysInDllFormat { get; set; }
+}
+
 /// <summary>
 /// Can load our compiler project with any given Roslyn/Razor compiler version as dependency.
 /// </summary>
 internal sealed class CompilerProxy(
+    IOptions<CompilerProxyOptions> options,
     ILogger<CompilerProxy> logger,
     DependencyRegistry dependencyRegistry,
     AssemblyDownloader assemblyDownloader,
@@ -45,7 +52,7 @@ internal sealed class CompilerProxy(
                 var assemblies = loaded.Assemblies ?? await LoadAssembliesAsync();
                 loaded.DllAssemblies = assemblies.ToImmutableDictionary(
                     p => p.Key,
-                    p => p.Value.Format switch
+                    p => options.Value.AssembliesAreAlwaysInDllFormat ? p.Value.Data : p.Value.Format switch
                     {
                         AssemblyDataFormat.Dll => p.Value.Data,
                         AssemblyDataFormat.Webcil => WebcilUtil.WebcilToDll(p.Value.Data),

@@ -6,12 +6,29 @@ namespace DotNetInternals;
 
 public static class WorkerServices
 {
-    public static IServiceProvider CreateTest(HttpMessageHandler? httpMessageHandler = null)
+    public static IServiceProvider CreateTest(
+        HttpMessageHandler? httpMessageHandler = null,
+        Action<ServiceCollection>? configureServices = null)
     {
-        return Create(baseUrl: "http://localhost", debugLogs: true, httpMessageHandler);
+        return Create(
+            baseUrl: "http://localhost",
+            debugLogs: true,
+            httpMessageHandler,
+            configureServices: services =>
+            {
+                services.Configure<CompilerProxyOptions>(options =>
+                {
+                    options.AssembliesAreAlwaysInDllFormat = true;
+                });
+                configureServices?.Invoke(services);
+            });
     }
 
-    public static IServiceProvider Create(string baseUrl, bool debugLogs, HttpMessageHandler? httpMessageHandler = null)
+    public static IServiceProvider Create(
+        string baseUrl,
+        bool debugLogs,
+        HttpMessageHandler? httpMessageHandler = null,
+        Action<ServiceCollection>? configureServices = null)
     {
         var services = new ServiceCollection();
         services.AddLogging(builder =>
@@ -36,6 +53,7 @@ public static class WorkerServices
         services.AddScoped<ICompilerDependencyResolver, AzDoDownloader>();
         services.AddScoped<ICompilerDependencyResolver, BuiltInCompilerProvider>(sp => sp.GetRequiredService<BuiltInCompilerProvider>());
         services.AddScoped<LanguageServices>();
+        configureServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
 }
