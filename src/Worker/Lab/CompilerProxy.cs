@@ -1,5 +1,4 @@
-﻿using MetadataReferenceService.BlazorWasm;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
@@ -18,10 +17,6 @@ internal sealed class CompilerProxy(
 {
     public static readonly string CompilerAssemblyName = "DotNetInternals.Compiler";
 
-    private static readonly Func<Stream, bool, byte[]> convertFromWebcil = typeof(BlazorWasmMetadataReferenceService).Assembly
-        .GetType("MetadataReferenceService.BlazorWasm.WasmWebcil.WebcilConverterUtil")!
-        .GetMethod("ConvertFromWebcil", BindingFlags.Public | BindingFlags.Static)!
-        .CreateDelegate<Func<Stream, bool, byte[]>>();
     private LoadedCompiler? loaded;
     private int iteration;
 
@@ -53,7 +48,7 @@ internal sealed class CompilerProxy(
                     p => p.Value.Format switch
                     {
                         AssemblyDataFormat.Dll => p.Value.Data,
-                        AssemblyDataFormat.Webcil => WebcilToDll(p.Value.Data),
+                        AssemblyDataFormat.Webcil => WebcilUtil.WebcilToDll(p.Value.Data),
                         _ => throw new InvalidOperationException($"Unknown assembly format: {p.Value.Format}"),
                     });
             }
@@ -75,12 +70,6 @@ internal sealed class CompilerProxy(
             logger.LogError(ex, "Failed to compile.");
             return CompiledAssembly.Fail(ex.ToString());
         }
-    }
-
-    private static ImmutableArray<byte> WebcilToDll(ImmutableArray<byte> bytes)
-    {
-        var inputStream = new MemoryStream(ImmutableCollectionsMarshal.AsArray(bytes)!);
-        return ImmutableCollectionsMarshal.AsImmutableArray(convertFromWebcil(inputStream, /* wrappedInWebAssembly */ true));
     }
 
     private async Task<ImmutableDictionary<string, LoadedAssembly>> LoadAssembliesAsync()
