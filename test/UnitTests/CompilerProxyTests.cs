@@ -9,7 +9,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
     [Fact]
     public async Task SpecifiedNuGetRoslynVersion()
     {
-        var services = WorkerServices.CreateTest(new MockHttpMessageHandler());
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler(output));
 
         var version = "4.12.0-2.24409.2";
         var commit = "2158b591";
@@ -28,7 +28,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
     [Fact]
     public async Task SpecifiedNuGetRazorVersion()
     {
-        var services = WorkerServices.CreateTest(new MockHttpMessageHandler());
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler(output));
 
         var version = "9.0.0-preview.24413.5";
 
@@ -46,10 +46,12 @@ public class CompilerProxyTests(ITestOutputHelper output)
 
 internal sealed partial class MockHttpMessageHandler : HttpMessageHandler
 {
+    private readonly ITestOutputHelper testOutput;
     private readonly string directory;
 
-    public MockHttpMessageHandler()
+    public MockHttpMessageHandler(ITestOutputHelper testOutput)
     {
+        this.testOutput = testOutput;
         directory = Path.GetDirectoryName(GetType().Assembly.Location)!;
     }
 
@@ -57,6 +59,8 @@ internal sealed partial class MockHttpMessageHandler : HttpMessageHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        testOutput.WriteLine($"Mocking request: {request.RequestUri}");
+
         if (UrlRegex.Match(request.RequestUri?.ToString() ?? "") is
             {
                 Success: true,
