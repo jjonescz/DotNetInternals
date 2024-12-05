@@ -5,7 +5,11 @@ namespace DotNetInternals;
 
 public interface ICompiler
 {
-    CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc);
+    CompiledAssembly Compile(
+        CompilationInput input,
+        ImmutableDictionary<string, ImmutableArray<byte>>? assemblies,
+        ImmutableDictionary<string, ImmutableArray<byte>>? builtInAssemblies,
+        AssemblyLoadContext alc);
 }
 
 public sealed record CompilationInput

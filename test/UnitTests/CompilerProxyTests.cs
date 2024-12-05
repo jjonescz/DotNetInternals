@@ -9,7 +9,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
     [Fact]
     public async Task SpecifiedNuGetRoslynVersion()
     {
-        var services = WorkerServices.CreateTest(new MockHttpMessageHandler());
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler(output));
 
         var version = "4.12.0-2.24409.2";
         var commit = "2158b591";
@@ -25,10 +25,35 @@ public class CompilerProxyTests(ITestOutputHelper output)
         Assert.Contains($"{version} ({commit})", diagnosticsText);
     }
 
+    [Theory]
+    [InlineData("4.11.0-3.24352.2", "92051d4c")]
+    [InlineData("4.10.0-1.24076.1", "e1c36b10")]
+    public async Task SpecifiedNuGetRoslynVersion_OlderWithConfiguration(string version, string commit)
+    {
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler(output));
+
+        await services.GetRequiredService<CompilerDependencyProvider>()
+            .UseAsync(CompilerKind.Roslyn, version, BuildConfiguration.Release);
+
+        var compiled = await services.GetRequiredService<CompilerProxy>()
+            .CompileAsync(new(new([new() { FileName = "Input.cs", Text = "#error version" }]))
+            {
+                Configuration = """
+                    Config.CSharpParseOptions(options => options
+                        .WithLanguageVersion(LanguageVersion.CSharp10));
+                    """,
+            });
+
+        var diagnosticsText = compiled.GetGlobalOutput(CompiledAssembly.DiagnosticsOutputType)!.EagerText!;
+        output.WriteLine(diagnosticsText);
+        Assert.Contains($"{version} ({commit})", diagnosticsText);
+        Assert.Contains("Language version: 10.0", diagnosticsText);
+    }
+
     [Fact]
     public async Task SpecifiedNuGetRazorVersion()
     {
-        var services = WorkerServices.CreateTest(new MockHttpMessageHandler());
+        var services = WorkerServices.CreateTest(new MockHttpMessageHandler(output));
 
         var version = "9.0.0-preview.24413.5";
 
@@ -46,10 +71,12 @@ public class CompilerProxyTests(ITestOutputHelper output)
 
 internal sealed partial class MockHttpMessageHandler : HttpMessageHandler
 {
+    private readonly ITestOutputHelper testOutput;
     private readonly string directory;
 
-    public MockHttpMessageHandler()
+    public MockHttpMessageHandler(ITestOutputHelper testOutput)
     {
+        this.testOutput = testOutput;
         directory = Path.GetDirectoryName(GetType().Assembly.Location)!;
     }
 
@@ -57,6 +84,8 @@ internal sealed partial class MockHttpMessageHandler : HttpMessageHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        testOutput.WriteLine($"Mocking request: {request.RequestUri}");
+
         if (UrlRegex.Match(request.RequestUri?.ToString() ?? "") is
             {
                 Success: true,
