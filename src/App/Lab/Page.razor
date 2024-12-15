@@ -26,8 +26,8 @@
         {
             @* Renaming confirmation *@
             <FluentTextField @bind-Value="renamingTo" TextFieldType="TextFieldType.Text" Title="File name" Placeholder="@CurrentInput.FileName"></FluentTextField>
-            <FluentButton Title="Confirm rename" @onclick="RenameInputAsync">@BootstrapIcons.CheckLg</FluentButton>
-            <FluentButton Title="Cancel rename" @onclick="() => renamingTo = null">@BootstrapIcons.XLg</FluentButton>
+            <FluentButton Title="Confirm rename" OnClick="RenameInputAsync">@BootstrapIcons.CheckLg</FluentButton>
+            <FluentButton Title="Cancel rename" OnClick="() => renamingTo = null">@BootstrapIcons.XLg</FluentButton>
         }
         else
         {
@@ -65,24 +65,21 @@
             @* Rename button *@
             @if (CurrentInput != null)
             {
-                <FluentButton Title="Rename current file" @onclick="() => renamingTo = CurrentInput.FileName">@BootstrapIcons.InputCursorText</FluentButton>
+                <FluentButton Title="Rename current file" OnClick="() => renamingTo = CurrentInput.FileName">@BootstrapIcons.InputCursorText</FluentButton>
             }
 
             @* Delete button *@
             if (inputs.Count > 1 || CurrentSpecialInput != null)
             {
-                <FluentButton Title="Delete current file" @onclick="DeleteInputAsync">@BootstrapIcons.Trash3</FluentButton>
+                <FluentButton Title="Delete current file" OnClick="DeleteInputAsync">@BootstrapIcons.Trash3</FluentButton>
             }
         }
 
         @* Compile button *@
-        <FluentButton Appearance="Appearance.Accent" @onclick="CompileAsync">
+        <FluentButton Appearance="Appearance.Accent" OnClick="CompileAsync">
             <FluentStack VerticalAlignment="VerticalAlignment.Center">
                 Compile
-                @if (compilationInProgress)
-                {
-                    <FluentProgressRing />
-                }
+                <FluentProgressRing Visible="compilationInProgress" Width="1em" />
             </FluentStack>
         </FluentButton>
 
@@ -116,7 +113,7 @@
             {
                 var color = compiledOutput.NumErrors > 0 ? "error" : "warning";
                 <FluentButton BackgroundColor="@($"var(--{color})")"
-                Title="Display Error List" @onclick="async () => {
+                Title="Display Error List" OnClick="async () => {
                         selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
                         await UpdateOutputDisplayAsync();
                     }">
@@ -136,24 +133,30 @@
             }
 
             @* Output loading indicator *@
-            @if (outputLoading)
-            {
-                <FluentProgressRing title="Output is loading" />
-            }
+            <FluentProgressRing title="Output is loading" Visible="outputLoading" Width="1em" />
         }
 
         <FluentSpacer />
+
+        @* Settings button *@
+        <FluentButton OnClick="settings.OpenModalAsync">
+            Settings
+
+            @if (settings.ShowUpdateAvailableBadge)
+            {
+                <FluentSpacer Width="4" />
+                <FluentBadge Appearance="Appearance.Accent" title="Update is available">1</FluentBadge>
+            }
+        </FluentButton>
+
     </FluentStack>
 </FluentHeader>
 
-<div class="row align-items-center justify-content-center my-1 w-100">
-    @* Settings button *@
-    <div class="col-auto me-auto">
-        <CascadingValue IsFixed="true" Value="this">
-            <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
-        </CascadingValue>
-    </div>
+<CascadingValue IsFixed="true" Value="this">
+    <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+</CascadingValue>
 
+<div class="row align-items-center justify-content-center my-1 w-100">
     @* Layout buttons *@
     <div class="col-auto">
         <div class="btn-group">
