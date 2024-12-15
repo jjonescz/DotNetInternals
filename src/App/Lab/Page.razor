@@ -10,17 +10,15 @@
 
 <FluentHeader Style="background-color: var(--custom-light)">
     <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        @* Logo *@
+        <a href="/" style="line-height: 0"><img src="favicon.png" alt="Logo" title="DotNetInternals" width="24" height="24" /></a>
+
         @* Input presets (quick-start templates) *@
         <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
         @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
         OptionText="PresetToDisplayString" Width="7em" />
 
         <FluentSpacer />
-
-        @* App name / link *@
-        <FluentAnchor Href="/" Appearance="Appearance.Hypertext" Style="--accent-foreground-rest: #1a1a1a">
-            lab.razor.fyi
-        </FluentAnchor>
 
         @* Input tabs (file names) *@
         @if (CurrentInput != null && renamingTo != null)
