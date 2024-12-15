@@ -10,21 +10,16 @@
 <FluentDesignTheme StorageName="theme" CustomColor="#B399C8" />
 
 <FluentHeader>
-    <FluentToolbar Style="--fill-color: transparent; width: 100%">
+    <FluentStack>
         @* Input presets (quick-start templates) *@
         <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
         @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
         OptionText="PresetToDisplayString" Width="7em" />
 
+        <FluentSpacer />
+
         @* App name / link *@
         <FluentAnchor Href="/" Appearance="Appearance.Hypertext">lab.razor.fyi</FluentAnchor>
-        <FluentButton Appearance="Appearance.Accent" @onclick="CompileAsync">
-            Compile
-            @if (compilationInProgress)
-            {
-                <FluentProgressRing></FluentProgressRing>
-            }
-        </FluentButton>
 
         @* Input tabs (file names) *@
         @if (CurrentInput != null && renamingTo != null)
@@ -37,7 +32,9 @@
         else
         {
             @* Input tabs *@
-            <FluentSelect TOption="string" AriaLabel="File manager" @bind-Value="SelectedInputIndex" @bind-Value:after="OnInputSelectedAsync">
+            <FluentSelect TOption="string" AriaLabel="File manager"
+            @bind-Value="SelectedInputIndex" @bind-Value:after="OnInputSelectedAsync"
+            Width="12em">
                 @foreach (var (index, input) in inputs.Index())
                 {
                     <FluentOption Value="@index.ToString()">@input.FileName</FluentOption>
@@ -77,71 +74,79 @@
                 <FluentButton Title="Delete current file" @onclick="DeleteInputAsync">@BootstrapIcons.Trash3</FluentButton>
             }
         }
-    </FluentToolbar>
+
+        @* Compile button *@
+        <FluentButton Appearance="Appearance.Accent" @onclick="CompileAsync">
+            <FluentStack VerticalAlignment="VerticalAlignment.Center">
+                Compile
+                @if (compilationInProgress)
+                {
+                    <FluentProgressRing />
+                }
+            </FluentStack>
+        </FluentButton>
+
+        @if (compiled is (_, var compiledOutput))
+        {
+            @* Output tabs *@
+            <FluentSelect TOption="string" AriaLabel="Output type"
+            @bind-Value="selectedOutputType" @bind-Value:after="UpdateOutputDisplayAsync"
+            Width="7em">
+                @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
+                {
+                    <FluentOption Value="@output.Type">
+                        @output.Type
+                    </FluentOption>
+                }
+
+                @if (compiledOutput.GlobalOutputs.Length > 0)
+                {
+                    <hr />
+                    @foreach (var output in compiledOutput.GlobalOutputs)
+                    {
+                        <FluentOption Value="@output.Type">
+                            @output.Type
+                        </FluentOption>
+                    }
+                }
+            </FluentSelect>
+
+            @* Error List button *@
+            @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
+            {
+                var color = compiledOutput.NumErrors > 0 ? "error" : "warning";
+                <FluentButton BackgroundColor="@($"var(--{color})")"
+                Title="Display Error List" @onclick="async () => {
+                        selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
+                        await UpdateOutputDisplayAsync();
+                    }">
+                    @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
+                </FluentButton>
+            }
+            
+            @* Design time / runtime toggle *@
+            @if (CurrentCompiledFile?.GetOutput(selectedOutputType!)?.DesignTimeText is not null)
+            {
+                <FluentSelect TOption="string" AriaLabel="Generation Strategy"
+                @bind-Value="generationStrategy" @bind-Value:after="UpdateOutputDisplayAsync"
+                Width="7em">
+                    <FluentOption Value="runtime">Runtime</FluentOption>
+                    <FluentOption Value="@designTime">Design</FluentOption>
+                </FluentSelect>
+            }
+
+            @* Output loading indicator *@
+            @if (outputLoading)
+            {
+                <FluentProgressRing title="Output is loading" />
+            }
+        }
+
+        <FluentSpacer />
+    </FluentStack>
 </FluentHeader>
 
 <div class="row align-items-center justify-content-center my-1 w-100">
-    @* Output tabs *@
-    @if (compiled is (_, var compiledOutput))
-    {
-        <div class="col-auto">
-            <div class="input-group">
-                @* Output tabs *@
-                <select class="form-select" title="Output type" @bind="selectedOutputType" @bind:after="UpdateOutputDisplayAsync">
-                    @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
-                    {
-                        <option value="@output.Type">
-                            @output.Type
-                        </option>
-                    }
-
-                    @if (compiledOutput.GlobalOutputs.Length > 0)
-                    {
-                        <hr />
-                        @foreach (var output in compiledOutput.GlobalOutputs)
-                        {
-                            <option value="@output.Type">
-                                @output.Type
-                            </option>
-                        }
-                    }
-                </select>
-
-                @* Error List button *@
-                @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
-                {
-                    var cls = compiledOutput.NumErrors > 0 ? "btn-danger" : "btn-warning";
-                    <button type="button" class="btn @cls"
-                    title="Display Error List" @onclick="async () => {
-                            selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
-                            await UpdateOutputDisplayAsync();
-                        }">
-                        @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
-                    </button>
-                }
-
-                @* Design time / runtime toggle *@
-                @if (CurrentCompiledFile?.GetOutput(selectedOutputType)?.DesignTimeText is not null)
-                {
-                    <select class="form-select" title="Generation Strategy" @bind="generationStrategy" @bind:after="UpdateOutputDisplayAsync">
-                        <option value="runtime">Runtime</option>
-                        <option value="@designTime">Design</option>
-                    </select>
-                }
-
-                @* Output loading indicator *@
-                @if (outputLoading)
-                {
-                    <span class="input-group-text">
-                        <span class="spinner-border spinner-border-sm" role="status" title="Output is loading">
-                            <span class="visually-hidden">Output loading...</span>
-                        </span>
-                    </span>
-                }
-            </div>
-        </div>
-    }
-
     @* Settings button *@
     <div class="col-auto me-auto">
         <CascadingValue IsFixed="true" Value="this">
