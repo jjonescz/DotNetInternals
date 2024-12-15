@@ -27,8 +27,12 @@
         {
             @* Renaming confirmation *@
             <FluentTextField @bind-Value="renamingTo" TextFieldType="TextFieldType.Text" Title="File name" Placeholder="@CurrentInput.FileName"></FluentTextField>
-            <FluentButton Title="Confirm rename" OnClick="RenameInputAsync">@BootstrapIcons.CheckLg</FluentButton>
-            <FluentButton Title="Cancel rename" OnClick="() => renamingTo = null">@BootstrapIcons.XLg</FluentButton>
+            <FluentButton Title="Confirm rename" OnClick="RenameInputAsync">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Checkmark())" Color="Color.Success" />
+            </FluentButton>
+            <FluentButton Title="Cancel rename" OnClick="() => renamingTo = null">
+                <FluentIcon Value="@(new Icons.Regular.Size20.ArrowUndo())" Color="Color.Error" />
+            </FluentButton>
         }
         else
         {
@@ -66,13 +70,17 @@
             @* Rename button *@
             @if (CurrentInput != null)
             {
-                <FluentButton Title="Rename current file" OnClick="() => renamingTo = CurrentInput.FileName">@BootstrapIcons.InputCursorText</FluentButton>
+                <FluentButton Title="Rename current file" OnClick="() => renamingTo = CurrentInput.FileName">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Rename())" Color="Color.Neutral" />
+                </FluentButton>
             }
 
             @* Delete button *@
             if (inputs.Count > 1 || CurrentSpecialInput != null)
             {
-                <FluentButton Title="Delete current file" OnClick="DeleteInputAsync">@BootstrapIcons.Trash3</FluentButton>
+                <FluentButton Title="Delete current file" OnClick="DeleteInputAsync">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Error" />
+                </FluentButton>
             }
         }
 
@@ -152,21 +160,21 @@
         {
             <FluentButton OnClick="() => layout = Layout.InputOnly"
             Title="Display input (left side) only">
-                @BootstrapIcons.LayoutSidebarReverse
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnOneThirdRight())" Color="Color.Neutral" />
             </FluentButton>
         }
         @if (layout != Layout.Split)
         {
             <FluentButton OnClick="() => layout = Layout.Split"
             Title="Display both input and output side-by-side">
-                @BootstrapIcons.LayoutSplit
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnTwo())" Color="Color.Neutral" />
             </FluentButton>
         }
         @if (layout != Layout.OutputOnly)
         {
             <FluentButton OnClick="() => layout = Layout.OutputOnly"
             Title="Display output (right side) only">
-                @BootstrapIcons.LayoutSidebar
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnOneThirdLeft())" Color="Color.Neutral" />
             </FluentButton>
         }
     </FluentStack>
