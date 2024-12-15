@@ -5,6 +5,8 @@
 @inject WorkerController Worker
 @inject LanguageServices LanguageServices
 
+<FluentDesignTheme StorageName="theme" @bind-Mode="theme" CustomColor="#8967AA" />
+
 <FluentDialog @bind-Hidden="modalHidden" Modal="true" TrapFocus="true" PreventScroll="true">
     <FluentDialogHeader ShowDismiss="true">
         <FluentLabel Typo="Typography.PaneHeader">
@@ -70,7 +72,7 @@
                     @sdkError
                 </FluentLabel>
             }
-            
+
             @* Roslyn version select *@
             <FluentStack>
                 <FluentTextField @bind-Value="roslynVersion" @bind-Value:after="() => LoadRoslynInfoAsync()"
@@ -78,12 +80,9 @@
                     <FluentLabel slot="start">Roslyn</FluentLabel>
                     <FluentProgressRing slot="end" title="Loading info..." Visible="loadingRoslynInfo" Width="1em" />
                 </FluentTextField>
-                <FluentSelect TOption="BuildConfiguration" AriaLabel="@ConfigurationTip"
-                @bind-SelectedValue="roslynConfiguration" @bind-SelectedValue:after="() => LoadRoslynInfoAsync()"
-                Width="7em">
-                    <FluentOption Value="Release">Release</FluentOption>
-                    <FluentOption Value="Debug">Debug</FluentOption>
-                </FluentSelect>
+                <FluentSelect AriaLabel="@ConfigurationTip" Items="Enum.GetValues<BuildConfiguration>()"
+                @bind-SelectedOption="roslynConfiguration" @bind-SelectedOption:after="() => LoadRoslynInfoAsync()"
+                Width="7em" />
             </FluentStack>
             <FluentLabel>
                 @SeeLinks(CompilerInfo.Roslyn)
@@ -105,7 +104,7 @@
                 @(".")
             </FluentLabel>
             @Info((roslynInfo, roslynError))
-            
+
             @* Razor version select *@
             <FluentStack>
                 <FluentTextField @bind-Value="razorVersion" @bind-Value:after="() => LoadRazorInfoAsync()"
@@ -113,12 +112,9 @@
                     <FluentLabel slot="start">Razor</FluentLabel>
                     <FluentProgressRing slot="end" title="Loading info..." Visible="loadingRazorInfo" Width="1em" />
                 </FluentTextField>
-                <FluentSelect TOption="BuildConfiguration" AriaLabel="@ConfigurationTip"
-                @bind-SelectedValue="razorConfiguration" @bind-SelectedValue:after="() => LoadRazorInfoAsync()"
-                Width="7em">
-                    <FluentOption Value="Release">Release</FluentOption>
-                    <FluentOption Value="Debug">Debug</FluentOption>
-                </FluentSelect>
+                <FluentSelect AriaLabel="@ConfigurationTip" Items="Enum.GetValues<BuildConfiguration>()"
+                @bind-SelectedOption="razorConfiguration" @bind-SelectedOption:after="() => LoadRazorInfoAsync()"
+                Width="7em" />
             </FluentStack>
             <FluentLabel>
                 @SeeLinks(CompilerInfo.Razor)
@@ -140,7 +136,7 @@
                 @(".")
             </FluentLabel>
             @Info((razorInfo, razorError))
-            
+
             @* About section *@
             <h5>About</h5>
             <p>
@@ -155,6 +151,10 @@
                     Force reloading (<kbd>Shift</kbd> + <kbd>F5</kbd>) can be used temporarily for the current tab.
                 </FluentMessageBar>
             }
+
+            @* Theme select *@
+            <FluentSelect Items="Enum.GetValues<DesignThemeModes>()" @bind-SelectedOption="theme"
+            OptionText="@(x => $"{x} theme")" />
         </FluentStack>
     </FluentDialogBody>
 
@@ -199,6 +199,7 @@
 
     private bool modalHidden = true;
     private bool hideUpdateAvailableBadge;
+    private DesignThemeModes theme;
     private IJSObjectReference? vimDisposable;
     private string? sdkVersion, roslynVersion, razorVersion;
     private BuildConfiguration roslynConfiguration, razorConfiguration;
