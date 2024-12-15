@@ -120,7 +120,7 @@
                     @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
                 </FluentButton>
             }
-            
+
             @* Design time / runtime toggle *@
             @if (CurrentCompiledFile?.GetOutput(selectedOutputType!)?.DesignTimeText is not null)
             {
@@ -149,6 +149,28 @@
             }
         </FluentButton>
 
+        @* Layout buttons *@
+        @if (layout != Layout.InputOnly)
+        {
+            <FluentButton OnClick="() => layout = Layout.InputOnly"
+            Title="Display input (left side) only">
+                @BootstrapIcons.LayoutSidebarReverse
+            </FluentButton>
+        }
+        @if (layout != Layout.Split)
+        {
+            <FluentButton OnClick="() => layout = Layout.Split"
+            Title="Display both input and output side-by-side">
+                @BootstrapIcons.LayoutSplit
+            </FluentButton>
+        }
+        @if (layout != Layout.OutputOnly)
+        {
+            <FluentButton OnClick="() => layout = Layout.OutputOnly"
+            Title="Display output (right side) only">
+                @BootstrapIcons.LayoutSidebar
+            </FluentButton>
+        }
     </FluentStack>
 </FluentHeader>
 
@@ -156,59 +178,26 @@
     <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
 </CascadingValue>
 
-<div class="row align-items-center justify-content-center my-1 w-100">
-    @* Layout buttons *@
-    <div class="col-auto">
-        <div class="btn-group">
-            @if (layout != Layout.InputOnly)
-            {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.InputOnly"
-                title="Display input (left side) only">
-                    @BootstrapIcons.LayoutSidebarReverse
-                </button>
-            }
-            @if (layout != Layout.Split)
-            {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.Split"
-                title="Display both input and output side-by-side">
-                    @BootstrapIcons.LayoutSplit
-                </button>
-            }
-            @if (layout != Layout.OutputOnly)
-            {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.OutputOnly"
-                title="Display output (right side) only">
-                    @BootstrapIcons.LayoutSidebar
-                </button>
-            }
-        </div>
-    </div>
-</div>
-
 @* Input / output text areas *@
 @{
-    var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
-    var inputStyle = layout == Layout.OutputOnly ? "display: none !important" : "height: 100%";
-    var outputStyle = layout == Layout.InputOnly ? "display: none !important" : "height: 100%";
-}
+    RenderFragment inputPanel =@<div style="height: 100%">
+        <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
+        <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
+        ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
+        OnDidChangeModel="LanguageServices.OnDidChangeModel"
+        OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
+    </div>
+    ;
 
-<FluentSplitter Orientation="Orientation.Horizontal" Panel1Size="50%" Panel2Size="50%" Style="height: 100%">
-    <Panel1>
-        <div class="demopanel" style="@inputStyle">
-            <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
-            ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
-            OnDidChangeModel="LanguageServices.OnDidChangeModel"
-            OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
-        </div>
-    </Panel1>
-    <Panel2>
-        <div class="demopanel" style="@outputStyle">
-            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
-            ConstructionOptions="OutputConstructionOptions" />
-        </div>
-    </Panel2>
-</FluentSplitter>
+    RenderFragment outputPanel =@<BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
+        ConstructionOptions="OutputConstructionOptions" />
+    ;
+
+    var panel1 = layout == Layout.OutputOnly ? outputPanel : inputPanel;
+    var panel2 = layout == Layout.OutputOnly ? inputPanel : outputPanel;
+}
+<FluentSplitter Orientation="Orientation.Horizontal" Panel1Size="50%" Panel2Size="50%" Style="height: 100%"
+Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
 @code {
     private readonly TaskCompletionSource editorInitialized = new();
