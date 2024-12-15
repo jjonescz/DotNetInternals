@@ -327,6 +327,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         {
             AutomaticLayout = true,
             WordWrap = wordWrap ? "on" : "off",
+            Padding = new() { Top = 10 },
         };
     }
 
@@ -338,7 +339,8 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             ReadOnly = true,
             WordWrap = wordWrap ? "on" : "off",
             Value = "Empty output (click Compile to refresh)",
-            BracketPairColorization = new BracketPairColorizationOptions { Enabled = false },
+            BracketPairColorization = new() { Enabled = false },
+            Padding = new() { Top = 10 },
         };
     }
 
