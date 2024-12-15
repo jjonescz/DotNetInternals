@@ -705,7 +705,8 @@
 
         if (!editorInitialized.TrySetResult())
         {
-            Logger.LogErrorAndAssert("Failed to set editor initialized result.");
+            // This can happen during hot reload, hence we don't assert.
+            Logger.LogError("Failed to set editor initialized result.");
         }
     }
 
