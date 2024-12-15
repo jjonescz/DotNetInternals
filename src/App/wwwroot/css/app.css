@@ -1,3 +1,8 @@
+:root {
+    --custom-light: #B399C8;
+    --custom-dark: #8967AA;
+}
+
 html, body {
     --body-font: "Segoe UI Variable", "Segoe UI", sans-serif;
     font-family: var(--body-font);

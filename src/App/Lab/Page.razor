@@ -8,8 +8,8 @@
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
-<FluentHeader>
-    <FluentStack>
+<FluentHeader Style="background-color: var(--custom-light)">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
         @* Input presets (quick-start templates) *@
         <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
         @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
@@ -18,7 +18,9 @@
         <FluentSpacer />
 
         @* App name / link *@
-        <FluentAnchor Href="/" Appearance="Appearance.Hypertext">lab.razor.fyi</FluentAnchor>
+        <FluentAnchor Href="/" Appearance="Appearance.Hypertext" Style="--accent-foreground-rest: #1a1a1a">
+            lab.razor.fyi
+        </FluentAnchor>
 
         @* Input tabs (file names) *@
         @if (CurrentInput != null && renamingTo != null)
@@ -75,11 +77,8 @@
         }
 
         @* Compile button *@
-        <FluentButton Appearance="Appearance.Accent" OnClick="CompileAsync">
-            <FluentStack VerticalAlignment="VerticalAlignment.Center">
-                Compile
-                <FluentProgressRing Visible="compilationInProgress" Width="1em" />
-            </FluentStack>
+        <FluentButton BackgroundColor="var(--custom-dark)" Color="white" OnClick="CompileAsync" Loading="compilationInProgress">
+            Compile
         </FluentButton>
 
         @if (compiled is (_, var compiledOutput))
