@@ -46,7 +46,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
                 </FluentAccordionItem>
             </FluentAccordion>
 
-            <h5>Compilers</h5>
+            <h5 style="margin: 0.75rem 0 0 0">Compilers</h5>
 
             @* SDK version select *@
             <FluentTextField @bind-Value="sdkVersion" @bind-Value:after="() => LoadSdkInfoAsync()"
@@ -140,7 +140,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             @Info((razorInfo, razorError))
 
             @* About section *@
-            <h5>About</h5>
+            <h5 style="margin: 0.75rem 0 0 0">About</h5>
             <p>
                 <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
                 commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
