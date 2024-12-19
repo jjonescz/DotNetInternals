@@ -84,7 +84,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
                 </FluentTextField>
                 <FluentSelect AriaLabel="@ConfigurationTip" Items="Enum.GetValues<BuildConfiguration>()"
                 @bind-SelectedOption="roslynConfiguration" @bind-SelectedOption:after="() => LoadRoslynInfoAsync()"
-                Width="7em" />
+                Style="min-width: 7em" />
             </FluentStack>
             <FluentLabel>
                 @SeeLinks(CompilerInfo.Roslyn)
@@ -116,7 +116,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
                 </FluentTextField>
                 <FluentSelect AriaLabel="@ConfigurationTip" Items="Enum.GetValues<BuildConfiguration>()"
                 @bind-SelectedOption="razorConfiguration" @bind-SelectedOption:after="() => LoadRazorInfoAsync()"
-                Width="7em" />
+                Style="min-width: 7em" />
             </FluentStack>
             <FluentLabel>
                 @SeeLinks(CompilerInfo.Razor)

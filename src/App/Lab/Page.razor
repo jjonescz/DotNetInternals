@@ -16,7 +16,7 @@
         @* Input presets (quick-start templates) *@
         <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
         @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
-        OptionText="PresetToDisplayString" Width="7em" />
+        OptionText="PresetToDisplayString" Style="min-width: 7em" />
 
         <FluentSpacer />
 
@@ -37,7 +37,7 @@
             @* Input tabs *@
             <FluentSelect TOption="string" AriaLabel="File manager"
             @bind-Value="SelectedInputIndex" @bind-Value:after="OnInputSelectedAsync"
-            Width="12em">
+            Style="min-width: 12em">
                 @foreach (var (index, input) in inputs.Index())
                 {
                     <FluentOption Value="@index.ToString()">@input.FileName</FluentOption>
@@ -93,7 +93,7 @@
             @* Output tabs *@
             <FluentSelect TOption="string" AriaLabel="Output type"
             @bind-Value="selectedOutputType" @bind-Value:after="UpdateOutputDisplayAsync"
-            Width="7em">
+            Style="min-width: 7em">
                 @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
                 {
                     <FluentOption Value="@output.Type">
@@ -131,7 +131,7 @@
             {
                 <FluentSelect TOption="string" AriaLabel="Generation Strategy"
                 @bind-Value="generationStrategy" @bind-Value:after="UpdateOutputDisplayAsync"
-                Width="7em">
+                Style="min-width: 7em">
                     <FluentOption Value="runtime">Runtime</FluentOption>
                     <FluentOption Value="@designTime">Design</FluentOption>
                 </FluentSelect>
