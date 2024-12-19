@@ -43,8 +43,8 @@ To hit breakpoints, it is recommended to turn off the worker (in app settings).
 ## Attribution
 
 - Logo: [OpenMoji](https://openmoji.org/library/emoji-1FAD9-200D-1F7EA/)
-- Style: [Bootstrap](https://getbootstrap.com/)
-- Icons: [Bootstrap Icons](https://icons.getbootstrap.com/)
+- Style: [Fluent UI](https://www.fluentui-blazor.net/)
+- Icons: [Fluent UI Icons](https://github.com/microsoft/fluentui-system-icons)
 
 ## Related work
 
