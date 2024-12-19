@@ -14,7 +14,11 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
 {
     private (CompilationInput Input, CompiledAssembly Output)? lastResult;
 
-    public CompiledAssembly Compile(CompilationInput input, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
+    public CompiledAssembly Compile(
+        CompilationInput input,
+        ImmutableDictionary<string, ImmutableArray<byte>>? assemblies,
+        ImmutableDictionary<string, ImmutableArray<byte>>? builtInAssemblies,
+        AssemblyLoadContext alc)
     {
         if (lastResult is { } cached)
         {
@@ -24,12 +28,16 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             }
         }
 
-        var result = CompileNoCache(input, assemblies, alc);
+        var result = CompileNoCache(input, assemblies, builtInAssemblies, alc);
         lastResult = (input, result);
         return result;
     }
 
-    private CompiledAssembly CompileNoCache(CompilationInput compilationInput, ImmutableDictionary<string, ImmutableArray<byte>>? assemblies, AssemblyLoadContext alc)
+    private CompiledAssembly CompileNoCache(
+        CompilationInput compilationInput,
+        ImmutableDictionary<string, ImmutableArray<byte>>? assemblies,
+        ImmutableDictionary<string, ImmutableArray<byte>>? builtInAssemblies,
+        AssemblyLoadContext alc)
     {
         // IMPORTANT: Keep consistent with `InitialInput.Configuration`.
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview)
@@ -59,6 +67,12 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 options: createCompilationOptions(OutputKind.ConsoleApplication));
 
             var emitStream = getEmitStream(configCompilation)
+                // If compilation fails, it might be because older Roslyn is referenced, re-try with built-in versions.
+                ?? getEmitStream(configCompilation.WithReferences(
+                    [
+                        ..references,
+                        ..builtInAssemblies!.Values.Select(b => MetadataReference.CreateFromImage(b)),
+                    ]))
                 ?? throw new InvalidOperationException("Cannot execute configuration due to compilation errors:" +
                     Environment.NewLine +
                     getEmitDiagnostics(configCompilation).JoinToString(Environment.NewLine));

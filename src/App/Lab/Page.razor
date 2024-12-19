@@ -1,5 +1,5 @@
 @page "/"
-@implements IDisposable
+@implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject WorkerController Worker
@@ -83,7 +83,8 @@
         }
 
         @* Compile button *@
-        <FluentButton BackgroundColor="var(--custom-dark)" Color="white" OnClick="CompileAsync" Loading="compilationInProgress">
+        <FluentButton BackgroundColor="var(--custom-dark)" Color="white" OnClick="CompileAsync" Loading="compilationInProgress"
+        Title="Compile (Ctrl+S)">
             Compile
         </FluentButton>
 
@@ -207,6 +208,8 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 @code {
     private readonly TaskCompletionSource editorInitialized = new();
     private readonly List<Input> inputs = new();
+    private DotNetObjectReference<Page>? dotNetObjectReference;
+    private IJSObjectReference? module;
     private Input? configuration;
     private InputPreset? selectedPresetRaw;
     private string? previousSelectedInputIndexRaw;
@@ -289,9 +292,20 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
-    void IDisposable.Dispose()
+    async ValueTask IAsyncDisposable.DisposeAsync()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
+
+        if (module is not null)
+        {
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+
+        dotNetObjectReference?.Dispose();
     }
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -302,6 +316,13 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Lab/Page.razor.js");
+            dotNetObjectReference = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("registerEventListeners", dotNetObjectReference);
+        }
+
         // Select an output type if none is selected.
         if (noOutputTypeSelected())
         {
@@ -344,7 +365,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             AutomaticLayout = true,
             ReadOnly = true,
             WordWrap = wordWrap ? "on" : "off",
-            Value = "Empty output (click Compile to refresh)",
+            Value = "Empty output (click Compile or press Ctrl+S to refresh)",
             BracketPairColorization = new() { Enabled = false },
             Padding = new() { Top = 10 },
         };
@@ -576,6 +597,13 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
                 return fileName;
             }
         }
+    }
+
+    [JSInvokable]
+    public async Task CompileAndRenderAsync()
+    {
+        await CompileAsync();
+        StateHasChanged();
     }
 
     private async Task CompileAsync()

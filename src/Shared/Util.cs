@@ -141,41 +141,6 @@ public static class Util
         return builder.ToImmutable();
     }
 
-    public static Task<ImmutableDictionary<TKey, TValue>> ToImmutableDictionaryAsync<T, TKey, TValue>(
-        this IAsyncEnumerable<T> source,
-        Func<T, TKey> keySelector,
-        Func<T, TValue> valueSelector)
-        where TKey : notnull
-    {
-        return ToImmutableDictionaryAsync(source, keySelector, valueSelector, _ => Unreachable<Task<TValue>>(), []);
-    }
-
-    public static async Task<ImmutableDictionary<TKey, TValue>> ToImmutableDictionaryAsync<T, TKey, TValue>(
-        this IAsyncEnumerable<T> source,
-        Func<T, TKey> keySelector,
-        Func<T, TValue> valueSelector,
-        Func<TKey, Task<TValue>> fallbackSelector,
-        IEnumerable<TKey> fallbacks)
-        where TKey : notnull
-    {
-        var builder = ImmutableDictionary.CreateBuilder<TKey, TValue>();
-
-        await foreach (var item in source)
-        {
-            builder.Add(keySelector(item), valueSelector(item));
-        }
-
-        foreach (var key in fallbacks)
-        {
-            if (!builder.ContainsKey(key))
-            {
-                builder.Add(key, await fallbackSelector(key));
-            }
-        }
-
-        return builder.ToImmutable();
-    }
-
     public static IEnumerable<T> TryConcat<T>(this ImmutableArray<T>? a, ImmutableArray<T>? b)
     {
         return [.. (a ?? []), .. (b ?? [])];
