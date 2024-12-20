@@ -42,17 +42,17 @@
                 {
                     <FluentOption Value="@index.ToString()">@input.FileName</FluentOption>
                 }
-                <hr />
+                <FluentDivider />
                 <FluentOption Value="@(((int)SpecialInput.AddCSharp).ToString())">Add .cs</FluentOption>
                 <FluentOption Value="@(((int)SpecialInput.AddRazor).ToString())">Add .razor</FluentOption>
                 <FluentOption Value="@(((int)SpecialInput.AddCshtml).ToString())">Add .cshtml</FluentOption>
 
                 @if (inputs.Count > 1)
                 {
-                    <hr />
+                    <FluentDivider />
                     <FluentOption Value="@(((int)SpecialInput.RemoveOtherFiles).ToString())">Remove other files</FluentOption>
                 }
-                <hr />
+                <FluentDivider />
                 <FluentOption Value="@(((int)SpecialInput.Configuration).ToString())">
                     @if (configuration is null)
                     {
@@ -103,7 +103,7 @@
 
                 @if (compiledOutput.GlobalOutputs.Length > 0)
                 {
-                    <hr />
+                    <FluentDivider />
                     @foreach (var output in compiledOutput.GlobalOutputs)
                     {
                         <FluentOption Value="@output.Type">
