@@ -278,6 +278,12 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         set => selectedInputIndexRaw = value;
     }
 
+    private IEnumerable<CompiledFileOutput> AllOutputs
+    {
+        get => (CurrentCompiledFile?.Outputs)
+            .TryConcat(compiled?.Output.GlobalOutputs);
+    }
+
     private SpecialInput? CurrentSpecialInput
     {
         get
@@ -326,9 +332,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         // Select an output type if none is selected.
         if (noOutputTypeSelected())
         {
-            selectedOutputType = (CurrentCompiledFile?.Outputs)
-                .TryConcat(compiled?.Output.GlobalOutputs)
-                .MaxBy(static o => o.Priority)!.Type;
+            selectedOutputType = AllOutputs.MaxBy(static o => o.Priority)!.Type;
             if (noOutputTypeSelected())
             {
                 // Do not call `StateHasChanged` - that would lead to stack overflow.
@@ -343,7 +347,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
         bool noOutputTypeSelected()
         {
-            return (CurrentCompiledFile?.Outputs.Length > 0 || compiled?.Output.GlobalOutputs.Length > 0) &&
+            return AllOutputs.Any() &&
                 (selectedOutputType == null || GetOutput(selectedOutputType) == null);
         }
     }
