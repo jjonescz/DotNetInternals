@@ -91,27 +91,12 @@
         @if (compiled is (_, var compiledOutput))
         {
             @* Output tabs *@
-            <FluentSelect TOption="string" AriaLabel="Output type"
-            @bind-Value="selectedOutputType" @bind-Value:after="UpdateOutputDisplayAsync"
-            Style="min-width: 7em">
-                @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
-                {
-                    <FluentOption Value="@output.Type">
-                        @output.Type
-                    </FluentOption>
-                }
-
-                @if (compiledOutput.GlobalOutputs.Length > 0)
-                {
-                    <FluentDivider />
-                    @foreach (var output in compiledOutput.GlobalOutputs)
-                    {
-                        <FluentOption Value="@output.Type">
-                            @output.Type
-                        </FluentOption>
-                    }
-                }
-            </FluentSelect>
+            @* NOTE: @key is needed - otherwise, when Items change,
+            the FluentSelect might render incorrect selected option 
+            even though SelectedOption is set correctly (probably a bug). *@
+            <FluentSelect AriaLabel="Output type" Items="AllOutputs.Select(o => o.Type)" @key="AllOutputs"
+            @bind-SelectedOption="selectedOutputType" @bind-SelectedOption:after="UpdateOutputDisplayAsync"
+            Style="min-width: 7em" />
 
             @* Error List button *@
             @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
