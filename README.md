@@ -2,7 +2,7 @@
 
 C# and Razor compiler playground in the browser via Blazor WebAssembly.
 
-| [C#](https://lab.razor.fyi/#4yrn4gooyk8vSszVSy4WyiwtzsxLVwiuLC5JzbXm4krOSSwuVoAq4KrmUgCC4pLEksxkhbL8zBQF38TMPA1NsDBEEgSc8_OK83NS9cKLMktSfTLzUjWUPFJzcvL1lDStwYpquWq5AA) | [Razor](https://lab.razor.fyi/#48rlEg5JLS5xzs8tyM9LzSvRK0qsyi8SCrNBEVUISCxKzLVVMlRS0Lfj4nJIzk9JVajmUgCCaLBUaklqUaxCQWlSTmayQiZMg0K1QnpqibVCMYio5arlAgA) |
+| [C#](https://lab.razor.fyi/#fY87CgJBEETBsENPMBhpMhfYSFZQYQVBwbidbdbG2W6cHgURD-YNPJb4CWRBK6tXLym49wCWSZuErQ_Wv_WOxtK41dkytQV8N19qjBQyq5ifklDi8MeYt-0x4zZSx5kwNqKWOdjvxZda01gwno27WsVy6KD1LhHWLM0v7tdoeysAQkQz93kMF3DOOcuYObiTcu0WyDIcvfB7fKZUMY3kN4kzVSw0HMwoRvWDUfGSrnCFBw) | [Razor](https://lab.razor.fyi/) |
 |:-:|:-:|
 | ![C# screenshot](docs/screenshots/csharp.png) | ![Razor screenshot](docs/screenshots/razor.png) |
 
@@ -43,8 +43,8 @@ To hit breakpoints, it is recommended to turn off the worker (in app settings).
 ## Attribution
 
 - Logo: [OpenMoji](https://openmoji.org/library/emoji-1FAD9-200D-1F7EA/)
-- Style: [Bootstrap](https://getbootstrap.com/)
-- Icons: [Bootstrap Icons](https://icons.getbootstrap.com/)
+- Style: [Fluent UI](https://www.fluentui-blazor.net/)
+- Icons: [Fluent UI Icons](https://github.com/microsoft/fluentui-system-icons)
 
 ## Related work
 

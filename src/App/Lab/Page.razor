@@ -8,240 +8,187 @@
 
 <PageTitle>Lab • DotNetInternals</PageTitle>
 
-<div class="row align-items-center justify-content-center my-1 w-100">
-    @* Input presets (quick-start templates) *@
-    <div class="col-auto ms-2 me-auto">
-        <select class="form-select" title="Presets" @bind:get="SelectedPreset" @bind:set="OnInputPresetChangedAsync">
-            <option value="@InputPreset.CSharp">
-                C#
-            </option>
-            <option value="@InputPreset.Razor">
-                Razor
-            </option>
-            <option value="@InputPreset.Cshtml">
-                CSHTML
-            </option>
-            @if (SelectedPreset == InputPreset.Custom)
-            {
-                <option value="@InputPreset.Custom">
-                    Custom
-                </option>
-            }
-        </select>
-    </div>
+<FluentHeader Style="background-color: var(--custom-light)" Height="null">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center" Wrap="true">
+        @* Logo *@
+        <a href="/" style="line-height: 0"><img src="favicon.png" alt="Logo" title="DotNetInternals" width="24" height="24" /></a>
 
-    @* App name / link *@
-    <div class="col-auto">
-        <a href="/" class="text-decoration-none">lab.razor.fyi</a>
-    </div>
+        @* Input presets (quick-start templates) *@
+        <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
+        @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
+        OptionText="PresetToDisplayString" Style="min-width: 7em" />
 
-    @* Input tabs (file names) *@
-    <div class="col-auto">
-        <div class="input-group">
-            @if (CurrentInput != null && renamingTo != null)
-            {
-                @* Renaming confirmation *@
-                <input type="text" class="form-control" placeholder="@CurrentInput.FileName" title="File name" @bind="renamingTo" />
-                <button type="button" class="btn btn-outline-primary" title="Confirm rename"
-                @onclick="RenameInputAsync">
-                    @BootstrapIcons.CheckLg
-                </button>
-                <button type="button" class="btn btn-outline-secondary" title="Cancel rename"
-                @onclick="() => renamingTo = null">
-                    @BootstrapIcons.XLg
-                </button>
-            }
-            else
-            {
-                @* Input tabs *@
-                <select class="form-select" title="Files" @bind:get="currentInputIndex" @bind:set="OnInputSelectedAsync">
-                    @foreach (var (index, input) in inputs.Index())
-                    {
-                        <option value="@index">
-                            @input.FileName
-                        </option>
-                    }
-                    <hr />
-                    <option value="@((int)SpecialInput.AddCSharp)">
-                        Add .cs
-                    </option>
-                    <option value="@((int)SpecialInput.AddRazor)">
-                        Add .razor
-                    </option>
-                    <option value="@((int)SpecialInput.AddCshtml)">
-                        Add .cshtml
-                    </option>
-                    @if (inputs.Count > 1)
-                    {
-                        <hr />
-                        <option value="@((int)SpecialInput.RemoveOtherFiles)">
-                            Remove other files
-                        </option>
-                    }
-                    <hr />
-                    <option value="@((int)SpecialInput.Configuration)">
-                        @if (configuration is null)
-                        {
-                            @:Add configuration
-                        }
-                        else
-                        {
-                            @:Configuration
-                        }
-                    </option>
-                </select>
+        <FluentSpacer />
 
-                @* Rename button *@
-                @if (CurrentInput != null)
+        @* Input tabs (file names) *@
+        @if (CurrentInput != null && renamingTo != null)
+        {
+            @* Renaming confirmation *@
+            <FluentTextField @bind-Value="renamingTo" TextFieldType="TextFieldType.Text" Title="File name" Placeholder="@CurrentInput.FileName"></FluentTextField>
+            <FluentButton Title="Confirm rename" OnClick="RenameInputAsync">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Checkmark())" Color="Color.Success" />
+            </FluentButton>
+            <FluentButton Title="Cancel rename" OnClick="() => renamingTo = null">
+                <FluentIcon Value="@(new Icons.Regular.Size20.ArrowUndo())" Color="Color.Error" />
+            </FluentButton>
+        }
+        else
+        {
+            @* Input tabs *@
+            <FluentSelect TOption="string" AriaLabel="File manager"
+            @bind-Value="SelectedInputIndex" @bind-Value:after="OnInputSelectedAsync"
+            Style="min-width: 12em">
+                @foreach (var (index, input) in inputs.Index())
                 {
-                    <button type="button" class="btn btn-outline-secondary" title="Rename current file"
-                    @onclick="() => renamingTo = CurrentInput.FileName">
-                        @BootstrapIcons.InputCursorText
-                    </button>
+                    <FluentOption Value="@index.ToString()">@input.FileName</FluentOption>
                 }
+                <FluentDivider />
+                <FluentOption Value="@(((int)SpecialInput.AddCSharp).ToString())">Add .cs</FluentOption>
+                <FluentOption Value="@(((int)SpecialInput.AddRazor).ToString())">Add .razor</FluentOption>
+                <FluentOption Value="@(((int)SpecialInput.AddCshtml).ToString())">Add .cshtml</FluentOption>
 
-                @* Delete button *@
-                if (inputs.Count > 1 || CurrentSpecialInput != null)
+                @if (inputs.Count > 1)
                 {
-                    <button type="button" class="btn btn-outline-danger" title="Delete current file"
-                    @onclick="DeleteInputAsync">
-                        @BootstrapIcons.Trash3
-                    </button>
+                    <FluentDivider />
+                    <FluentOption Value="@(((int)SpecialInput.RemoveOtherFiles).ToString())">Remove other files</FluentOption>
                 }
-            }
-        </div>
-    </div>
+                <FluentDivider />
+                <FluentOption Value="@(((int)SpecialInput.Configuration).ToString())">
+                    @if (configuration is null)
+                    {
+                        @:Add configuration
+                    }
+                    else
+                    {
+                        @:Configuration
+                    }
+                </FluentOption>
+            </FluentSelect>
 
-    @* Compile button *@
-    <div class="col-auto">
-        <button type="button" class="btn btn-primary" @onclick="CompileAsync" title="Compile (Ctrl+S)">
+            @* Rename button *@
+            @if (CurrentInput != null)
+            {
+                <FluentButton Title="Rename current file" OnClick="() => renamingTo = CurrentInput.FileName">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Rename())" Color="Color.Neutral" />
+                </FluentButton>
+            }
+
+            @* Delete button *@
+            if (inputs.Count > 1 || CurrentSpecialInput != null)
+            {
+                <FluentButton Title="Delete current file" OnClick="DeleteInputAsync">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Error" />
+                </FluentButton>
+            }
+        }
+
+        @* Compile button *@
+        <FluentButton BackgroundColor="var(--custom-dark)" Color="white" OnClick="CompileAsync" Loading="compilationInProgress"
+        Title="Compile (Ctrl+S)">
             Compile
-            @if (compilationInProgress)
+        </FluentButton>
+
+        @if (compiled is (_, var compiledOutput))
+        {
+            @* Output tabs *@
+            @* NOTE: @key is needed - otherwise, when Items change,
+            the FluentSelect might render incorrect selected option 
+            even though SelectedOption is set correctly (probably a bug). *@
+            <FluentSelect AriaLabel="Output type" Items="AllOutputs.Select(o => o.Type)" @key="AllOutputs"
+            @bind-SelectedOption="selectedOutputType" @bind-SelectedOption:after="UpdateOutputDisplayAsync"
+            Style="min-width: 7em" />
+
+            @* Error List button *@
+            @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
             {
-                <div class="spinner-border spinner-border-sm ms-2" role="status">
-                    <span class="visually-hidden">Compiling...</span>
-                </div>
+                var color = compiledOutput.NumErrors > 0 ? "error" : "warning";
+                <FluentButton BackgroundColor="@($"var(--{color})")"
+                Title="Display Error List" OnClick="async () => {
+                        selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
+                        await UpdateOutputDisplayAsync();
+                    }">
+                    @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
+                </FluentButton>
             }
-        </button>
-    </div>
 
-    @* Output tabs *@
-    @if (compiled is (_, var compiledOutput))
-    {
-        <div class="col-auto">
-            <div class="input-group">
-                @* Output tabs *@
-                <select class="form-select" title="Output type" @bind="selectedOutputType" @bind:after="UpdateOutputDisplayAsync">
-                    @foreach (var output in CurrentCompiledFile?.Outputs ?? [])
-                    {
-                        <option value="@output.Type">
-                            @output.Type
-                        </option>
-                    }
-
-                    @if (compiledOutput.GlobalOutputs.Length > 0)
-                    {
-                        <hr />
-                        @foreach (var output in compiledOutput.GlobalOutputs)
-                        {
-                            <option value="@output.Type">
-                                @output.Type
-                            </option>
-                        }
-                    }
-                </select>
-
-                @* Error List button *@
-                @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
-                {
-                    var cls = compiledOutput.NumErrors > 0 ? "btn-danger" : "btn-warning";
-                    <button type="button" class="btn @cls"
-                    title="Display Error List" @onclick="async () => {
-                            selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
-                            await UpdateOutputDisplayAsync();
-                        }">
-                        @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
-                    </button>
-                }
-
-                @* Design time / runtime toggle *@
-                @if (CurrentCompiledFile?.GetOutput(selectedOutputType)?.DesignTimeText is not null)
-                {
-                    <select class="form-select" title="Generation Strategy" @bind="generationStrategy" @bind:after="UpdateOutputDisplayAsync">
-                        <option value="runtime">Runtime</option>
-                        <option value="@designTime">Design</option>
-                    </select>
-                }
-
-                @* Output loading indicator *@
-                @if (outputLoading)
-                {
-                    <span class="input-group-text">
-                        <span class="spinner-border spinner-border-sm" role="status" title="Output is loading">
-                            <span class="visually-hidden">Output loading...</span>
-                        </span>
-                    </span>
-                }
-            </div>
-        </div>
-    }
-
-    @* Settings button *@
-    <div class="col-auto me-auto">
-        <CascadingValue IsFixed="true" Value="this">
-            <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
-        </CascadingValue>
-    </div>
-
-    @* Layout buttons *@
-    <div class="col-auto">
-        <div class="btn-group">
-            @if (layout != Layout.InputOnly)
+            @* Design time / runtime toggle *@
+            @if (CurrentCompiledFile?.GetOutput(selectedOutputType!)?.DesignTimeText is not null)
             {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.InputOnly"
-                title="Display input (left side) only">
-                    @BootstrapIcons.LayoutSidebarReverse
-                </button>
+                <FluentSelect TOption="string" AriaLabel="Generation Strategy"
+                @bind-Value="generationStrategy" @bind-Value:after="UpdateOutputDisplayAsync"
+                Style="min-width: 7em">
+                    <FluentOption Value="runtime">Runtime</FluentOption>
+                    <FluentOption Value="@designTime">Design</FluentOption>
+                </FluentSelect>
             }
-            @if (layout != Layout.Split)
+
+            @* Output loading indicator *@
+            <FluentProgressRing title="Output is loading" Visible="outputLoading" Width="1em" />
+        }
+
+        <FluentSpacer />
+
+        @* Settings button *@
+        <FluentButton OnClick="settings.OpenModalAsync">
+            Settings
+
+            @if (settings.ShowUpdateAvailableBadge)
             {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.Split"
-                title="Display both input and output side-by-side">
-                    @BootstrapIcons.LayoutSplit
-                </button>
+                <FluentSpacer Width="4" />
+                <FluentBadge Appearance="Appearance.Accent" title="Update is available">1</FluentBadge>
             }
-            @if (layout != Layout.OutputOnly)
-            {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => layout = Layout.OutputOnly"
-                title="Display output (right side) only">
-                    @BootstrapIcons.LayoutSidebar
-                </button>
-            }
-        </div>
-    </div>
-</div>
+        </FluentButton>
+
+        @* Layout buttons *@
+        @if (layout != Layout.InputOnly)
+        {
+            <FluentButton OnClick="() => layout = Layout.InputOnly"
+            Title="Display input (left side) only">
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnOneThirdRight())" Color="Color.Neutral" />
+            </FluentButton>
+        }
+        @if (layout != Layout.Split)
+        {
+            <FluentButton OnClick="() => layout = Layout.Split"
+            Title="Display both input and output side-by-side">
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnTwo())" Color="Color.Neutral" />
+            </FluentButton>
+        }
+        @if (layout != Layout.OutputOnly)
+        {
+            <FluentButton OnClick="() => layout = Layout.OutputOnly"
+            Title="Display output (right side) only">
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnOneThirdLeft())" Color="Color.Neutral" />
+            </FluentButton>
+        }
+    </FluentStack>
+</FluentHeader>
+
+<CascadingValue IsFixed="true" Value="this">
+    <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
+</CascadingValue>
 
 @* Input / output text areas *@
 @{
-    var textAreaClass = $"form-control h-100 flex-grow-1 {(wordWrap ? "" : "no-wrap")}";
-    var inputStyle = layout == Layout.OutputOnly ? "display: none !important" : "";
-    var outputStyle = layout == Layout.InputOnly ? "display: none !important" : "";
-}
-<div class="row g-0 flex-grow-1">
-    <div class="col d-flex flex-column" style="@inputStyle">
+    RenderFragment inputPanel =@<div style="height: 100%">
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-        <div class="flex-grow-1">
-            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
-            ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
-            OnDidChangeModel="LanguageServices.OnDidChangeModel"
-            OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
-        </div>
+        <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
+        ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
+        OnDidChangeModel="LanguageServices.OnDidChangeModel"
+        OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
     </div>
-    <div class="col" style="@outputStyle">
-        <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
+    ;
+
+    RenderFragment outputPanel =@<BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
         ConstructionOptions="OutputConstructionOptions" />
-    </div>
-</div>
+    ;
+
+    var panel1 = layout == Layout.OutputOnly ? outputPanel : inputPanel;
+    var panel2 = layout == Layout.OutputOnly ? inputPanel : outputPanel;
+}
+<FluentSplitter Orientation="Orientation.Horizontal" Panel1Size="50%" Panel2Size="50%"
+Style="flex-grow: 1; overflow: hidden"
+Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
 @code {
     private readonly TaskCompletionSource editorInitialized = new();
@@ -249,6 +196,9 @@
     private DotNetObjectReference<Page>? dotNetObjectReference;
     private IJSObjectReference? module;
     private Input? configuration;
+    private InputPreset? selectedPresetRaw;
+    private string? previousSelectedInputIndexRaw;
+    private string? selectedInputIndexRaw;
     private int currentInputIndex;
     private string? renamingTo;
     private StandaloneCodeEditor inputEditor = null!;
@@ -307,6 +257,18 @@
         }
     }
 
+    private string SelectedInputIndex
+    {
+        get => selectedInputIndexRaw ?? currentInputIndex.ToString();
+        set => selectedInputIndexRaw = value;
+    }
+
+    private IEnumerable<CompiledFileOutput> AllOutputs
+    {
+        get => (CurrentCompiledFile?.Outputs)
+            .TryConcat(compiled?.Output.GlobalOutputs);
+    }
+
     private SpecialInput? CurrentSpecialInput
     {
         get
@@ -355,9 +317,7 @@
         // Select an output type if none is selected.
         if (noOutputTypeSelected())
         {
-            selectedOutputType = (CurrentCompiledFile?.Outputs)
-                .TryConcat(compiled?.Output.GlobalOutputs)
-                .MaxBy(static o => o.Priority)!.Type;
+            selectedOutputType = AllOutputs.MaxBy(static o => o.Priority)!.Type;
             if (noOutputTypeSelected())
             {
                 // Do not call `StateHasChanged` - that would lead to stack overflow.
@@ -372,7 +332,7 @@
 
         bool noOutputTypeSelected()
         {
-            return (CurrentCompiledFile?.Outputs.Length > 0 || compiled?.Output.GlobalOutputs.Length > 0) &&
+            return AllOutputs.Any() &&
                 (selectedOutputType == null || GetOutput(selectedOutputType) == null);
         }
     }
@@ -383,6 +343,7 @@
         {
             AutomaticLayout = true,
             WordWrap = wordWrap ? "on" : "off",
+            Padding = new() { Top = 10 },
         };
     }
 
@@ -394,7 +355,8 @@
             ReadOnly = true,
             WordWrap = wordWrap ? "on" : "off",
             Value = "Empty output (click Compile or press Ctrl+S to refresh)",
-            BracketPairColorization = new BracketPairColorizationOptions { Enabled = false },
+            BracketPairColorization = new() { Enabled = false },
+            Padding = new() { Top = 10 },
         };
     }
 
@@ -402,7 +364,7 @@
     {
         get
         {
-            return inputs switch
+            return selectedPresetRaw ?? inputs switch
             {
             [{ } input] => input.FileName switch
             {
@@ -421,10 +383,41 @@
                 return fileName.EndsWith(initialCode.SuggestedFileExtension, StringComparison.OrdinalIgnoreCase);
             }
         }
+        set
+        {
+            selectedPresetRaw = value;
+        }
     }
 
-    private async Task OnInputPresetChangedAsync(InputPreset preset)
+    private IEnumerable<InputPreset> AvailablePresets
     {
+        get
+        {
+            yield return InputPreset.CSharp;
+            yield return InputPreset.Razor;
+            yield return InputPreset.Cshtml;
+            if (SelectedPreset == InputPreset.Custom)
+            {
+                yield return InputPreset.Custom;
+            }
+        }
+    }
+
+    private static string PresetToDisplayString(InputPreset preset)
+    {
+        return preset switch
+        {
+            InputPreset.CSharp => "C#",
+            InputPreset.Razor => "Razor",
+            InputPreset.Cshtml => "CSHTML",
+            _ => "Custom",
+        };
+    }
+
+    private async Task OnInputPresetChangedAsync()
+    {
+        var preset = selectedPresetRaw;
+
         var initialCode = preset switch
         {
             InputPreset.CSharp => InitialCode.CSharp,
@@ -447,10 +440,21 @@
 
             await SaveStateToUrlAsync();
         }
+
+        selectedPresetRaw = null;
     }
 
-    private async Task OnInputSelectedAsync(int selectedInputIndex)
+    private async Task OnInputSelectedAsync()
     {
+        if (selectedInputIndexRaw == previousSelectedInputIndexRaw)
+        {
+            return;
+        }
+
+        previousSelectedInputIndexRaw = selectedInputIndexRaw;
+
+        int selectedInputIndex = int.Parse(selectedInputIndexRaw!);
+
         await SaveStateToUrlAsync();
 
         switch (selectedInputIndex)
@@ -488,6 +492,14 @@
         }
 
         await SaveStateToUrlAsync();
+
+        // Without this, the event handler might be called twice.
+        _ = Task.Delay(0).ContinueWith(_ =>
+        {
+            selectedInputIndexRaw = null;
+            previousSelectedInputIndexRaw = null;
+            StateHasChanged();
+        });
     }
 
     private async Task SelectInputAsync(int index)
@@ -714,7 +726,8 @@
 
         if (!editorInitialized.TrySetResult())
         {
-            Logger.LogErrorAndAssert("Failed to set editor initialized result.");
+            // This can happen during hot reload, hence we don't assert.
+            Logger.LogError("Failed to set editor initialized result.");
         }
     }
 

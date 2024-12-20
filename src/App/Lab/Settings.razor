@@ -5,227 +5,166 @@
 @inject WorkerController Worker
 @inject LanguageServices LanguageServices
 
-<button type="button" class="btn btn-outline-secondary" @onclick="OpenModalAsync">
-    Settings
+<FluentDesignTheme StorageName="theme" @bind-Mode="theme" CustomColor="var(--custom-dark)"
+OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEditorThemeAsync(e.IsDark)" />
 
-    @if (!hideUpdateAvailableBadge && UpdateInfo.UpdateIsAvailable)
-    {
-        <span class="badge bg-info ms-1" title="Update is available">1</span>
-    }
-</button>
+<FluentDialog @bind-Hidden="modalHidden" Modal="true" TrapFocus="true" PreventScroll="true"
+@ondialogdismiss="() => modalHidden = true">
+    <FluentDialogHeader ShowDismiss="true">
+        <FluentLabel Typo="Typography.PaneHeader">
+            Settings
+        </FluentLabel>
+    </FluentDialogHeader>
 
-@if (modalOpen)
-{
-    <div class="modal d-block bg-opacity-75 bg-secondary" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Settings</h5>
-                    <button type="button" class="btn-close" aria-label="Close" @onclick="() => modalOpen = false"></button>
-                </div>
-                <div class="modal-body">
-                    @* Word wrap check box *@
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="wordWrap" @bind="WordWrap"
-                        @bind:after="OnWordWrapChanged" />
-                        <label class="form-check-label" for="wordWrap">
-                            Word wrap
-                        </label>
-                    </div>
+    <FluentDialogBody>
+        <FluentStack Orientation="Orientation.Vertical">
+            @* Word wrap check box *@
+            <FluentCheckbox @bind-Value="WordWrap" @bind-Value:after="OnWordWrapChanged" Label="Word wrap" />
 
-                    @* Use VIM check box *@
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="vim" @bind="UseVim"
-                        @bind:after="OnVimChanged" />
-                        <label class="form-check-label" for="vim">
-                            Use VIM
-                        </label>
-                    </div>
+            @* Use VIM check box *@
+            <FluentCheckbox @bind-Value="UseVim" @bind-Value:after="OnVimChanged" Label="Use VIM" />
 
-                    @* Language services check box *@
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="enableLanguageServices"
-                        @bind="EnableLanguageServices" @bind:after="OnSetEnableLanguageServicesAsync" />
-                        <label class="form-check-label" for="enableLanguageServices"
-                        title="Completions, live diagnostics">
-                            <span class="badge bg-secondary text-capitalize">experimental</span>
-                            Language services (requires restart)
-                        </label>
-                    </div>
+            @* Language services check box *@
+            <FluentCheckbox @bind-Value="EnableLanguageServices" @bind-Value:after="OnSetEnableLanguageServicesAsync"
+            title="Completions, live diagnostics">
+                Language services (requires restart)
+                <FluentBadge>experimental</FluentBadge>
+            </FluentCheckbox>
 
-                    <details class="mt-2">
-                        <summary>Advanced</summary>
-
+            <FluentAccordion Style="width: 100%">
+                <FluentAccordionItem Heading="Advanced" HeadingLevel="5">
+                    <FluentStack Orientation="Orientation.Vertical">
                         @* Debug logs check box *@
-                        <div class="form-check mt-2">
-                            <input class="form-check-input" type="checkbox" id="debugLogs"
-                            @bind="DebugLogs" @bind:after="OnSetDebugLogsAsync" />
-                            <label class="form-check-label" for="debugLogs"
-                            title="Whether to display debug-level logs in the browser development console">
-                                Debug logs
-                            </label>
-                        </div>
+                        <FluentCheckbox @bind-Value="DebugLogs" @bind-Value:after="OnSetDebugLogsAsync"
+                        Label="Debug logs" title="Whether to display debug-level logs in the browser development console" />
 
                         @* Use a worker check box *@
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="enableWorker"
-                            @bind="EnableWorker" @bind:after="OnSetEnableWorkerAsync" />
-                            <label class="form-check-label" for="enableWorker"
-                            title="Moves compilation (and language services if enabled) to a separate worker thread (it is recommended to keep this enabled)">
-                                Compile in a background worker thread (requires restart)
-                            </label>
-                        </div>
-                    </details>
+                        <FluentCheckbox @bind-Value="EnableWorker" @bind-Value:after="OnSetEnableWorkerAsync"
+                        Label="Compile in a background worker thread (requires restart)"
+                        title="Moves compilation (and language services if enabled) to a separate worker thread (it is recommended to keep this enabled)" />
+                    </FluentStack>
+                </FluentAccordionItem>
+            </FluentAccordion>
 
-                    <h6 class="mt-3 h5">Compilers</h6>
+            <h5 style="margin: 0.75rem 0 0 0">Compilers</h5>
 
-                    @* SDK version select *@
-                    <div class="mb-3">
-                        <div class="input-group">
-                            <label for="sdkVersion" class="input-group-text">
-                                SDK
-                            </label>
-                            <input type="text" class="form-control" id="sdkVersion"
-                            @bind="sdkVersion" @bind:after="() => LoadSdkInfoAsync()"
-                            placeholder="version" />
-                            @if (loadingSdkInfo)
-                            {
-                                <span class="input-group-text">
-                                    <span class="spinner-border spinner-border-sm" role="status" title="Loading info..."></span>
-                                </span>
-                            }
-                        </div>
-                        <div class="form-text">
-                            Enter a .NET SDK version above to automatically get
-                            the corresponding Roslyn and Razor version numbers below.
-                        </div>
-                        @if (sdkInfo != null)
-                        {
-                            <div class="form-text">
-                                SDK @(sdkInfo.SdkVersion)
-                                (<a href="@sdkInfo.Commit.Url"
-                                target="_blank">@sdkInfo.Commit.ShortHash</a>)
-                                has roslyn @(sdkInfo.RoslynVersion)
-                                and razor @(sdkInfo.RazorVersion).
-                            </div>
-                        }
-                        @if (sdkError != null)
-                        {
-                            <div class="form-text text-danger">
-                                @sdkError
-                            </div>
-                        }
-                    </div>
+            @* SDK version select *@
+            <FluentTextField @bind-Value="sdkVersion" @bind-Value:after="() => LoadSdkInfoAsync()"
+            Placeholder="version" Style="width: 100%">
+                <FluentLabel slot="start">SDK</FluentLabel>
+                <FluentProgressRing slot="end" title="Loading info..." Visible="loadingSdkInfo" Width="1em" />
+            </FluentTextField>
+            <FluentLabel Style="opacity: 80%">
+                Enter a .NET SDK version above to automatically get
+                the corresponding Roslyn and Razor version numbers below.
+            </FluentLabel>
+            @if (sdkInfo != null)
+            {
+                <FluentLabel>
+                    SDK @(sdkInfo.SdkVersion)
+                    (<a href="@sdkInfo.Commit.Url"
+                    target="_blank">@sdkInfo.Commit.ShortHash</a>)
+                    has roslyn @(sdkInfo.RoslynVersion)
+                    and razor @(sdkInfo.RazorVersion).
+                </FluentLabel>
+            }
+            @if (sdkError != null)
+            {
+                <FluentLabel Color="Color.Error">
+                    @sdkError
+                </FluentLabel>
+            }
 
-                    @* Roslyn version select *@
-                    <div class="mb-3">
-                        <div class="input-group">
-                            <label for="roslynVersion" class="input-group-text">
-                                Roslyn
-                            </label>
-                            <input type="text" class="form-control" id="roslynVersion" style="flex-grow: 3"
-                            @bind="roslynVersion" @bind:after="() => LoadRoslynInfoAsync()"
-                            placeholder="@VersionPlaceholder" />
-                            <select class="form-select" title="@ConfigurationTip"
-                            @bind="roslynConfiguration" @bind:after="() => LoadRoslynInfoAsync()">
-                                <option value="Release">Release</option>
-                                <option value="Debug">Debug</option>
-                            </select>
-                            @if (loadingRoslynInfo)
-                            {
-                                <span class="input-group-text">
-                                    <span class="spinner-border spinner-border-sm" role="status" title="Loading info..."></span>
-                                </span>
-                            }
-                        </div>
-                        <div class="form-text">
-                            @SeeLinks(CompilerInfo.Roslyn)
-                            Use
-                            @if (roslynVersion != "latest")
-                            {
-                                <a href="javascript:void" @onclick:preventDefault
-                                @onclick="@(() => UseRoslynVersionAsync("latest"))">latest</a>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(roslynVersion))
-                            {
-                                if (roslynVersion != "latest")
-                                {
-                                    @(" or ")
-                                }
-                                <a href="javascript:void" @onclick:preventDefault
-                                @onclick="@(() => UseRoslynVersionAsync(null))">built-in</a>
-                            }
-                            @(".")
-                        </div>
-                        @Info((roslynInfo, roslynError))
-                    </div>
-
-                    @* Razor version select *@
-                    <div class="mb-3">
-                        <div class="input-group">
-                            <label for="razorVersion" class="input-group-text">
-                                Razor
-                            </label>
-                            <input type="text" class="form-control" id="razorVersion" style="flex-grow: 3"
-                            @bind="razorVersion" @bind:after="() => LoadRazorInfoAsync()"
-                            placeholder="@VersionPlaceholder" />
-                            <select class="form-select" title="⚠️ Razor CI builds do not usually produce Debug binaries, so you might get errors if you choose the Debug configuration."
-                            @bind="razorConfiguration" @bind:after="() => LoadRazorInfoAsync()">
-                                <option value="Release">Release</option>
-                                <option value="Debug">Debug</option>
-                            </select>
-                            @if (loadingRazorInfo)
-                            {
-                                <span class="input-group-text">
-                                    <span class="spinner-border spinner-border-sm" role="status" title="Loading info..."></span>
-                                </span>
-                            }
-                        </div>
-                        <div class="form-text">
-                            @SeeLinks(CompilerInfo.Razor)
-                            Use
-                            @if (razorVersion != "latest")
-                            {
-                                <a href="javascript:void" @onclick:preventDefault
-                                @onclick="@(() => UseRazorVersionAsync("latest"))">latest</a>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(razorVersion))
-                            {
-                                if (razorVersion != "latest")
-                                {
-                                    @(" or ")
-                                }
-                                <a href="javascript:void" @onclick:preventDefault
-                                @onclick="@(() => UseRazorVersionAsync(null))">built-in</a>
-                            }
-                            @(".")
-                        </div>
-                        @Info((razorInfo, razorError))
-                    </div>
-
-                    @* About section *@
-                    <h6 class="mt-3 h5">About</h6>
-                    <p>
-                        <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
-                        commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
-                    </p>
-
-                    @if (UpdateInfo.UpdateIsAvailable)
+            @* Roslyn version select *@
+            <FluentStack>
+                <FluentTextField @bind-Value="roslynVersion" @bind-Value:after="() => LoadRoslynInfoAsync()"
+                Placeholder="@VersionPlaceholder" Style="width: 100%">
+                    <FluentLabel slot="start">Roslyn</FluentLabel>
+                    <FluentProgressRing slot="end" title="Loading info..." Visible="loadingRoslynInfo" Width="1em" />
+                </FluentTextField>
+                <FluentSelect AriaLabel="@ConfigurationTip" Items="Enum.GetValues<BuildConfiguration>()"
+                @bind-SelectedOption="roslynConfiguration" @bind-SelectedOption:after="() => LoadRoslynInfoAsync()"
+                Style="min-width: 7em" />
+            </FluentStack>
+            <FluentLabel>
+                @SeeLinks(CompilerInfo.Roslyn)
+                Use
+                @if (roslynVersion != "latest")
+                {
+                    <a href="javascript:void" @onclick:preventDefault
+                    @onclick="@(() => UseRoslynVersionAsync("latest"))">latest</a>
+                }
+                @if (!string.IsNullOrWhiteSpace(roslynVersion))
+                {
+                    if (roslynVersion != "latest")
                     {
-                        <div class="alert alert-info" role="alert">
-                            <strong>An update is available.</strong>
-                            Close all app tabs and reopen to activate the update.
-                            Force reloading (<kbd>Shift</kbd> + <kbd>F5</kbd>) can be used temporarily for the current tab.
-                        </div>
+                        @(" or ")
                     }
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" @onclick="() => modalOpen = false">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+                    <a href="javascript:void" @onclick:preventDefault
+                    @onclick="@(() => UseRoslynVersionAsync(null))">built-in</a>
+                }
+                @(".")
+            </FluentLabel>
+            @Info((roslynInfo, roslynError))
+
+            @* Razor version select *@
+            <FluentStack>
+                <FluentTextField @bind-Value="razorVersion" @bind-Value:after="() => LoadRazorInfoAsync()"
+                Placeholder="@VersionPlaceholder" Style="width: 100%">
+                    <FluentLabel slot="start">Razor</FluentLabel>
+                    <FluentProgressRing slot="end" title="Loading info..." Visible="loadingRazorInfo" Width="1em" />
+                </FluentTextField>
+                <FluentSelect AriaLabel="@ConfigurationTip" Items="Enum.GetValues<BuildConfiguration>()"
+                @bind-SelectedOption="razorConfiguration" @bind-SelectedOption:after="() => LoadRazorInfoAsync()"
+                Style="min-width: 7em" />
+            </FluentStack>
+            <FluentLabel>
+                @SeeLinks(CompilerInfo.Razor)
+                Use
+                @if (razorVersion != "latest")
+                {
+                    <a href="javascript:void" @onclick:preventDefault
+                    @onclick="@(() => UseRazorVersionAsync("latest"))">latest</a>
+                }
+                @if (!string.IsNullOrWhiteSpace(razorVersion))
+                {
+                    if (razorVersion != "latest")
+                    {
+                        @(" or ")
+                    }
+                    <a href="javascript:void" @onclick:preventDefault
+                    @onclick="@(() => UseRazorVersionAsync(null))">built-in</a>
+                }
+                @(".")
+            </FluentLabel>
+            @Info((razorInfo, razorError))
+
+            @* About section *@
+            <h5 style="margin: 0.75rem 0 0 0">About</h5>
+            <p style="margin: 0">
+                <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
+                commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
+            </p>
+
+            @if (UpdateInfo.UpdateIsAvailable)
+            {
+                <FluentMessageBar Title="An update is available" Intent="MessageIntent.Info">
+                    Close all app tabs and reopen to activate the update.
+                    Force reloading (<kbd>Shift</kbd> + <kbd>F5</kbd>) can be used temporarily for the current tab.
+                </FluentMessageBar>
+            }
+
+            @* Theme select *@
+            <FluentSelect Items="Enum.GetValues<DesignThemeModes>()" @bind-SelectedOption="theme"
+            OptionText="@(x => $"{x} theme")" />
+        </FluentStack>
+    </FluentDialogBody>
+
+    <FluentDialogFooter>
+        <FluentSpacer />
+        <FluentButton Appearance="Appearance.Neutral" OnClick="() => modalHidden = true">Close</FluentButton>
+    </FluentDialogFooter>
+</FluentDialog>
 
 @code {
     private static readonly string VersionPlaceholder = "version / PR / branch / build";
@@ -244,23 +183,25 @@
     private static readonly RenderFragment<(CompilerDependencyInfo? Info, string? Error)> Info = (arg) =>@<div>
         @if (arg.Info != null)
         {
-            <div class="form-text">
+            <FluentLabel>
                 Using @(arg.Info.Version)
                 (<a href="@arg.Info.Commit.Url"
                 target="_blank">@arg.Info.Commit.ShortHash</a>),
                 <span title="@(arg.Info.CanChangeBuildConfiguration ? "" : ConfigurationTip)">@arg.Info.Configuration</span>.
-            </div>
+            </FluentLabel>
         }
         @if (arg.Error != null)
         {
-            <div class="form-text text-danger">
+            <FluentLabel Color="Color.Error">
                 @arg.Error
-            </div>
+            </FluentLabel>
         }
     </div>
     ;
 
-    private bool modalOpen, hideUpdateAvailableBadge;
+    private bool modalHidden = true;
+    private bool hideUpdateAvailableBadge;
+    private DesignThemeModes theme;
     private IJSObjectReference? vimDisposable;
     private string? sdkVersion, roslynVersion, razorVersion;
     private BuildConfiguration roslynConfiguration, razorConfiguration;
@@ -275,6 +216,11 @@
     [Parameter] public EventCallback<bool> UseVimChanged { get; set; }
     [Parameter, EditorRequired] public required StandaloneCodeEditor Editor { get; set; }
     [CascadingParameter] public required Page Page { get; set; }
+
+    public bool ShowUpdateAvailableBadge
+    {
+        get => !hideUpdateAvailableBadge && UpdateInfo.UpdateIsAvailable;
+    }
 
     private bool DebugLogs
     {
@@ -345,16 +291,16 @@
         UpdateInfo.UpdateBecameAvailable -= StateHasChanged;
     }
 
-    private Task OpenModalAsync()
+    public Task OpenModalAsync()
     {
         hideUpdateAvailableBadge = true;
 
-        if (modalOpen)
+        if (!modalHidden)
         {
             return Task.CompletedTask;
         }
 
-        modalOpen = true;
+        modalHidden = false;
 
         Task sdkTask = Task.CompletedTask;
         Task roslynTask = Task.CompletedTask;
@@ -432,7 +378,7 @@
             }
             else
             {
-                info = !modalOpen ? null : await Worker.GetSdkInfoAsync(versionToLoad);
+                info = modalHidden ? null : await Worker.GetSdkInfoAsync(versionToLoad);
                 error = null;
 
                 if (saveState)
@@ -477,7 +423,7 @@
                 version: versionToLoad,
                 configuration: configuration);
 
-            var info = !modalOpen
+            var info = modalHidden
                 ? null
                 : await Worker.GetCompilerDependencyInfoAsync(compilerKind);
 
@@ -589,5 +535,10 @@
         }
 
         await Editor.Layout();
+    }
+
+    private async Task SetEditorThemeAsync(bool dark)
+    {
+        await BlazorMonaco.Editor.Global.SetTheme(JSRuntime, dark ? "vs-dark" : "vs");
     }
 }
