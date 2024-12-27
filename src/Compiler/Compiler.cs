@@ -135,7 +135,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             syntaxTrees: [
                 ..fileSystem.Inner.EnumerateItems("/").Select((item) =>
                 {
-                    RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnly(item);
+                    RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnlySafe(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
                     return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions);
                 }),
@@ -154,8 +154,8 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 keySelector: (item) => item.RelativePhysicalPath,
                 elementSelector: (item) =>
                 {
-                    RazorCodeDocument codeDocument = projectEngine.Process(item);
-                    RazorCodeDocument designTimeDocument = projectEngine.ProcessDesignTime(item);
+                    RazorCodeDocument codeDocument = projectEngine.ProcessSafe(item);
+                    RazorCodeDocument designTimeDocument = projectEngine.ProcessDesignTimeSafe(item);
 
                     string syntax = codeDocument.GetSyntaxTree().Serialize();
                     string ir = codeDocument.GetDocumentIntermediateNode().Serialize();

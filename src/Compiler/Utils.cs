@@ -52,6 +52,50 @@ internal static class RazorUtil
             .GetValue(document)!;
     }
 
+    public static RazorCodeDocument ProcessDeclarationOnlySafe(
+        this RazorProjectEngine engine,
+        RazorProjectItem projectItem)
+    {
+        return engine.ProcessSafe(projectItem, nameof(engine.ProcessDeclarationOnly));
+    }
+
+    public static RazorCodeDocument ProcessDesignTimeSafe(
+        this RazorProjectEngine engine,
+        RazorProjectItem projectItem)
+    {
+        return engine.ProcessSafe(projectItem, nameof(engine.ProcessDesignTime));
+    }
+
+    public static RazorCodeDocument ProcessSafe(
+        this RazorProjectEngine engine,
+        RazorProjectItem projectItem)
+    {
+        return engine.ProcessSafe(projectItem, nameof(engine.Process));
+    }
+
+    private static RazorCodeDocument ProcessSafe(
+        this RazorProjectEngine engine,
+        RazorProjectItem projectItem,
+        string methodName)
+    {
+        // Newer razor versions take CancellationToken parameter,
+        // so we need to use reflection to avoid MissingMethodException.
+
+        var method = engine.GetType()
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            .Where(m => m.Name == methodName &&
+                m.GetParameters() is
+                [
+                { ParameterType.FullName: "Microsoft.AspNetCore.Razor.Language.RazorProjectItem" },
+                    .. var rest
+                ] &&
+                rest.All(static p => p.IsOptional))
+            .First();
+
+        return (RazorCodeDocument)method
+            .Invoke(engine, [projectItem, ..Enumerable.Repeat<object?>(null, method.GetParameters().Length - 1)])!;
+    }
+
     public static Diagnostic ToDiagnostic(this RazorDiagnostic d)
     {
         DiagnosticSeverity severity = d.Severity.ToDiagnosticSeverity();
