@@ -52,6 +52,15 @@ internal static class RazorUtil
             .GetValue(document)!;
     }
 
+    public static IEnumerable<RazorProjectItem> EnumerateItemsSafe(this RazorProjectFileSystem fileSystem, string basePath)
+    {
+        // EnumerateItems was defined in RazorProject before https://github.com/dotnet/razor/pull/11379,
+        // then it has moved into RazorProjectFileSystem. Hence we need reflection to access it.
+        return (IEnumerable<RazorProjectItem>)fileSystem.GetType()
+            .GetMethod(nameof(fileSystem.EnumerateItems))!
+            .Invoke(fileSystem, [basePath])!;
+    }
+
     public static RazorCodeDocument ProcessDeclarationOnlySafe(
         this RazorProjectEngine engine,
         RazorProjectItem projectItem)
