@@ -133,7 +133,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
         RazorProjectEngine declarationProjectEngine = createProjectEngine([]);
         var declarationCompilation = CSharpCompilation.Create("TestAssembly",
             syntaxTrees: [
-                ..fileSystem.Inner.EnumerateItems("/").Select((item) =>
+                ..fileSystem.Inner.EnumerateItemsSafe("/").Select((item) =>
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnlySafe(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
@@ -149,7 +149,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             ..references,
             declarationCompilation.ToMetadataReference()]);
         List<Diagnostic> allRazorDiagnostics = new();
-        var compiledRazorFiles = fileSystem.Inner.EnumerateItems("/")
+        var compiledRazorFiles = fileSystem.Inner.EnumerateItemsSafe("/")
             .ToImmutableDictionary(
                 keySelector: (item) => item.RelativePhysicalPath,
                 elementSelector: (item) =>
