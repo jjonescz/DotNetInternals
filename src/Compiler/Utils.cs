@@ -52,6 +52,21 @@ internal static class RazorUtil
             .GetValue(document)!;
     }
 
+    public static string GetGeneratedCode(this RazorCSharpDocument document)
+    {
+        // There can be either `string GeneratedCode` or `SourceText Text` property.
+        // See https://github.com/dotnet/razor/pull/11404.
+
+        var documentType = document.GetType();
+        var textProperty = documentType.GetProperty("Text");
+        if (textProperty != null)
+        {
+            return ((SourceText)textProperty.GetValue(document)!).ToString();
+        }
+
+        return (string)documentType.GetProperty(nameof(document.GeneratedCode))!.GetValue(document)!;
+    }
+
     public static IEnumerable<RazorProjectItem> EnumerateItemsSafe(this RazorProjectFileSystem fileSystem, string basePath)
     {
         // EnumerateItems was defined in RazorProject before https://github.com/dotnet/razor/pull/11379,
