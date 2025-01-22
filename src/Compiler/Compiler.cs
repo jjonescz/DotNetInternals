@@ -136,7 +136,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 ..fileSystem.Inner.EnumerateItemsSafe("/").Select((item) =>
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnlySafe(item);
-                    string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GeneratedCode;
+                    string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GetGeneratedCode();
                     return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions);
                 }),
                 ..cSharp.Values,
@@ -159,13 +159,13 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
 
                     string syntax = codeDocument.GetSyntaxTree().Serialize();
                     string ir = codeDocument.GetDocumentIntermediateNode().Serialize();
-                    string cSharp = codeDocument.GetCSharpDocument().GeneratedCode;
+                    string cSharp = codeDocument.GetCSharpDocument().GetGeneratedCode();
                     IReadOnlyList<RazorDiagnostic> razorDiagnosticsOriginal = codeDocument.GetCSharpDocument().GetDiagnostics();
                     string razorDiagnostics = razorDiagnosticsOriginal.JoinToString(Environment.NewLine);
 
                     string designSyntax = designTimeDocument.GetSyntaxTree().Serialize();
                     string designIr = designTimeDocument.GetDocumentIntermediateNode().Serialize();
-                    string designCSharp = designTimeDocument.GetCSharpDocument().GeneratedCode;
+                    string designCSharp = designTimeDocument.GetCSharpDocument().GetGeneratedCode();
                     string designRazorDiagnostics = designTimeDocument.GetCSharpDocument().GetDiagnostics().JoinToString(Environment.NewLine);
 
                     allRazorDiagnostics.AddRange(razorDiagnosticsOriginal.Select(RazorUtil.ToDiagnostic));
