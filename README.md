@@ -53,10 +53,12 @@ Razor REPLs:
 - https://netcorerepl.telerik.com/
 - https://try.mudblazor.com/snippet
 - https://blazorfiddle.com/
+- https://try.fluentui-blazor.net/snippet
 
 C# REPLs:
 - https://dotnetfiddle.net/
 - https://onecompiler.com/csharp
+- https://www.programiz.com/csharp-programming/online-compiler/
 
 C# compiler playgrounds:
 - https://sharplab.io/
@@ -64,3 +66,8 @@ C# compiler playgrounds:
 
 XAML REPLs:
 - https://playground.platform.uno/
+
+Web IDEs:
+- https://github.com/Mythetech/Apollo
+- https://github.com/Luthetus/Luthetus.Ide
+- https://github.com/knervous/intellisage
