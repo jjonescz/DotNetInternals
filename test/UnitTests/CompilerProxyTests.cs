@@ -1,6 +1,5 @@
 using DotNetInternals.Lab;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit.Abstractions;
 
 namespace DotNetInternals;
 

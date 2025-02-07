@@ -52,12 +52,12 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 assemblyName: "Configuration",
                 syntaxTrees:
                 [
-                    CSharpSyntaxTree.ParseText(configuration, parseOptions, "Configuration.cs"),
+                    CSharpSyntaxTree.ParseText(configuration, parseOptions, "Configuration.cs", Encoding.UTF8),
                     CSharpSyntaxTree.ParseText("""
                         global using DotNetInternals;
                         global using Microsoft.CodeAnalysis.CSharp;
                         global using System;
-                        """, parseOptions, "GlobalUsings.cs")
+                        """, parseOptions, "GlobalUsings.cs", Encoding.UTF8)
                 ],
                 references:
                 [
@@ -114,7 +114,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     }
                 case ".cs":
                     {
-                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, parseOptions, path: filePath);
+                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, parseOptions, path: filePath, Encoding.UTF8);
                         break;
                     }
             }
@@ -137,7 +137,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnlySafe(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GetGeneratedCode();
-                    return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions);
+                    return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions, encoding: Encoding.UTF8);
                 }),
                 ..cSharp.Values,
             ],
@@ -185,7 +185,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 ..compiledRazorFiles.Values.Select((file) =>
                 {
                     var cSharpText = file.GetOutput("C#")!.EagerText!;
-                    return CSharpSyntaxTree.ParseText(cSharpText, parseOptions);
+                    return CSharpSyntaxTree.ParseText(cSharpText, parseOptions, encoding: Encoding.UTF8);
                 }),
                 ..cSharp.Values,
             ],
@@ -207,6 +207,15 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                         {
                             peFile ??= getPeFile(finalCompilation);
                             return new(getIl(peFile));
+                        },
+                    },
+                    new()
+                    {
+                        Type = "Sequence points",
+                        LazyText = async () =>
+                        {
+                            peFile ??= getPeFile(finalCompilation);
+                            return await getSequencePoints(peFile);
                         },
                     },
                     new()
@@ -297,12 +306,13 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             });
         }
 
-        static MemoryStream? getEmitStream(CSharpCompilation compilation)
+        MemoryStream? getEmitStream(CSharpCompilation compilation)
         {
             var stream = new MemoryStream();
             var emitResult = compilation.Emit(stream);
             if (!emitResult.Success)
             {
+                logger.LogDebug("Emit failed: {Diagnostics}", emitResult.Diagnostics);
                 return null;
             }
 
@@ -316,7 +326,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             return emitResult.Diagnostics;
         }
 
-        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
         {
             return getEmitStream(compilation) is { } stream
                 ? new(compilation.AssemblyName ?? "", stream)
@@ -336,6 +346,69 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             return output.ToString();
         }
 
+        // Inspired by https://github.com/icsharpcode/ILSpy/pull/1040.
+        static async Task<string> getSequencePoints(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
+        {
+            if (peFile is null)
+            {
+                return "";
+            }
+
+            var typeSystem = await getCSharpDecompilerTypeSystemAsync(peFile);
+            var settings = getCSharpDecompilerSettings();
+            var decompiler = new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(typeSystem, settings);
+
+            var output = new StringWriter();
+            ICSharpCode.Decompiler.CSharp.OutputVisitor.TokenWriter tokenWriter = new ICSharpCode.Decompiler.CSharp.OutputVisitor.TextWriterTokenWriter(output);
+            tokenWriter = ICSharpCode.Decompiler.CSharp.OutputVisitor.TokenWriter.WrapInWriterThatSetsLocationsInAST(tokenWriter);
+
+            var syntaxTree = decompiler.DecompileWholeModuleAsSingleFile();
+            syntaxTree.AcceptVisitor(new ICSharpCode.Decompiler.CSharp.OutputVisitor.InsertParenthesesVisitor { InsertParenthesesForReadability = true });
+            syntaxTree.AcceptVisitor(new ICSharpCode.Decompiler.CSharp.OutputVisitor.CSharpOutputVisitor(tokenWriter, settings.CSharpFormattingOptions));
+
+            using var sequencePoints = decompiler.CreateSequencePoints(syntaxTree)
+                .SelectMany(p => p.Value.Select(s => (Function: p.Key, SequencePoint: s)))
+                .GetEnumerator();
+
+            var lineIndex = -1;
+            var lines = output.ToString().AsSpan().EnumerateLines().GetEnumerator();
+
+            var result = new StringBuilder();
+
+            while (true)
+            {
+                if (!sequencePoints.MoveNext())
+                {
+                    break;
+                }
+
+                var (function, sp) = sequencePoints.Current;
+
+                if (sp.IsHidden)
+                {
+                    continue;
+                }
+
+                // Find the corresponding line.
+                var targetLineIndex = sp.StartLine - 1;
+                while (lineIndex < targetLineIndex && lines.MoveNext())
+                {
+                    lineIndex++;
+                }
+
+                if (lineIndex < 0 || lineIndex != targetLineIndex)
+                {
+                    break;
+                }
+
+                var line = lines.Current;
+                var text = line[(sp.StartColumn - 1)..(sp.EndColumn - 1)];
+                result.AppendLine($"{function.Name}(IL_{sp.Offset:x4}-IL_{sp.EndOffset:x4} {sp.StartLine}:{sp.StartColumn}-{sp.EndLine}:{sp.EndColumn}): {text}");
+            }
+
+            return result.ToString();
+        }
+
         static async Task<string> getCSharpAsync(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
         {
             if (peFile is null)
@@ -343,16 +416,30 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 return "";
             }
 
-            var typeSystem = await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
+            var decompiler = await getCSharpDecompilerAsync(peFile);
+            return decompiler.DecompileWholeModuleAsString();
+        }
+
+        static async Task<ICSharpCode.Decompiler.CSharp.CSharpDecompiler> getCSharpDecompilerAsync(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        {
+            return new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(
+                await getCSharpDecompilerTypeSystemAsync(peFile),
+                getCSharpDecompilerSettings());
+        }
+
+        static async Task<ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem> getCSharpDecompilerTypeSystemAsync(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        {
+            return await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
                 peFile,
                 new ICSharpCode.Decompiler.Metadata.UniversalAssemblyResolver(
                     mainAssemblyFileName: null,
                     throwOnError: false,
                     targetFramework: ".NETCoreApp,Version=9.0"));
-            var decompiler = new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(
-                typeSystem,
-                new ICSharpCode.Decompiler.DecompilerSettings(ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp1));
-            return decompiler.DecompileWholeModuleAsString();
+        }
+
+        static ICSharpCode.Decompiler.DecompilerSettings getCSharpDecompilerSettings()
+        {
+            return new ICSharpCode.Decompiler.DecompilerSettings(ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp1);
         }
     }
 }
