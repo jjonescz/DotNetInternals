@@ -211,6 +211,15 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     },
                     new()
                     {
+                        Type = "Sequence points",
+                        LazyText = async () =>
+                        {
+                            peFile ??= getPeFile(finalCompilation);
+                            return await getSequencePoints(peFile);
+                        },
+                    },
+                    new()
+                    {
                         Type = "C#",
                         LazyText = async () =>
                         {
@@ -335,6 +344,69 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             var disassembler = new ICSharpCode.Decompiler.Disassembler.ReflectionDisassembler(output, cancellationToken: default);
             disassembler.WriteModuleContents(peFile);
             return output.ToString();
+        }
+
+        // Inspired by https://github.com/icsharpcode/ILSpy/pull/1040.
+        static async Task<string> getSequencePoints(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
+        {
+            if (peFile is null)
+            {
+                return "";
+            }
+
+            var typeSystem = await getCSharpDecompilerTypeSystemAsync(peFile);
+            var settings = getCSharpDecompilerSettings();
+            var decompiler = new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(typeSystem, settings);
+
+            var output = new StringWriter();
+            ICSharpCode.Decompiler.CSharp.OutputVisitor.TokenWriter tokenWriter = new ICSharpCode.Decompiler.CSharp.OutputVisitor.TextWriterTokenWriter(output);
+            tokenWriter = ICSharpCode.Decompiler.CSharp.OutputVisitor.TokenWriter.WrapInWriterThatSetsLocationsInAST(tokenWriter);
+
+            var syntaxTree = decompiler.DecompileWholeModuleAsSingleFile();
+            syntaxTree.AcceptVisitor(new ICSharpCode.Decompiler.CSharp.OutputVisitor.InsertParenthesesVisitor { InsertParenthesesForReadability = true });
+            syntaxTree.AcceptVisitor(new ICSharpCode.Decompiler.CSharp.OutputVisitor.CSharpOutputVisitor(tokenWriter, settings.CSharpFormattingOptions));
+
+            using var sequencePoints = decompiler.CreateSequencePoints(syntaxTree)
+                .SelectMany(p => p.Value.Select(s => (Function: p.Key, SequencePoint: s)))
+                .GetEnumerator();
+
+            var lineIndex = -1;
+            var lines = output.ToString().AsSpan().EnumerateLines().GetEnumerator();
+
+            var result = new StringBuilder();
+
+            while (true)
+            {
+                if (!sequencePoints.MoveNext())
+                {
+                    break;
+                }
+
+                var (function, sp) = sequencePoints.Current;
+
+                if (sp.IsHidden)
+                {
+                    continue;
+                }
+
+                // Find the corresponding line.
+                var targetLineIndex = sp.StartLine - 1;
+                while (lineIndex < targetLineIndex && lines.MoveNext())
+                {
+                    lineIndex++;
+                }
+
+                if (lineIndex < 0 || lineIndex != targetLineIndex)
+                {
+                    break;
+                }
+
+                var line = lines.Current;
+                var text = line[(sp.StartColumn - 1)..(sp.EndColumn - 1)];
+                result.AppendLine($"{function.Name}(IL_{sp.Offset:x4}-IL_{sp.EndOffset:x4} {sp.StartLine}:{sp.StartColumn}-{sp.EndLine}:{sp.EndColumn}): {text}");
+            }
+
+            return result.ToString();
         }
 
         static async Task<string> getCSharpAsync(ICSharpCode.Decompiler.Metadata.PEFile? peFile)
