@@ -344,16 +344,30 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 return "";
             }
 
-            var typeSystem = await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
+            var decompiler = await getCSharpDecompilerAsync(peFile);
+            return decompiler.DecompileWholeModuleAsString();
+        }
+
+        static async Task<ICSharpCode.Decompiler.CSharp.CSharpDecompiler> getCSharpDecompilerAsync(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        {
+            return new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(
+                await getCSharpDecompilerTypeSystemAsync(peFile),
+                getCSharpDecompilerSettings());
+        }
+
+        static async Task<ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem> getCSharpDecompilerTypeSystemAsync(ICSharpCode.Decompiler.Metadata.PEFile peFile)
+        {
+            return await ICSharpCode.Decompiler.TypeSystem.DecompilerTypeSystem.CreateAsync(
                 peFile,
                 new ICSharpCode.Decompiler.Metadata.UniversalAssemblyResolver(
                     mainAssemblyFileName: null,
                     throwOnError: false,
                     targetFramework: ".NETCoreApp,Version=9.0"));
-            var decompiler = new ICSharpCode.Decompiler.CSharp.CSharpDecompiler(
-                typeSystem,
-                new ICSharpCode.Decompiler.DecompilerSettings(ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp1));
-            return decompiler.DecompileWholeModuleAsString();
+        }
+
+        static ICSharpCode.Decompiler.DecompilerSettings getCSharpDecompilerSettings()
+        {
+            return new ICSharpCode.Decompiler.DecompilerSettings(ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp1);
         }
     }
 }
