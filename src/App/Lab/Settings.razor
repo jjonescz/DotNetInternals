@@ -9,7 +9,7 @@
 OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEditorThemeAsync(e.IsDark)" />
 
 <FluentDialog @bind-Hidden="modalHidden" Modal="true" TrapFocus="true" PreventScroll="true"
-@ondialogdismiss="() => modalHidden = true">
+@ondialogdismiss="CloseModal">
     <FluentDialogHeader ShowDismiss="true">
         <FluentLabel Typo="Typography.PaneHeader">
             Settings
@@ -162,7 +162,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
 
     <FluentDialogFooter>
         <FluentSpacer />
-        <FluentButton Appearance="Appearance.Neutral" OnClick="() => modalHidden = true">Close</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="CloseModal">Close</FluentButton>
     </FluentDialogFooter>
 </FluentDialog>
 
@@ -322,6 +322,11 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         return Task.WhenAll(sdkTask, roslynTask, razorTask);
+    }
+
+    public void CloseModal()
+    {
+        modalHidden = true;
     }
 
     internal Task LoadFromStateAsync(SavedState state)
