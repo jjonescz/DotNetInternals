@@ -478,12 +478,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
                 break;
 
             case (int)SpecialInput.Configuration:
-                currentInputIndex = (int)SpecialInput.Configuration;
-                configuration ??= new(
-                    InitialCode.Configuration.SuggestedFileName,
-                    await CreateModelAsync(InitialCode.Configuration.ToInputCode()));
-                OnWorkspaceChanged();
-                await inputEditor.SetModel(configuration.Model);
+                await SelectConfigurationAsync();
                 break;
 
             case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
@@ -500,6 +495,16 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             previousSelectedInputIndexRaw = null;
             StateHasChanged();
         });
+    }
+
+    internal async Task SelectConfigurationAsync()
+    {
+        currentInputIndex = (int)SpecialInput.Configuration;
+        configuration ??= new(
+            InitialCode.Configuration.SuggestedFileName,
+            await CreateModelAsync(InitialCode.Configuration.ToInputCode()));
+        OnWorkspaceChanged();
+        await inputEditor.SetModel(configuration.Model);
     }
 
     private async Task SelectInputAsync(int index)
