@@ -24,16 +24,16 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             @* Use VIM check box *@
             <FluentCheckbox @bind-Value="UseVim" @bind-Value:after="OnVimChanged" Label="Use VIM" />
 
-            @* Language services check box *@
-            <FluentCheckbox @bind-Value="EnableLanguageServices" @bind-Value:after="OnSetEnableLanguageServicesAsync"
-            title="Completions, live diagnostics">
-                Language services (requires restart)
-                <FluentBadge>experimental</FluentBadge>
-            </FluentCheckbox>
-
             <FluentAccordion Style="width: 100%">
                 <FluentAccordionItem Heading="Advanced" HeadingLevel="5">
                     <FluentStack Orientation="Orientation.Vertical">
+                        @* Language services check box *@
+                        <FluentCheckbox @bind-Value="EnableLanguageServices" @bind-Value:after="OnSetEnableLanguageServicesAsync"
+                        title="Completions, live diagnostics">
+                            Language services (requires restart)
+                            <FluentBadge>experimental</FluentBadge>
+                        </FluentCheckbox>
+
                         @* Debug logs check box *@
                         <FluentCheckbox @bind-Value="DebugLogs" @bind-Value:after="OnSetDebugLogsAsync"
                         Label="Debug logs" title="Whether to display debug-level logs in the browser development console" />
