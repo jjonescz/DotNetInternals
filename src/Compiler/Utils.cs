@@ -64,7 +64,7 @@ internal static class RazorUtil
             return ((SourceText)textProperty.GetValue(document)!).ToString();
         }
 
-        return (string)documentType.GetProperty(nameof(document.GeneratedCode))!.GetValue(document)!;
+        return (string)documentType.GetProperty("GeneratedCode")!.GetValue(document)!;
     }
 
     public static IEnumerable<RazorProjectItem> EnumerateItemsSafe(this RazorProjectFileSystem fileSystem, string basePath)
