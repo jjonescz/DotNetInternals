@@ -366,15 +366,15 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         {
             return selectedPresetRaw ?? inputs switch
             {
-            [{ } input] => input.FileName switch
-            {
-                var s when matches(s, InitialCode.CSharp) => InputPreset.CSharp,
-                var s when matches(s, InitialCode.Cshtml) => InputPreset.Cshtml,
-                _ => InputPreset.Custom,
-            },
-            [{ } input1, { } input2]
-                when matches(input1.FileName, InitialCode.Razor) &&
-                    matches(input2.FileName, InitialCode.RazorImports) => InputPreset.Razor,
+                [{ } input] => input.FileName switch
+                {
+                    var s when matches(s, InitialCode.CSharp) => InputPreset.CSharp,
+                    var s when matches(s, InitialCode.Cshtml) => InputPreset.Cshtml,
+                    _ => InputPreset.Custom,
+                },
+                [{ } input1, { } input2]
+                    when matches(input1.FileName, InitialCode.Razor) &&
+                        matches(input2.FileName, InitialCode.RazorImports) => InputPreset.Razor,
                 _ => InputPreset.Custom,
             };
 
@@ -694,11 +694,19 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             outputLoading = true;
             await RefreshAsync();
 
-            // The text will be cached and loaded synchronously next.
-            var result = await output.GetTextAsync(outputFactory: async () =>
+            string? result;
+            try
             {
-                return await Worker.GetOutputAsync(input, file: file, outputType: outputType);
-            });
+                // The text will be cached and loaded synchronously next time.
+                result = await output.GetTextAsync(outputFactory: async () =>
+                {
+                    return await Worker.GetOutputAsync(input, file: file, outputType: outputType);
+                });
+            }
+            catch (Exception ex)
+            {
+                result = ex.ToString();
+            }
 
             outputLoading = false;
             StateHasChanged();
