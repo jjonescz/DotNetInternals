@@ -297,12 +297,13 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             });
         }
 
-        static MemoryStream? getEmitStream(CSharpCompilation compilation)
+        MemoryStream? getEmitStream(CSharpCompilation compilation)
         {
             var stream = new MemoryStream();
             var emitResult = compilation.Emit(stream);
             if (!emitResult.Success)
             {
+                logger.LogDebug("Emit failed: {Diagnostics}", emitResult.Diagnostics);
                 return null;
             }
 
@@ -316,7 +317,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             return emitResult.Diagnostics;
         }
 
-        static ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
+        ICSharpCode.Decompiler.Metadata.PEFile? getPeFile(CSharpCompilation compilation)
         {
             return getEmitStream(compilation) is { } stream
                 ? new(compilation.AssemblyName ?? "", stream)
