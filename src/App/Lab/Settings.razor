@@ -18,6 +18,12 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
 
     <FluentDialogBody>
         <FluentStack Orientation="Orientation.Vertical">
+            @* Open config file *@
+            <FluentStack VerticalAlignment="VerticalAlignment.Center">
+                C# version, feature flags, and more:
+                <FluentButton OnClick="GoToConfigurationAsync" Appearance="Appearance.Lightweight">Open Configuration</FluentButton>
+            </FluentStack>
+
             @* Word wrap check box *@
             <FluentCheckbox @bind-Value="WordWrap" @bind-Value:after="OnWordWrapChanged" Label="Word wrap" />
 
@@ -545,5 +551,11 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     private async Task SetEditorThemeAsync(bool dark)
     {
         await BlazorMonaco.Editor.Global.SetTheme(JSRuntime, dark ? "vs-dark" : "vs");
+    }
+
+    private async Task GoToConfigurationAsync()
+    {
+        await Page.SelectConfigurationAsync();
+        CloseModal();
     }
 }
