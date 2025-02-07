@@ -52,12 +52,12 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 assemblyName: "Configuration",
                 syntaxTrees:
                 [
-                    CSharpSyntaxTree.ParseText(configuration, parseOptions, "Configuration.cs"),
+                    CSharpSyntaxTree.ParseText(configuration, parseOptions, "Configuration.cs", Encoding.UTF8),
                     CSharpSyntaxTree.ParseText("""
                         global using DotNetInternals;
                         global using Microsoft.CodeAnalysis.CSharp;
                         global using System;
-                        """, parseOptions, "GlobalUsings.cs")
+                        """, parseOptions, "GlobalUsings.cs", Encoding.UTF8)
                 ],
                 references:
                 [
@@ -114,7 +114,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     }
                 case ".cs":
                     {
-                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, parseOptions, path: filePath);
+                        cSharp[input.FileName] = (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(input.Text, parseOptions, path: filePath, Encoding.UTF8);
                         break;
                     }
             }
@@ -137,7 +137,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 {
                     RazorCodeDocument declarationCodeDocument = declarationProjectEngine.ProcessDeclarationOnlySafe(item);
                     string declarationCSharp = declarationCodeDocument.GetCSharpDocument().GetGeneratedCode();
-                    return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions);
+                    return CSharpSyntaxTree.ParseText(declarationCSharp, parseOptions, encoding: Encoding.UTF8);
                 }),
                 ..cSharp.Values,
             ],
@@ -185,7 +185,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 ..compiledRazorFiles.Values.Select((file) =>
                 {
                     var cSharpText = file.GetOutput("C#")!.EagerText!;
-                    return CSharpSyntaxTree.ParseText(cSharpText, parseOptions);
+                    return CSharpSyntaxTree.ParseText(cSharpText, parseOptions, encoding: Encoding.UTF8);
                 }),
                 ..cSharp.Values,
             ],
