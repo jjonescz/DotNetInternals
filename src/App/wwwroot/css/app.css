@@ -1,4 +1,5 @@
 :root {
+    /* Keep in sync with `AppColors` in `Constants.cs`. */
     --custom-light: #B399C8;
     --custom-dark: #8967AA;
 }
