@@ -13,3 +13,7 @@
     align-items: center;
     justify-content: center;
 }
+
+::deep fluent-tabs::part(activeIndicator) {
+    width: 100%;
+}

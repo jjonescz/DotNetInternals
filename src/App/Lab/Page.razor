@@ -20,68 +20,6 @@
 
         <FluentSpacer />
 
-        @* Input tabs (file names) *@
-        @if (CurrentInput != null && renamingTo != null)
-        {
-            @* Renaming confirmation *@
-            <FluentTextField @bind-Value="renamingTo" TextFieldType="TextFieldType.Text" Title="File name" Placeholder="@CurrentInput.FileName"></FluentTextField>
-            <FluentButton Title="Confirm rename" OnClick="RenameInputAsync">
-                <FluentIcon Value="@(new Icons.Regular.Size20.Checkmark())" Color="Color.Success" />
-            </FluentButton>
-            <FluentButton Title="Cancel rename" OnClick="() => renamingTo = null">
-                <FluentIcon Value="@(new Icons.Regular.Size20.ArrowUndo())" Color="Color.Error" />
-            </FluentButton>
-        }
-        else
-        {
-            @* Input tabs *@
-            <FluentSelect TOption="string" AriaLabel="File manager"
-            @bind-Value="SelectedInputIndex" @bind-Value:after="OnInputSelectedAsync"
-            Style="min-width: 12em">
-                @foreach (var (index, input) in inputs.Index())
-                {
-                    <FluentOption Value="@index.ToString()">@input.FileName</FluentOption>
-                }
-                <FluentDivider />
-                <FluentOption Value="@(((int)SpecialInput.AddCSharp).ToString())">Add .cs</FluentOption>
-                <FluentOption Value="@(((int)SpecialInput.AddRazor).ToString())">Add .razor</FluentOption>
-                <FluentOption Value="@(((int)SpecialInput.AddCshtml).ToString())">Add .cshtml</FluentOption>
-
-                @if (inputs.Count > 1)
-                {
-                    <FluentDivider />
-                    <FluentOption Value="@(((int)SpecialInput.RemoveOtherFiles).ToString())">Remove other files</FluentOption>
-                }
-                <FluentDivider />
-                <FluentOption Value="@(((int)SpecialInput.Configuration).ToString())">
-                    @if (configuration is null)
-                    {
-                        @:Add configuration
-                    }
-                    else
-                    {
-                        @:Configuration
-                    }
-                </FluentOption>
-            </FluentSelect>
-
-            @* Rename button *@
-            @if (CurrentInput != null)
-            {
-                <FluentButton Title="Rename current file" OnClick="() => renamingTo = CurrentInput.FileName">
-                    <FluentIcon Value="@(new Icons.Regular.Size20.Rename())" Color="Color.Neutral" />
-                </FluentButton>
-            }
-
-            @* Delete button *@
-            if (inputs.Count > 1 || CurrentSpecialInput != null)
-            {
-                <FluentButton Title="Delete current file" OnClick="DeleteInputAsync">
-                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Error" />
-                </FluentButton>
-            }
-        }
-
         @* Compile button *@
         <FluentButton BackgroundColor="var(--custom-dark)" Color="white" OnClick="CompileAsync" Loading="compilationInProgress"
         Title="Compile (Ctrl+S)">
@@ -168,14 +106,55 @@
     <Settings @ref="settings" Editor="inputEditor" @bind-WordWrap="wordWrap" @bind-UseVim="useVim" />
 </CascadingValue>
 
-@* Input / output text areas *@
+@* Input / output panels *@
 @{
-    RenderFragment inputPanel =@<div style="height: 100%">
+    RenderFragment inputPanel =@<div style="display: flex; flex-direction: column; height: 100%">
+        @* Input tabs *@
+        <FluentTabs @bind-ActiveTabId="activeInputTabId" @bind-ActiveTabId:after="OnActiveInputTabIdChangedAsync"
+        ShowClose="inputs.Count > 1 || configuration != null" OnTabClose="OnInputTabClosedAsync">
+            @* Normal files *@
+            @foreach (var (index, input) in inputs.Index())
+            {
+                <FluentTab Id="@IndexToInputTabId(index)" Label="@(input.FileName)"
+                LabelEditable LabelChanged="(newName) => OnInputTabRenamedAsync(input, newName)" />
+            }
+
+            @* Special configuration file *@
+            @if (configuration != null)
+            {
+                @* NOTE: Label is shown in the overflow menu, so it needs to be set even though Header is also set. *@
+                <FluentTab Id="@IndexToInputTabId((int)SpecialInput.Configuration)" Label="Configuration">
+                    <Header>
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Settings())" />
+                        <span style="margin-left: 0.2em">Configuration</span>
+                    </Header>
+                </FluentTab>
+            }
+
+            @* Add new file button *@
+            <div slot="end">
+                <FluentMenuButton IconStart="@(new Icons.Filled.Size20.DocumentAdd())" Text="Add"
+                ButtonAppearance="Appearance.Neutral" ButtonStyle="margin-right: 0.2em"
+                OnMenuChanged="OnAddInputTabAsync">
+                    <FluentMenuItem Id="cs">.cs</FluentMenuItem>
+                    <FluentMenuItem Id="razor">.razor</FluentMenuItem>
+                    <FluentMenuItem Id="cshtml">.cshtml</FluentMenuItem>
+                    <FluentDivider />
+                    <FluentMenuItem Id="config">Configuration</FluentMenuItem>
+                </FluentMenuButton>
+            </div>
+        </FluentTabs>
+
+        @* VIM status bar *@
         <div id="vim-status" class="vim-status-bar" hidden="@(!useVim)" />
-        <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
-        ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
-        OnDidChangeModel="LanguageServices.OnDidChangeModel"
-        OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
+
+        @* Input editor *@
+        <div style="flex-grow: 1">
+            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="inputEditor" Id="input-editor"
+            ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorInitAsync"
+            OnDidChangeModel="LanguageServices.OnDidChangeModel"
+            OnDidChangeModelContent="LanguageServices.OnDidChangeModelContent" />
+        </div>
     </div>
     ;
 
@@ -197,10 +176,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
     private IJSObjectReference? module;
     private Input? configuration;
     private InputPreset? selectedPresetRaw;
-    private string? previousSelectedInputIndexRaw;
-    private string? selectedInputIndexRaw;
-    private int currentInputIndex;
-    private string? renamingTo;
+    private string activeInputTabId = IndexToInputTabId(0);
     private StandaloneCodeEditor inputEditor = null!;
     private StandaloneCodeEditor outputEditor = null!;
     private string? selectedOutputType;
@@ -230,11 +206,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
     private enum SpecialInput
     {
-        AddRazor = -1,
-        AddCSharp = -2,
-        AddCshtml = -3,
-        RemoveOtherFiles = -4,
-        Configuration = -5,
+        Configuration = -1,
     }
 
     private enum Layout
@@ -248,34 +220,21 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
     {
         get
         {
-            if (currentInputIndex < 0 || currentInputIndex >= inputs.Count)
+            var i = InputTabIdToIndex(activeInputTabId);
+
+            if (i < 0 || i >= inputs.Count)
             {
                 return null;
             }
 
-            return inputs[currentInputIndex];
+            return inputs[i];
         }
-    }
-
-    private string SelectedInputIndex
-    {
-        get => selectedInputIndexRaw ?? currentInputIndex.ToString();
-        set => selectedInputIndexRaw = value;
     }
 
     private IEnumerable<CompiledFileOutput> AllOutputs
     {
         get => (CurrentCompiledFile?.Outputs)
             .TryConcat(compiled?.Output.GlobalOutputs);
-    }
-
-    private SpecialInput? CurrentSpecialInput
-    {
-        get
-        {
-            var result = (SpecialInput)currentInputIndex;
-            return result is SpecialInput.Configuration ? result : null;
-        }
     }
 
     protected override void OnInitialized()
@@ -430,7 +389,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             await SaveStateToUrlAsync();
 
             inputs.Clear();
-            currentInputIndex = 0;
+            activeInputTabId = IndexToInputTabId(0);
             await AddInputAsync(initialCode);
 
             if (preset == InputPreset.Razor)
@@ -444,123 +403,147 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         selectedPresetRaw = null;
     }
 
-    private async Task OnInputSelectedAsync()
+    private const string inputTabIdPrefix = "i";
+    private const string outputTabIdPrefix = "o";
+
+    private static int InputTabIdToIndex(string tabId)
     {
-        if (selectedInputIndexRaw == previousSelectedInputIndexRaw)
+        return TabIdToIndex(inputTabIdPrefix, tabId);
+    }
+
+    private static int TabIdToIndex(string prefix, string tabId)
+    {
+        return int.Parse(tabId.Substring(prefix.Length));
+    }
+
+    private static string IndexToInputTabId(int index)
+    {
+        return IndexToTabId(inputTabIdPrefix, index);
+    }
+
+    private static string IndexToTabId(string prefix, int index)
+    {
+        return $"{prefix}{index}";
+    }
+
+    private async Task OnActiveInputTabIdChangedAsync()
+    {
+        var i = InputTabIdToIndex(activeInputTabId);
+
+        if (i == (int)SpecialInput.Configuration)
+        {
+            await SelectConfigurationAsync();
+        }
+        else if (i >= 0 && i < inputs.Count)
+        {
+            await SelectInputTabAsync(inputs[i], i);
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    private async Task OnInputTabClosedAsync(FluentTab tab)
+    {
+        await SaveStateToUrlAsync();
+
+        var i = InputTabIdToIndex(tab.Id!);
+        var activeInputTabIndex = InputTabIdToIndex(activeInputTabId);
+
+        if (i == (int)SpecialInput.Configuration)
+        {
+            configuration = null;
+        }
+        else if (inputs.Count > 1)
+        {
+            inputs.RemoveAt(i);
+        }
+        else
         {
             return;
         }
 
-        previousSelectedInputIndexRaw = selectedInputIndexRaw;
-
-        int selectedInputIndex = int.Parse(selectedInputIndexRaw!);
-
-        await SaveStateToUrlAsync();
-
-        switch (selectedInputIndex)
-        {
-            case (int)SpecialInput.AddCSharp:
-                await AddInputAsync(InitialCode.CSharp);
-                break;
-
-            case (int)SpecialInput.AddRazor:
-                await AddInputAsync(InitialCode.Razor);
-                break;
-
-            case (int)SpecialInput.AddCshtml:
-                await AddInputAsync(InitialCode.Cshtml);
-                break;
-
-            case (int)SpecialInput.RemoveOtherFiles:
-                inputs.RemoveAll(i => i != CurrentInput);
-                currentInputIndex = 0;
-                OnWorkspaceChanged();
-                break;
-
-            case (int)SpecialInput.Configuration:
-                await SelectConfigurationAsync();
-                break;
-
-            case var _ when selectedInputIndex >= 0 && selectedInputIndex < inputs.Count:
-                await SelectInputAsync(selectedInputIndex);
-                break;
-        }
-
-        await SaveStateToUrlAsync();
-
-        // Without this, the event handler might be called twice.
-        _ = Task.Delay(0).ContinueWith(_ =>
-        {
-            selectedInputIndexRaw = null;
-            previousSelectedInputIndexRaw = null;
-            StateHasChanged();
-        });
-    }
-
-    internal async Task SelectConfigurationAsync()
-    {
-        currentInputIndex = (int)SpecialInput.Configuration;
-        configuration ??= new(
-            InitialCode.Configuration.SuggestedFileName,
-            await CreateModelAsync(InitialCode.Configuration.ToInputCode()));
         OnWorkspaceChanged();
-        await inputEditor.SetModel(configuration.Model);
-    }
-
-    private async Task SelectInputAsync(int index)
-    {
-        currentInputIndex = index;
-        await inputEditor.SetModel(inputs[index].Model);
-
-        // Display output corresponding to the selected input.
-        await UpdateOutputDisplayAsync();
-    }
-
-    private async Task RenameInputAsync()
-    {
-        Debug.Assert(CurrentInput != null && renamingTo != null);
 
         await SaveStateToUrlAsync();
+    }
 
-        if (CurrentInput.FileName != renamingTo)
+    private async Task OnInputTabRenamedAsync(Input input, string newName)
+    {
+        await SaveStateToUrlAsync();
+
+        if (input.FileName != newName)
         {
-            var oldLanguage = GetLanguageForFileExtension(Path.GetExtension(CurrentInput.FileName));
-            var newLanguage = GetLanguageForFileExtension(Path.GetExtension(renamingTo));
+            var oldLanguage = GetLanguageForFileExtension(Path.GetExtension(input.FileName));
+            var newLanguage = GetLanguageForFileExtension(Path.GetExtension(newName));
 
-            CurrentInput.FileName = renamingTo;
+            input.FileName = newName;
 
             if (oldLanguage != newLanguage)
             {
-                await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, CurrentInput.Model, newLanguage);
+                await BlazorMonaco.Editor.Global.SetModelLanguage(JSRuntime, input.Model, newLanguage);
             }
 
             OnWorkspaceChanged();
         }
-        renamingTo = null;
 
         await SaveStateToUrlAsync();
     }
 
-    private async Task DeleteInputAsync()
+    private async Task OnAddInputTabAsync(MenuChangeEventArgs args)
     {
         await SaveStateToUrlAsync();
 
-        switch (currentInputIndex)
+        if (args.Id == "config")
         {
-            case (int)SpecialInput.Configuration:
-                configuration = null;
-                break;
-            default:
-                Debug.Assert(CurrentInput != null && inputs.Count > 1);
-                inputs.RemoveAt(currentInputIndex);
-                break;
+            await SelectConfigurationAsync();
+        }
+        else if (args.Id switch
+        {
+            "cs" => InitialCode.CSharp,
+            "razor" => InitialCode.Razor,
+            "cshtml" => InitialCode.Cshtml,
+            _ => null,
+        } is { } initialCode)
+        {
+            await AddInputAsync(initialCode);
+        }
+        else
+        {
+            return;
         }
 
-        currentInputIndex = 0;
-        OnWorkspaceChanged();
-        await inputEditor.SetModel(CurrentInput!.Model);
-
         await SaveStateToUrlAsync();
+    }
+
+    internal async Task SelectConfigurationAsync()
+    {
+        if (configuration is null)
+        {
+            await SaveStateToUrlAsync();
+
+            configuration = new(
+                InitialCode.Configuration.SuggestedFileName,
+                await CreateModelAsync(InitialCode.Configuration.ToInputCode()));
+            OnWorkspaceChanged();
+
+            await SaveStateToUrlAsync();
+        }
+
+        await SelectInputTabAsync(configuration, (int)SpecialInput.Configuration);
+    }
+
+    private async Task SelectInputTabAsync(Input input, int index)
+    {
+        // Update the editor.
+        await inputEditor.SetModel(input.Model);
+
+        // Update the tabs.
+        activeInputTabId = IndexToInputTabId(index);
+
+        // Display output corresponding to the selected input.
+        await UpdateOutputDisplayAsync();
     }
 
     private async Task AddInputAsync(InitialCode initialCode, bool selectAsCurrent = true)
@@ -568,15 +551,12 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         var fileName = FindUniqueName(initialCode);
         var inputCode = initialCode.ToInputCode(fileName);
         var model = await CreateModelAsync(inputCode);
-        inputs.Add(new(fileName, model) { NewContent = inputCode.Text });
-        if (selectAsCurrent)
-        {
-            currentInputIndex = inputs.Count - 1;
-        }
+        var input = new Input(fileName, model) { NewContent = inputCode.Text };
+        inputs.Add(input);
         OnWorkspaceChanged();
         if (selectAsCurrent)
         {
-            await inputEditor.SetModel(model);
+            await SelectInputTabAsync(input, inputs.Count - 1);
         }
     }
 
@@ -602,12 +582,6 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
     private async Task CompileAsync()
     {
-        // Complete renaming if in progress.
-        if (renamingTo != null)
-        {
-            await RenameInputAsync();
-        }
-
         compilationInProgress = true;
 
         await RefreshAsync();

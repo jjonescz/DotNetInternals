@@ -23,7 +23,7 @@ partial class Page
 
         // Load inputs.
         inputs.Clear();
-        currentInputIndex = 0;
+        activeInputTabId = IndexToInputTabId(0);
         TextModel? firstModel = null;
         foreach (var (index, input) in savedState.Inputs.Index())
         {
