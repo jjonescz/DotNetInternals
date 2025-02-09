@@ -578,6 +578,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
         // Update the tabs.
         activeInputTabId = IndexToInputTabId(index);
+        StateHasChanged();
 
         // Display output corresponding to the selected input.
         await UpdateOutputDisplayAsync();
