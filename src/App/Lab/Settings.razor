@@ -4,6 +4,7 @@
 @inject ILocalStorageService LocalStorage
 @inject WorkerController Worker
 @inject LanguageServices LanguageServices
+@inject HttpClient Client
 
 <FluentDesignTheme StorageName="theme" @bind-Mode="theme" CustomColor="@AppColors.CustomDark"
 OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEditorThemeAsync(e.IsDark)" />
@@ -150,6 +151,10 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             <p style="margin: 0">
                 <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
                 commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
+                @if (commitInfo != null)
+                {
+                    @(" ")<span title="@commitInfo.Commit.Message">(@commitInfo.Commit.Author.Date.ToString("MMM d, yyyy, HH:mm"))</span>
+                }
             </p>
 
             @if (UpdateInfo.UpdateIsAvailable)
@@ -205,6 +210,22 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     </div>
     ;
 
+    private sealed class GitHubCommitResponse
+    {
+        public required CommitData Commit { get; init; }
+
+        public sealed class CommitData
+        {
+            public required AuthorData Author { get; init; }
+            public required string Message { get; init; }
+        }
+
+        public sealed class AuthorData
+        {
+            public required DateTimeOffset Date { get; init; }
+        }
+    }
+
     private bool modalHidden = true;
     private bool hideUpdateAvailableBadge;
     private DesignThemeModes theme;
@@ -214,6 +235,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
     private SdkInfo? sdkInfo;
     private CompilerDependencyInfo? roslynInfo, razorInfo;
+    private GitHubCommitResponse? commitInfo;
     private string? sdkError, roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
@@ -311,6 +333,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         Task sdkTask = Task.CompletedTask;
         Task roslynTask = Task.CompletedTask;
         Task razorTask = Task.CompletedTask;
+        Task commitTask = Task.CompletedTask;
 
         if (sdkInfo is null)
         {
@@ -327,7 +350,12 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             razorTask = LoadRazorInfoAsync(saveState: false);
         }
 
-        return Task.WhenAll(sdkTask, roslynTask, razorTask);
+        if (commitInfo is null)
+        {
+            commitTask = LoadCommitInfoAsync();
+        }
+
+        return Task.WhenAll(sdkTask, roslynTask, razorTask, commitTask);
     }
 
     public void CloseModal()
@@ -414,6 +442,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         loadingSdkInfo = false;
+        await RefreshAsync();
     }
 
     private async Task UseSdkVersionAsync(string? version)
@@ -473,6 +502,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         loadingRoslynInfo = false;
+        await RefreshAsync();
     }
 
     private async Task UseRoslynVersionAsync(string? version)
@@ -507,6 +537,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         loadingRazorInfo = false;
+        await RefreshAsync();
     }
 
     private async Task UseRazorVersionAsync(string? version)
@@ -514,6 +545,13 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         razorVersion = version;
         razorConfiguration = BuildConfiguration.Release;
         await LoadRazorInfoAsync();
+    }
+
+    private async Task LoadCommitInfoAsync()
+    {
+        commitInfo = await Client.GetFromJsonAsync<GitHubCommitResponse>(
+            $"https://api.github.com/repos/{VersionUtil.CurrentRepositoryOwnerAndName}/commits/{VersionUtil.CurrentCommitHash}");
+        StateHasChanged();
     }
 
     private async Task OnWordWrapChanged()
