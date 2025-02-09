@@ -26,44 +26,6 @@
             Compile
         </FluentButton>
 
-        @if (compiled is (_, var compiledOutput))
-        {
-            @* Output tabs *@
-            @* NOTE: @key is needed - otherwise, when Items change,
-            the FluentSelect might render incorrect selected option 
-            even though SelectedOption is set correctly (probably a bug). *@
-            <FluentSelect AriaLabel="Output type" Items="AllOutputs.Select(o => o.Type)" @key="AllOutputs"
-            @bind-SelectedOption="selectedOutputType" @bind-SelectedOption:after="UpdateOutputDisplayAsync"
-            Style="min-width: 7em" />
-
-            @* Error List button *@
-            @if (compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
-            {
-                var color = compiledOutput.NumErrors > 0 ? "error" : "warning";
-                <FluentButton BackgroundColor="@($"var(--{color})")"
-                Title="Display Error List" OnClick="async () => {
-                        selectedOutputType = CompiledAssembly.DiagnosticsOutputType;
-                        await UpdateOutputDisplayAsync();
-                    }">
-                    @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
-                </FluentButton>
-            }
-
-            @* Design time / runtime toggle *@
-            @if (CurrentCompiledFile?.GetOutput(selectedOutputType!)?.DesignTimeText is not null)
-            {
-                <FluentSelect TOption="string" AriaLabel="Generation Strategy"
-                @bind-Value="generationStrategy" @bind-Value:after="UpdateOutputDisplayAsync"
-                Style="min-width: 7em">
-                    <FluentOption Value="runtime">Runtime</FluentOption>
-                    <FluentOption Value="@designTime">Design</FluentOption>
-                </FluentSelect>
-            }
-
-            @* Output loading indicator *@
-            <FluentProgressRing title="Output is loading" Visible="outputLoading" Width="1em" />
-        }
-
         <FluentSpacer />
 
         @* Settings button *@
@@ -158,8 +120,53 @@
     </div>
     ;
 
-    RenderFragment outputPanel =@<BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
-        ConstructionOptions="OutputConstructionOptions" />
+    RenderFragment outputPanel =@<div style="display: flex; flex-direction: column; height: 100%">
+        @* Output tabs *@
+        <FluentTabs @bind-ActiveTabId="selectedOutputType" @bind-ActiveTabId:after="UpdateOutputDisplayAsync">
+            @foreach (var output in AllOutputs)
+            {
+                @* NOTE: Label is shown in the overflow menu, so it needs to be set even though Header is also set. *@
+                <FluentTab Id="@output.Type" Label="@output.Label">
+                    <Header>
+                        <span>@output.Label</span>
+
+                        @* Error List badge *@
+                        @if (output.Type == CompiledAssembly.DiagnosticsOutputType &&
+                            compiled?.Output is { } compiledOutput &&
+                            compiledOutput is { NumErrors: > 0 } or { NumWarnings: > 0 })
+                        {
+                            var color = compiledOutput.NumErrors > 0 ? "error" : "warning";
+                            <FluentBadge Fill="x" BackgroundColor="@($"var(--{color})")" Color="white" Style="margin-left: 0.4em">
+                                @(compiledOutput.NumErrors > 0 ? compiledOutput.NumErrors : compiledOutput.NumWarnings)
+                            </FluentBadge>
+                        }
+                    </Header>
+                </FluentTab>
+            }
+
+            <div slot="end">
+                @* Output loading indicator *@
+                <FluentProgressRing title="Output is loading" Visible="outputLoading" Width="1em" Style="margin-right: 0.2em" />
+
+                @* Design time / runtime toggle *@
+                @if (CurrentCompiledFile?.GetOutput(selectedOutputType!)?.DesignTimeText is not null)
+                {
+                    <FluentSelect TOption="string" AriaLabel="Generation Strategy"
+                    @bind-Value="generationStrategy" @bind-Value:after="UpdateOutputDisplayAsync"
+                    Style="min-width: 7em; margin-right: 0.2em">
+                        <FluentOption Value="runtime">Runtime</FluentOption>
+                        <FluentOption Value="@designTime">Design</FluentOption>
+                    </FluentSelect>
+                }
+            </div>
+        </FluentTabs>
+
+        @* Output editor *@
+        <div style="flex-grow: 1">
+            <BlazorMonaco.Editor.StandaloneCodeEditor @ref="outputEditor" Id="output-editor"
+            ConstructionOptions="OutputConstructionOptions" />
+        </div>
+    </div>
     ;
 
     var panel1 = layout == Layout.OutputOnly ? outputPanel : inputPanel;
@@ -411,6 +418,11 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         return TabIdToIndex(inputTabIdPrefix, tabId);
     }
 
+    private static int OutputTabIdToIndex(string tabId)
+    {
+        return TabIdToIndex(outputTabIdPrefix, tabId);
+    }
+
     private static int TabIdToIndex(string prefix, string tabId)
     {
         return int.Parse(tabId.Substring(prefix.Length));
@@ -419,6 +431,11 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
     private static string IndexToInputTabId(int index)
     {
         return IndexToTabId(inputTabIdPrefix, index);
+    }
+
+    private static string IndexToOutputTabId(int index)
+    {
+        return IndexToTabId(outputTabIdPrefix, index);
     }
 
     private static string IndexToTabId(string prefix, int index)
