@@ -172,11 +172,11 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
 
                     return new CompiledFile([
                         new() { Type = "syntax", Label = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
-                        new() { Type = "ir", Label = "IR", EagerText = ir, DesignTimeText = designIr },
+                        new() { Type = "ir", Label = "IR", Language = "csharp", EagerText = ir, DesignTimeText = designIr },
                         ..(string.IsNullOrEmpty(razorDiagnostics) && string.IsNullOrEmpty(designRazorDiagnostics)
                             ? ImmutableArray<CompiledFileOutput>.Empty
                             : [new() { Type = "razorErrors", Label = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics }]),
-                        new() { Type = "cs", Label = "C#", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
+                        new() { Type = "cs", Label = "C#", Language = "csharp", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
 
@@ -204,6 +204,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     {
                         Type = "il",
                         Label = "IL",
+                        Language = "csharp",
                         LazyText = () =>
                         {
                             peFile ??= getPeFile(finalCompilation);
@@ -224,6 +225,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     {
                         Type = "cs",
                         Label = "C#",
+                        Language = "csharp",
                         LazyText = async () =>
                         {
                             peFile ??= getPeFile(finalCompilation);
@@ -273,6 +275,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 {
                     Type = CompiledAssembly.DiagnosticsOutputType,
                     Label = CompiledAssembly.DiagnosticsOutputLabel,
+                    Language = "csharp",
                     EagerText = diagnosticsText,
                     Priority = numErrors > 0 ? 2 : 0,
                 },

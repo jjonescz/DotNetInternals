@@ -639,8 +639,12 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             return;
         }
 
-        var output = await LoadOutput(selectedOutputType);
-        await outputEditor.SetModel(await BlazorMonaco.Editor.Global.CreateModel(JSRuntime, value: output, language: selectedOutputType == "C#" ? "csharp" : null));
+        var output = GetOutput(selectedOutputType);
+        var outputText = await LoadOutputText(output);
+        await outputEditor.SetModel(await BlazorMonaco.Editor.Global.CreateModel(
+            JSRuntime,
+            value: outputText,
+            language: output?.Output.Language));
     }
 
     private (CompiledFileOutput Output, string? File)? GetOutput(string type)
@@ -661,9 +665,9 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         return null;
     }
 
-    private async Task<string> LoadOutput(string type)
+    private async Task<string> LoadOutputText((CompiledFileOutput Output, string? File)? outputInfo)
     {
-        if (GetOutput(type) is not (var output, var file))
+        if (outputInfo is not (var output, var file))
         {
             return "";
         }
@@ -680,7 +684,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
         if (!outputLoading)
         {
-            return await loadAsync(compiled!.Value.Input, file: file, outputType: type);
+            return await loadAsync(compiled!.Value.Input, file: file, outputType: output.Type);
         }
 
         return "";
