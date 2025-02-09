@@ -26,8 +26,6 @@
             Compile
         </FluentButton>
 
-        <FluentSpacer />
-
         @* Settings button *@
         <FluentButton OnClick="settings.OpenModalAsync">
             Settings
@@ -38,6 +36,8 @@
                 <FluentBadge Appearance="Appearance.Accent" title="Update is available">1</FluentBadge>
             }
         </FluentButton>
+
+        <FluentSpacer />
 
         @* Layout buttons *@
         @if (layout != Layout.InputOnly)
