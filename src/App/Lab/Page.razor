@@ -39,6 +39,22 @@
 
         <FluentSpacer />
 
+        @* Orientation button *@
+        @if (orientation == Orientation.Horizontal)
+        {
+            <FluentButton OnClick="() => orientation = Orientation.Vertical"
+            Title="Display editors in a column">
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutRowTwo())" Color="Color.Neutral" />
+            </FluentButton>
+        }
+        else
+        {
+            <FluentButton OnClick="() => orientation = Orientation.Horizontal"
+            Title="Display editors in a row">
+                <FluentIcon Value="@(new Icons.Regular.Size20.LayoutColumnTwo())" Color="Color.Neutral" />
+            </FluentButton>
+        }
+
         @* Layout buttons *@
         @if (layout != Layout.InputOnly)
         {
@@ -172,7 +188,7 @@
     var panel1 = layout == Layout.OutputOnly ? outputPanel : inputPanel;
     var panel2 = layout == Layout.OutputOnly ? inputPanel : outputPanel;
 }
-<FluentSplitter Orientation="Orientation.Horizontal" Panel1Size="50%" Panel2Size="50%"
+<FluentSplitter Orientation="orientation" Panel1Size="50%" Panel2Size="50%"
 Style="flex-grow: 1; overflow: hidden"
 Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
@@ -194,6 +210,7 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
     private Settings settings = null!;
     private bool wordWrap;
     private bool useVim;
+    private Orientation orientation;
     private Layout layout;
     private const string designTime = "designTime";
 
