@@ -138,7 +138,10 @@
 
     RenderFragment outputPanel =@<div style="display: flex; flex-direction: column; height: 100%">
         @* Output tabs *@
-        <FluentTabs @bind-ActiveTabId="selectedOutputType" @bind-ActiveTabId:after="UpdateOutputDisplayAsync">
+        @* NOTE: @key is needed - otherwise, when Items change,
+        the FluentSelect might render incorrect selected option
+        even though SelectedOption is set correctly (probably a bug). *@
+        <FluentTabs @bind-ActiveTabId="selectedOutputType" @bind-ActiveTabId:after="UpdateOutputDisplayAsync" @key="AllOutputs">
             @foreach (var output in AllOutputs)
             {
                 @* NOTE: Label is shown in the overflow menu, so it needs to be set even though Header is also set. *@
