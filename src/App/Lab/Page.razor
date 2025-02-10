@@ -14,20 +14,20 @@
         <a href="/" style="line-height: 0"><img src="favicon.png" alt="Logo" title="DotNetInternals" width="24" height="24" /></a>
 
         @* Input presets (quick-start templates) *@
-        <FluentSelect AriaLabel="Presets" Items="AvailablePresets"
-        @bind-SelectedOption="SelectedPreset" @bind-SelectedOption:after="OnInputPresetChangedAsync"
-        OptionText="PresetToDisplayString" Style="min-width: 7em" />
+        <FluentMenuButton Text="Template" Items="presets" OnMenuChanged="OnInputPresetSelectedAsync"
+        ButtonStyle="margin-left: 0.5em" />
 
         <FluentSpacer />
 
         @* Compile button *@
-        <FluentButton BackgroundColor="var(--custom-dark)" Color="white" OnClick="CompileAsync" Loading="compilationInProgress"
-        Title="Compile (Ctrl+S)">
+        <FluentButton Appearance="Appearance.Accent" OnClick="CompileAsync" Loading="compilationInProgress"
+        Title="Compile (Ctrl+S)" IconStart="@(new Icons.Regular.Size20.FlashPlay())">
             Compile
         </FluentButton>
 
         @* Settings button *@
-        <FluentButton OnClick="settings.OpenModalAsync">
+        <FluentButton OnClick="settings.OpenModalAsync"
+        IconStart="@(new Icons.Regular.Size20.Settings())">
             Settings
 
             @if (settings.ShowUpdateAvailableBadge)
@@ -196,12 +196,18 @@ Style="flex-grow: 1; overflow: hidden"
 Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
 @code {
+    private static readonly Dictionary<string, string> presets = new()
+        {
+            [nameof(InputPreset.CSharp)] = "C#",
+            [nameof(InputPreset.Razor)] = "Razor",
+            [nameof(InputPreset.Cshtml)] = "CSHTML",
+        };
+
     private readonly TaskCompletionSource editorInitialized = new();
     private readonly List<Input> inputs = new();
     private DotNetObjectReference<Page>? dotNetObjectReference;
     private IJSObjectReference? module;
     private Input? configuration;
-    private InputPreset? selectedPresetRaw;
     private string activeInputTabId = IndexToInputTabId(0);
     private StandaloneCodeEditor inputEditor = null!;
     private StandaloneCodeEditor outputEditor = null!;
@@ -225,7 +231,6 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
 
     private enum InputPreset
     {
-        Custom,
         CSharp,
         Razor,
         Cshtml,
@@ -346,69 +351,13 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
         };
     }
 
-    private InputPreset SelectedPreset
+    private async Task OnInputPresetSelectedAsync(MenuChangeEventArgs args)
     {
-        get
+        var initialCode = args.Id switch
         {
-            return selectedPresetRaw ?? inputs switch
-            {
-                [{ } input] => input.FileName switch
-                {
-                    var s when matches(s, InitialCode.CSharp) => InputPreset.CSharp,
-                    var s when matches(s, InitialCode.Cshtml) => InputPreset.Cshtml,
-                    _ => InputPreset.Custom,
-                },
-                [{ } input1, { } input2]
-                    when matches(input1.FileName, InitialCode.Razor) &&
-                        matches(input2.FileName, InitialCode.RazorImports) => InputPreset.Razor,
-                _ => InputPreset.Custom,
-            };
-
-            static bool matches(string fileName, InitialCode initialCode)
-            {
-                return fileName.EndsWith(initialCode.SuggestedFileExtension, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-        set
-        {
-            selectedPresetRaw = value;
-        }
-    }
-
-    private IEnumerable<InputPreset> AvailablePresets
-    {
-        get
-        {
-            yield return InputPreset.CSharp;
-            yield return InputPreset.Razor;
-            yield return InputPreset.Cshtml;
-            if (SelectedPreset == InputPreset.Custom)
-            {
-                yield return InputPreset.Custom;
-            }
-        }
-    }
-
-    private static string PresetToDisplayString(InputPreset preset)
-    {
-        return preset switch
-        {
-            InputPreset.CSharp => "C#",
-            InputPreset.Razor => "Razor",
-            InputPreset.Cshtml => "CSHTML",
-            _ => "Custom",
-        };
-    }
-
-    private async Task OnInputPresetChangedAsync()
-    {
-        var preset = selectedPresetRaw;
-
-        var initialCode = preset switch
-        {
-            InputPreset.CSharp => InitialCode.CSharp,
-            InputPreset.Razor => InitialCode.Razor,
-            InputPreset.Cshtml => InitialCode.Cshtml,
+            nameof(InputPreset.CSharp) => InitialCode.CSharp,
+            nameof(InputPreset.Razor) => InitialCode.Razor,
+            nameof(InputPreset.Cshtml) => InitialCode.Cshtml,
             _ => null,
         };
         if (initialCode != null)
@@ -419,15 +368,13 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
             activeInputTabId = IndexToInputTabId(0);
             await AddInputAsync(initialCode);
 
-            if (preset == InputPreset.Razor)
+            if (args.Id == nameof(InputPreset.Razor))
             {
                 await AddInputAsync(InitialCode.RazorImports, selectAsCurrent: false);
             }
 
             await SaveStateToUrlAsync();
         }
-
-        selectedPresetRaw = null;
     }
 
     private const string inputTabIdPrefix = "i";
