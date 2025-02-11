@@ -22,7 +22,8 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             @* Open config file *@
             <FluentStack VerticalAlignment="VerticalAlignment.Center">
                 C# version, feature flags, and more:
-                <FluentButton OnClick="GoToConfigurationAsync" Appearance="Appearance.Lightweight">Open Configuration</FluentButton>
+                <FluentButton OnClick="GoToConfigurationAsync" Appearance="Appearance.Lightweight"
+                IconStart="@(new Icons.Regular.Size16.DocumentSettings())">Open Configuration</FluentButton>
             </FluentStack>
 
             @* Word wrap check box *@

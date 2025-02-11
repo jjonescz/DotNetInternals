@@ -103,7 +103,7 @@
                 @* NOTE: Label is shown in the overflow menu, so it needs to be set even though Header is also set. *@
                 <FluentTab Id="@IndexToInputTabId((int)SpecialInput.Configuration)" Label="Configuration">
                     <Header>
-                        <FluentIcon Value="@(new Icons.Regular.Size16.Settings())" />
+                        <FluentIcon Value="@(new Icons.Regular.Size16.DocumentSettings())" />
                         <span style="margin-left: 0.2em">Configuration</span>
                     </Header>
                 </FluentTab>
@@ -118,7 +118,10 @@
                     <FluentMenuItem Id="razor">.razor</FluentMenuItem>
                     <FluentMenuItem Id="cshtml">.cshtml</FluentMenuItem>
                     <FluentDivider />
-                    <FluentMenuItem Id="config">Configuration</FluentMenuItem>
+                    <FluentMenuItem Id="config">
+                        <FluentIcon Slot="start" Value="@(new Icons.Regular.Size16.DocumentSettings())" />
+                        Configuration
+                    </FluentMenuItem>
                 </FluentMenuButton>
             </div>
         </FluentTabs>
