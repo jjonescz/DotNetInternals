@@ -1,4 +1,4 @@
-﻿using DotNetInternals;
+﻿using DotNetLab;
 using KristofferStrube.Blazor.WebWorkers;
 using System.Runtime.Versioning;
 using System.Text.Json;

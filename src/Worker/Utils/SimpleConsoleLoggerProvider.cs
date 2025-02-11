@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 /// <summary>
 /// A simle console logger provider.

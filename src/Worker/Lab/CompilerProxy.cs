@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 internal sealed record CompilerProxyOptions
 {
@@ -22,7 +22,7 @@ internal sealed class CompilerProxy(
     CompilerLoaderServices loaderServices,
     IServiceProvider serviceProvider)
 {
-    public static readonly string CompilerAssemblyName = "DotNetInternals.Compiler";
+    public static readonly string CompilerAssemblyName = "DotNetLab.Compiler";
 
     private LoadedCompiler? loaded;
     private int iteration;

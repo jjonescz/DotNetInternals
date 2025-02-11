@@ -3,7 +3,7 @@ using ProtoBuf;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 /// <summary>
 /// Provides compiler dependencies into the <see cref="DependencyRegistry"/>.

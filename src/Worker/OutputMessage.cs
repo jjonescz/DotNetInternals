@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 [JsonDerivedType(typeof(Ready), nameof(Ready))]
 [JsonDerivedType(typeof(Empty), nameof(Empty))]

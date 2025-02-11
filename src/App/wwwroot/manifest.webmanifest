@@ -1,6 +1,6 @@
 {
-  "name": "DotNetInternals",
-  "short_name": "DotNetInternals",
+  "name": ".NET Lab",
+  "short_name": ".NET Lab",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

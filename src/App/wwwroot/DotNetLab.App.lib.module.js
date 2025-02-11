@@ -1,5 +1,5 @@
 export async function afterStarted(blazor) {
-    const exports = await blazor.runtime.getAssemblyExports('DotNetInternals.App.dll');
+    const exports = await blazor.runtime.getAssemblyExports('DotNetLab.App.dll');
 
     // Check whether service worker has an update available.
     (async () => {
@@ -13,12 +13,12 @@ export async function afterStarted(blazor) {
         }
     
         if (registration.waiting) {
-            exports.DotNetInternals.Lab.UpdateInfo.UpdateAvailable();
+            exports.DotNetLab.Lab.UpdateInfo.UpdateAvailable();
             return;
         }
     
         registration.addEventListener('updatefound', () => {
-            exports.DotNetInternals.Lab.UpdateInfo.UpdateAvailable();
+            exports.DotNetLab.Lab.UpdateInfo.UpdateAvailable();
             return;
         });
     })();

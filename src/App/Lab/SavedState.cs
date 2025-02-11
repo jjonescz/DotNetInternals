@@ -1,7 +1,7 @@
 using BlazorMonaco.Editor;
 using ProtoBuf;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 partial class Page
 {

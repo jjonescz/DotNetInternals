@@ -1,4 +1,4 @@
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 /// <summary>
 /// Decides which DLLs are loaded (e.g., the built-in Roslyn DLLs

@@ -2,7 +2,7 @@
 using BlazorMonaco.Languages;
 using Microsoft.JSInterop;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 internal sealed class LanguageServices(IJSRuntime jsRuntime, WorkerController worker)
 {

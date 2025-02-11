@@ -6,7 +6,7 @@ using NuGet.Versioning;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 public static class NuGetUtil
 {

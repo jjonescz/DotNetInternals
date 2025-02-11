@@ -1,6 +1,6 @@
 using System.Runtime.Loader;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class Executor
 {

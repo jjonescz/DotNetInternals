@@ -9,7 +9,7 @@ using Microsoft.JSInterop;
 using System.Text.Json;
 using System.Threading.Channels;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 internal sealed class WorkerController
 {
@@ -47,7 +47,7 @@ internal sealed class WorkerController
         var workerReady = new TaskCompletionSource();
         var worker = await SlimWorker.CreateAsync(
             jsRuntime,
-            assembly: "DotNetInternals.Worker",
+            assembly: "DotNetLab.Worker",
             args: [hostEnvironment.BaseAddress, DebugLogs.ToString()]);
         var listener = await EventListener<MessageEvent>.CreateAsync(jsRuntime, async e =>
         {

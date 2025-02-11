@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using System.Runtime.Loader;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public class Compiler(ILogger<Compiler> logger) : ICompiler
 {
@@ -54,7 +54,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 [
                     CSharpSyntaxTree.ParseText(configuration, parseOptions, "Configuration.cs", Encoding.UTF8),
                     CSharpSyntaxTree.ParseText("""
-                        global using DotNetInternals;
+                        global using DotNetLab;
                         global using Microsoft.CodeAnalysis.CSharp;
                         global using System;
                         """, parseOptions, "GlobalUsings.cs", Encoding.UTF8)

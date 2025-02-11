@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Completion;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 internal sealed class LanguageServices
 {

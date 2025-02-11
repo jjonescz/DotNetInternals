@@ -3,7 +3,7 @@ using Microsoft.NET.WebAssembly.Webcil;
 using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 internal static class WebcilUtil
 {

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 [SupportedOSPlatform("browser")]
 internal static partial class UpdateInfo

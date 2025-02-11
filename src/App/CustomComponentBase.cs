@@ -1,4 +1,4 @@
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public abstract class CustomComponentBase : ComponentBase
 {
