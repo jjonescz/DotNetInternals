@@ -1,6 +1,6 @@
 using Blazored.LocalStorage;
-using DotNetInternals;
-using DotNetInternals.Lab;
+using DotNetLab;
+using DotNetLab.Lab;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.FluentUI.AspNetCore.Components;
@@ -16,7 +16,7 @@ builder.Services.AddFluentUIComponents();
 builder.Services.AddScoped<WorkerController>();
 builder.Services.AddScoped<LanguageServices>();
 
-builder.Logging.AddFilter("DotNetInternals.*",
+builder.Logging.AddFilter("DotNetLab.*",
     static (logLevel) => logLevel >= Logging.LogLevel);
 
 if (builder.HostEnvironment.IsDevelopment())

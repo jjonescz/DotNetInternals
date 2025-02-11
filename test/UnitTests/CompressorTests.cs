@@ -1,6 +1,6 @@
-﻿using DotNetInternals.Lab;
+﻿using DotNetLab.Lab;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public class CompressorTests
 {

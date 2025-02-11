@@ -1,4 +1,4 @@
-# DotNetInternals
+# .NET Lab
 
 C# and Razor compiler playground in the browser via Blazor WebAssembly.
 

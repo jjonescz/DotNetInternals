@@ -1,7 +1,7 @@
 using ProtoBuf;
 using System.Runtime.Loader;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public interface ICompiler
 {

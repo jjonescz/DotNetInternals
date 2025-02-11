@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class CodeAnalysisUtil
 {

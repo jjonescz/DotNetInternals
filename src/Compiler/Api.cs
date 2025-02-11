@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class Config
 {

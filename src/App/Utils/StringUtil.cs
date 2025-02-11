@@ -1,4 +1,4 @@
-﻿namespace DotNetInternals;
+﻿namespace DotNetLab;
 
 internal static class StringUtil
 {

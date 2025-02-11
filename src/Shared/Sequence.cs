@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 /// <summary>
 /// An equatable <see cref="ImmutableArray{T}"/>.

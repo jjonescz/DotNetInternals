@@ -1,7 +1,7 @@
-using DotNetInternals.Lab;
+using DotNetLab.Lab;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public class CompilerProxyTests(ITestOutputHelper output)
 {

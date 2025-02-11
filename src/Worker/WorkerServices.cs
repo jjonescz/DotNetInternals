@@ -1,8 +1,8 @@
-﻿using DotNetInternals.Lab;
+﻿using DotNetLab.Lab;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class WorkerServices
 {
@@ -35,7 +35,7 @@ public static class WorkerServices
         {
             if (debugLogs)
             {
-                builder.AddFilter("DotNetInternals.*", LogLevel.Debug);
+                builder.AddFilter("DotNetLab.*", LogLevel.Debug);
             }
 
             builder.AddProvider(new SimpleConsoleLoggerProvider());

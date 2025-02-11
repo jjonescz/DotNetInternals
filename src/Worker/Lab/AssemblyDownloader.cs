@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 internal sealed class AssemblyDownloader
 {

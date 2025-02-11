@@ -1,10 +1,10 @@
 ﻿using BlazorMonaco;
 using BlazorMonaco.Editor;
-using DotNetInternals.Lab;
+using DotNetLab.Lab;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 [JsonDerivedType(typeof(Compile), nameof(Compile))]
 [JsonDerivedType(typeof(GetOutput), nameof(GetOutput))]

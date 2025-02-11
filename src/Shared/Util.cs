@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class Util
 {

@@ -1,4 +1,4 @@
-﻿namespace DotNetInternals;
+﻿namespace DotNetLab;
 
 /// <remarks>
 /// Keep in sync with <c>:root</c> in <c>app.css</c>.

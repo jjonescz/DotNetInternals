@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using System.Xml.Serialization;
 
-namespace DotNetInternals.Lab;
+namespace DotNetLab.Lab;
 
 internal sealed class SdkDownloader(
     HttpClient client)

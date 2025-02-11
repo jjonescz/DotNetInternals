@@ -12,7 +12,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Tags;
 using Microsoft.CodeAnalysis.Text;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class MonacoConversions
 {

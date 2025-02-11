@@ -1,4 +1,4 @@
-﻿namespace DotNetInternals.Lab;
+﻿namespace DotNetLab.Lab;
 
 internal sealed record InitialCode(string SuggestedFileName, string TextTemplate)
 {

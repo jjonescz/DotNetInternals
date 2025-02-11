@@ -1,6 +1,6 @@
 using System.Text.Encodings.Web;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 public static class NetUtil
 {

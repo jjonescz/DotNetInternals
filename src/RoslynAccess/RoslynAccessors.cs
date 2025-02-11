@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Test.Utilities;
 
-namespace DotNetInternals;
+namespace DotNetLab;
 
 file enum TriviaKind
 {
