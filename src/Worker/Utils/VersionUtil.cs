@@ -4,8 +4,9 @@ public static class VersionUtil
 {
     private static readonly Lazy<string?> _currentCommitHash = new(GetCurrentCommitHash);
 
-    public static string CurrentRepositoryOwnerAndName = "jjonescz/DotNetInternals";
-    public static string CurrentRepositoryUrl => $"https://github.com/{CurrentRepositoryOwnerAndName}";
+    public static readonly string CurrentRepositoryOwnerAndName = "jjonescz/DotNetInternals";
+    public static readonly string CurrentRepositoryUrl = $"https://github.com/{CurrentRepositoryOwnerAndName}";
+    public static readonly string CurrentRepositoryReleasesUrl = $"{CurrentRepositoryUrl}/releases";
     public static string? CurrentCommitHash => _currentCommitHash.Value;
     public static string? CurrentShortCommitHash
         => CurrentCommitHash == null ? null : GetShortCommitHash(CurrentCommitHash);

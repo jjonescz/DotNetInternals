@@ -150,10 +150,18 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             <h5 style="margin: 0.75rem 0 0 0">About</h5>
             <p style="margin: 0">
                 <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
-                commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
+                commit
+                <a href="@VersionUtil.CurrentCommitUrl" target="_blank"
+                title="@commitInfo?.Message">@VersionUtil.CurrentShortCommitHash</a>
                 @if (commitInfo != null)
                 {
-                    @(" ")<span title="@commitInfo.Commit.Message">(@commitInfo.Commit.Author.Date.ToString("MMM d, yyyy, HH:mm"))</span>
+                    @(" ")<span title="@commitInfo.Message">(@commitInfo.Date.ToString("MMM d, yyyy, HH:mm"))</span>
+                    @if (commitInfo.Version != null)
+                    {
+                        @(", ")<a title="Click to see release notes"
+                        href="@VersionUtil.CurrentRepositoryReleasesUrl"
+                        target="_blank">@commitInfo.Version</a>
+                    }
                 }
             </p>
 
@@ -226,6 +234,19 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
     }
 
+    private sealed class GitHubBranchCommitsResponse
+    {
+        public ImmutableArray<string> Tags { get; init; }
+    }
+
+    private sealed class CommitInfo
+    {
+        public required string Hash { get; init; }
+        public required DateTimeOffset Date { get; init; }
+        public required string Message { get; init; }
+        public required string? Version { get; init; }
+    }
+
     private bool modalHidden = true;
     private bool hideUpdateAvailableBadge;
     private DesignThemeModes theme;
@@ -235,7 +256,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
     private SdkInfo? sdkInfo;
     private CompilerDependencyInfo? roslynInfo, razorInfo;
-    private GitHubCommitResponse? commitInfo;
+    private CommitInfo? commitInfo;
     private string? sdkError, roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
@@ -300,6 +321,14 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         EnableWorker = await LocalStorage.ContainKeyAsync(nameof(EnableWorker))
             ? await LocalStorage.GetItemAsync<bool>(nameof(EnableWorker))
             : true;
+
+        var savedCommitInfo = await LocalStorage.ContainKeyAsync(nameof(commitInfo))
+            ? await LocalStorage.GetItemAsync<CommitInfo>(nameof(commitInfo))
+            : null;
+        if (savedCommitInfo?.Hash == VersionUtil.CurrentCommitHash)
+        {
+            commitInfo = savedCommitInfo;
+        }
 
         if (EnableLanguageServices)
         {
@@ -549,9 +578,55 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
 
     private async Task LoadCommitInfoAsync()
     {
-        commitInfo = await Client.GetFromJsonAsync<GitHubCommitResponse>(
-            $"https://api.github.com/repos/{VersionUtil.CurrentRepositoryOwnerAndName}/commits/{VersionUtil.CurrentCommitHash}");
+        var commitHash = VersionUtil.CurrentCommitHash;
+        if (commitHash is null)
+        {
+            return;
+        }
+
+        GitHubCommitResponse? response;
+        try
+        {
+            response = await Client.GetFromJsonAsync<GitHubCommitResponse>(
+                $"https://api.github.com/repos/{VersionUtil.CurrentRepositoryOwnerAndName}/commits/{commitHash}");
+            if (response is null)
+            {
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load commit info.");
+            return;
+        }
+
+        // Find version tag corresponding to the commit.
+        // Inspired by https://stackoverflow.com/a/69590375.
+        string? version = null;
+        try
+        {
+            var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://github.com/{VersionUtil.CurrentRepositoryOwnerAndName}/branch_commits/{commitHash}".WithCorsProxy());
+            request.Headers.Accept.Add(new("application/json"));
+            var tagsResponse = await Client.SendAsync(request);
+            var tagsObj = await tagsResponse.Content.ReadFromJsonAsync<GitHubBranchCommitsResponse>();
+            version = tagsObj?.Tags is [{ Length: > 0 } tag] ? tag : null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load version info.");
+        }
+
+        commitInfo = new CommitInfo
+            {
+                Hash = commitHash,
+                Date = response.Commit.Author.Date,
+                Message = response.Commit.Message,
+                Version = version,
+            };
         StateHasChanged();
+        await LocalStorage.SetItemAsync(nameof(commitInfo), commitInfo);
     }
 
     private async Task OnWordWrapChanged()
