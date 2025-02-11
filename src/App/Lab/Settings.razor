@@ -580,7 +580,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     private async Task LoadCommitInfoAsync()
     {
         var commitHash = VersionUtil.CurrentCommitHash;
-        if (commitHash is null)
+        if (commitHash is null || commitInfo?.Hash == commitHash)
         {
             return;
         }
