@@ -62,7 +62,7 @@ public class CompilerProxyTests(ITestOutputHelper output)
         var compiled = await services.GetRequiredService<CompilerProxy>()
             .CompileAsync(new(new([new() { FileName = "TestComponent.razor", Text = "test" }])));
 
-        var cSharpText = compiled.Files.Single().Value.GetOutput("C#")!.EagerText!;
+        var cSharpText = compiled.Files.Single().Value.GetOutput("cs")!.EagerText!;
         output.WriteLine(cSharpText);
         Assert.Contains("class TestComponent", cSharpText);
     }
