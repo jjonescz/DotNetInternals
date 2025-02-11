@@ -141,10 +141,10 @@
 
     RenderFragment outputPanel =@<div style="display: flex; flex-direction: column; height: 100%">
         @* Output tabs *@
-        @* NOTE: @key is needed - otherwise, when Items change,
-        the FluentSelect might render incorrect selected option
-        even though SelectedOption is set correctly (probably a bug). *@
-        <FluentTabs @bind-ActiveTabId="selectedOutputType" @bind-ActiveTabId:after="UpdateOutputDisplayAsync" @key="AllOutputs">
+        @* NOTE: @key is needed - otherwise, when AllOutputs change,
+        the FluentTabs might render incorrect selected tab
+        even though ActiveTabId is set correctly (probably a bug). *@
+        <FluentTabs @bind-ActiveTabId="selectedOutputType" @bind-ActiveTabId:after="UpdateOutputDisplayAsync" @key="AllOutputsKey">
             @foreach (var output in AllOutputs)
             {
                 @* NOTE: Label is shown in the overflow menu, so it needs to be set even though Header is also set. *@
@@ -270,6 +270,11 @@ Panel1="panel1" Panel2="panel2" Collapsed="layout != Layout.Split" />
     {
         get => (CurrentCompiledFile?.Outputs)
             .TryConcat(compiled?.Output.GlobalOutputs);
+    }
+
+    private string AllOutputsKey
+    {
+        get => AllOutputs.Select(o => o.Type).JoinToString(",");
     }
 
     protected override void OnInitialized()
