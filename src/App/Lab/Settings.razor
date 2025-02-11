@@ -4,8 +4,9 @@
 @inject ILocalStorageService LocalStorage
 @inject WorkerController Worker
 @inject LanguageServices LanguageServices
+@inject HttpClient Client
 
-<FluentDesignTheme StorageName="theme" @bind-Mode="theme" CustomColor="var(--custom-dark)"
+<FluentDesignTheme StorageName="theme" @bind-Mode="theme" CustomColor="@AppColors.CustomDark"
 OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEditorThemeAsync(e.IsDark)" />
 
 <FluentDialog @bind-Hidden="modalHidden" Modal="true" TrapFocus="true" PreventScroll="true"
@@ -21,7 +22,8 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             @* Open config file *@
             <FluentStack VerticalAlignment="VerticalAlignment.Center">
                 C# version, feature flags, and more:
-                <FluentButton OnClick="GoToConfigurationAsync" Appearance="Appearance.Lightweight">Open Configuration</FluentButton>
+                <FluentButton OnClick="GoToConfigurationAsync" Appearance="Appearance.Lightweight"
+                IconStart="@(new Icons.Regular.Size16.DocumentSettings())">Open Configuration</FluentButton>
             </FluentStack>
 
             @* Word wrap check box *@
@@ -149,7 +151,19 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             <h5 style="margin: 0.75rem 0 0 0">About</h5>
             <p style="margin: 0">
                 <a href="@VersionUtil.CurrentRepositoryUrl" target="_blank">GitHub</a>,
-                commit <a href="@VersionUtil.CurrentCommitUrl" target="_blank">@VersionUtil.CurrentShortCommitHash</a>
+                commit
+                <a href="@VersionUtil.CurrentCommitUrl" target="_blank"
+                title="@commitInfo?.Message">@VersionUtil.CurrentShortCommitHash</a>
+                @if (commitInfo != null)
+                {
+                    @(" ")<span title="@commitInfo.Message">(@commitInfo.Date.ToString("MMM d, yyyy, HH:mm"))</span>
+                    @if (commitInfo.Version != null)
+                    {
+                        @(", ")<a title="Click to see release notes"
+                        href="@VersionUtil.CurrentRepositoryReleasesUrl"
+                        target="_blank">@commitInfo.Version</a>
+                    }
+                }
             </p>
 
             @if (UpdateInfo.UpdateIsAvailable)
@@ -205,6 +219,35 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     </div>
     ;
 
+    private sealed class GitHubCommitResponse
+    {
+        public required CommitData Commit { get; init; }
+
+        public sealed class CommitData
+        {
+            public required AuthorData Author { get; init; }
+            public required string Message { get; init; }
+        }
+
+        public sealed class AuthorData
+        {
+            public required DateTimeOffset Date { get; init; }
+        }
+    }
+
+    private sealed class GitHubBranchCommitsResponse
+    {
+        public ImmutableArray<string> Tags { get; init; }
+    }
+
+    private sealed class CommitInfo
+    {
+        public required string Hash { get; init; }
+        public required DateTimeOffset Date { get; init; }
+        public required string Message { get; init; }
+        public required string? Version { get; init; }
+    }
+
     private bool modalHidden = true;
     private bool hideUpdateAvailableBadge;
     private DesignThemeModes theme;
@@ -214,6 +257,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
     private bool loadingSdkInfo, loadingRoslynInfo, loadingRazorInfo;
     private SdkInfo? sdkInfo;
     private CompilerDependencyInfo? roslynInfo, razorInfo;
+    private CommitInfo? commitInfo;
     private string? sdkError, roslynError, razorError;
 
     [Parameter] public bool WordWrap { get; set; }
@@ -279,6 +323,14 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             ? await LocalStorage.GetItemAsync<bool>(nameof(EnableWorker))
             : true;
 
+        var savedCommitInfo = await LocalStorage.ContainKeyAsync(nameof(commitInfo))
+            ? await LocalStorage.GetItemAsync<CommitInfo>(nameof(commitInfo))
+            : null;
+        if (savedCommitInfo?.Hash == VersionUtil.CurrentCommitHash)
+        {
+            commitInfo = savedCommitInfo;
+        }
+
         if (EnableLanguageServices)
         {
             await LanguageServices.RegisterAsync();
@@ -311,6 +363,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         Task sdkTask = Task.CompletedTask;
         Task roslynTask = Task.CompletedTask;
         Task razorTask = Task.CompletedTask;
+        Task commitTask = Task.CompletedTask;
 
         if (sdkInfo is null)
         {
@@ -327,7 +380,12 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
             razorTask = LoadRazorInfoAsync(saveState: false);
         }
 
-        return Task.WhenAll(sdkTask, roslynTask, razorTask);
+        if (commitInfo is null)
+        {
+            commitTask = LoadCommitInfoAsync();
+        }
+
+        return Task.WhenAll(sdkTask, roslynTask, razorTask, commitTask);
     }
 
     public void CloseModal()
@@ -414,6 +472,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         loadingSdkInfo = false;
+        await RefreshAsync();
     }
 
     private async Task UseSdkVersionAsync(string? version)
@@ -473,6 +532,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         loadingRoslynInfo = false;
+        await RefreshAsync();
     }
 
     private async Task UseRoslynVersionAsync(string? version)
@@ -507,6 +567,7 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         }
 
         loadingRazorInfo = false;
+        await RefreshAsync();
     }
 
     private async Task UseRazorVersionAsync(string? version)
@@ -514,6 +575,59 @@ OnLoaded="(e) => SetEditorThemeAsync(e.IsDark)" OnLuminanceChanged="(e) => SetEd
         razorVersion = version;
         razorConfiguration = BuildConfiguration.Release;
         await LoadRazorInfoAsync();
+    }
+
+    private async Task LoadCommitInfoAsync()
+    {
+        var commitHash = VersionUtil.CurrentCommitHash;
+        if (commitHash is null || commitInfo?.Hash == commitHash)
+        {
+            return;
+        }
+
+        GitHubCommitResponse? response;
+        try
+        {
+            response = await Client.GetFromJsonAsync<GitHubCommitResponse>(
+                $"https://api.github.com/repos/{VersionUtil.CurrentRepositoryOwnerAndName}/commits/{commitHash}");
+            if (response is null)
+            {
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load commit info.");
+            return;
+        }
+
+        // Find version tag corresponding to the commit.
+        // Inspired by https://stackoverflow.com/a/69590375.
+        string? version = null;
+        try
+        {
+            var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://github.com/{VersionUtil.CurrentRepositoryOwnerAndName}/branch_commits/{commitHash}".WithCorsProxy());
+            request.Headers.Accept.Add(new("application/json"));
+            var tagsResponse = await Client.SendAsync(request);
+            var tagsObj = await tagsResponse.Content.ReadFromJsonAsync<GitHubBranchCommitsResponse>();
+            version = tagsObj?.Tags is [{ Length: > 0 } tag] ? tag : null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load version info.");
+        }
+
+        commitInfo = new CommitInfo
+            {
+                Hash = commitHash,
+                Date = response.Commit.Author.Date,
+                Message = response.Commit.Message,
+                Version = version,
+            };
+        StateHasChanged();
+        await LocalStorage.SetItemAsync(nameof(commitInfo), commitInfo);
     }
 
     private async Task OnWordWrapChanged()

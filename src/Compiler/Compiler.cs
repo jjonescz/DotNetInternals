@@ -171,12 +171,12 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     allRazorDiagnostics.AddRange(razorDiagnosticsOriginal.Select(RazorUtil.ToDiagnostic));
 
                     return new CompiledFile([
-                        new() { Type = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
-                        new() { Type = "IR", EagerText = ir, DesignTimeText = designIr },
+                        new() { Type = "syntax", Label = "Syntax", EagerText = syntax, DesignTimeText = designSyntax },
+                        new() { Type = "ir", Label = "IR", Language = "csharp", EagerText = ir, DesignTimeText = designIr },
                         ..(string.IsNullOrEmpty(razorDiagnostics) && string.IsNullOrEmpty(designRazorDiagnostics)
                             ? ImmutableArray<CompiledFileOutput>.Empty
-                            : [new() { Type = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics }]),
-                        new() { Type = "C#", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
+                            : [new() { Type = "razorErrors", Label = "Razor Error List", EagerText = razorDiagnostics, DesignTimeText = designRazorDiagnostics }]),
+                        new() { Type = "cs", Label = "C#", Language = "csharp", EagerText = cSharp, DesignTimeText = designCSharp, Priority = 1 },
                     ]);
                 });
 
@@ -184,7 +184,7 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             [
                 ..compiledRazorFiles.Values.Select((file) =>
                 {
-                    var cSharpText = file.GetOutput("C#")!.EagerText!;
+                    var cSharpText = file.GetOutput("cs")!.EagerText!;
                     return CSharpSyntaxTree.ParseText(cSharpText, parseOptions, encoding: Encoding.UTF8);
                 }),
                 ..cSharp.Values,
@@ -198,11 +198,13 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
             cSharp.Select((pair) => new KeyValuePair<string, CompiledFile>(
                 pair.Key,
                 new([
-                    new() { Type = "Syntax", EagerText = pair.Value.GetRoot().Dump() },
-                    new() { Type = "Syntax + Trivia", EagerText = pair.Value.GetRoot().DumpExtended() },
+                    new() { Type = "syntax", Label = "Syntax", EagerText = pair.Value.GetRoot().Dump() },
+                    new() { Type = "syntaxTrivia", Label = "Syntax + Trivia", EagerText = pair.Value.GetRoot().DumpExtended() },
                     new()
                     {
-                        Type = "IL",
+                        Type = "il",
+                        Label = "IL",
+                        Language = "csharp",
                         LazyText = () =>
                         {
                             peFile ??= getPeFile(finalCompilation);
@@ -211,7 +213,8 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     },
                     new()
                     {
-                        Type = "Sequence points",
+                        Type = "seq",
+                        Label = "Sequence points",
                         LazyText = async () =>
                         {
                             peFile ??= getPeFile(finalCompilation);
@@ -220,7 +223,9 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     },
                     new()
                     {
-                        Type = "C#",
+                        Type = "cs",
+                        Label = "C#",
+                        Language = "csharp",
                         LazyText = async () =>
                         {
                             peFile ??= getPeFile(finalCompilation);
@@ -229,7 +234,8 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                     },
                     new()
                     {
-                        Type = "Run",
+                        Type = "run",
+                        Label = "Run",
                         LazyText = () =>
                         {
                             var executableCompilation = finalCompilation.Options.OutputKind == OutputKind.ConsoleApplication
@@ -268,6 +274,8 @@ public class Compiler(ILogger<Compiler> logger) : ICompiler
                 new()
                 {
                     Type = CompiledAssembly.DiagnosticsOutputType,
+                    Label = CompiledAssembly.DiagnosticsOutputLabel,
+                    Language = "csharp",
                     EagerText = diagnosticsText,
                     Priority = numErrors > 0 ? 2 : 0,
                 },

@@ -61,7 +61,8 @@ public sealed record CompiledAssembly(
     ImmutableArray<DiagnosticData> Diagnostics,
     string BaseDirectory)
 {
-    public static readonly string DiagnosticsOutputType = "Error List";
+    public static readonly string DiagnosticsOutputType = "errors";
+    public static readonly string DiagnosticsOutputLabel = "Error List";
 
     public static CompiledAssembly Fail(string output)
     {
@@ -69,7 +70,15 @@ public sealed record CompiledAssembly(
             BaseDirectory: "/",
             Files: ImmutableDictionary<string, CompiledFile>.Empty,
             Diagnostics: [],
-            GlobalOutputs: [new() { Type = DiagnosticsOutputType, EagerText = output }],
+            GlobalOutputs:
+            [
+                new()
+                {
+                    Type = DiagnosticsOutputType,
+                    Label = DiagnosticsOutputLabel,
+                    EagerText = output,
+                },
+            ],
             NumErrors: 1,
             NumWarnings: 0);
     }
@@ -105,7 +114,9 @@ public sealed class CompiledFileOutput
     private object? text;
 
     public required string Type { get; init; }
+    public required string Label { get; init; }
     public int Priority { get; init; }
+    public string? Language { get; init; }
     public string? DesignTimeText { get; init; }
 
     public string? EagerText

@@ -2,7 +2,7 @@ using System.Text.Encodings.Web;
 
 namespace DotNetInternals;
 
-internal static class NetUtil
+public static class NetUtil
 {
     public static Uri WithCorsProxy(this Uri uri)
     {

@@ -23,7 +23,7 @@ partial class Page
 
         // Load inputs.
         inputs.Clear();
-        currentInputIndex = 0;
+        activeInputTabId = IndexToInputTabId(0);
         TextModel? firstModel = null;
         foreach (var (index, input) in savedState.Inputs.Index())
         {
@@ -83,8 +83,9 @@ partial class Page
 
         async Task<ImmutableArray<InputCode>> getInputsAsync()
         {
-            var builder = ImmutableArray.CreateBuilder<InputCode>(inputs.Count);
-            foreach (var (fileName, model) in inputs)
+            var inputsSnapshot = inputs.ToArray(); // to avoid modifications during enumeration
+            var builder = ImmutableArray.CreateBuilder<InputCode>(inputsSnapshot.Length);
+            foreach (var (fileName, model) in inputsSnapshot)
             {
                 var text = await getInputAsync(model);
                 builder.Add(new() { FileName = fileName, Text = text });
